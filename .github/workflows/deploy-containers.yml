@@ -1,0 +1,73 @@
+name: Deploy Container Lambda Functions
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'terraform/containers/**'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 849837241005.dkr.ecr.us-east-1.amazonaws.com
+
+jobs:
+  deploy-containers:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build and push C# container
+      run: |
+        cd terraform/containers/csharp
+        docker build -t codecapsule-csharp:latest .
+        docker tag codecapsule-csharp:latest $ECR_REGISTRY/codecapsule-csharp-lambda:latest
+        docker push $ECR_REGISTRY/codecapsule-csharp-lambda:latest
+
+    - name: Build and push Go container
+      run: |
+        cd terraform/containers/go
+        docker build -t codecapsule-go:latest .
+        docker tag codecapsule-go:latest $ECR_REGISTRY/codecapsule-go-lambda:latest
+        docker push $ECR_REGISTRY/codecapsule-go-lambda:latest
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.6.0
+
+    - name: Terraform Init
+      run: |
+        cd terraform
+        terraform init
+
+    - name: Terraform Apply
+      run: |
+        cd terraform
+        terraform apply -auto-approve
+
+    - name: Test C# endpoint
+      run: |
+        sleep 30  # Wait for deployment to complete
+        curl -X POST https://q0qr0uqja7.execute-api.us-east-1.amazonaws.com/dev/execute/csharp \
+          -H 'Content-Type: application/json' \
+          -d '{"code":"using System; class Program { static void Main() { Console.WriteLine(\"Hello from C# via GitHub Actions!\"); } }"}'
+
+    - name: Test Go endpoint
+      run: |
+        curl -X POST https://q0qr0uqja7.execute-api.us-east-1.amazonaws.com/dev/execute/go \
+          -H 'Content-Type: application/json' \
+          -d '{"code":"package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"Hello from Go via GitHub Actions!\") }"}'

@@ -1,0 +1,274 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // Optional for Supabase connection pooling
+}
+
+// ===== CORE ENTITIES =====
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  avatar    String?
+  tier      UserTier @default(FREE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Auth (Supabase)
+  authId String @unique // Supabase user ID
+
+  // Relationships
+  capsules        Capsule[]
+  analytics       UserAnalytics[]
+  creatorFeedback CreatorFeedback[]
+  subscriptions   Subscription[]
+
+  @@map("users")
+}
+
+enum UserTier {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+// ===== CAPSULE SYSTEM =====
+
+model Capsule {
+  id          String      @id @default(cuid())
+  title       String
+  description String
+  type        CapsuleType
+  language    String?
+  difficulty  Difficulty
+  tags        String[]
+
+  // Universal Capsule Data (JSON)
+  content          Json // AdaptiveContent
+  runtime          Json // RuntimeConfiguration
+  pedagogy         Json // Pedagogy framework
+  business         Json // Business metrics
+
+  // Legacy compatibility
+  legacyData Json?
+
+  // Metadata
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  creator   User   @relation(fields: [creatorId], references: [id])
+  creatorId String
+
+  executions      CapsuleExecution[]
+  analytics       CapsuleAnalytics[]
+  creatorFeedback CreatorFeedback[]
+
+  @@map("capsules")
+}
+
+enum CapsuleType {
+  CODE
+  QUIZ
+  TERMINAL
+  DATABASE
+  SYSTEM_DESIGN
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+// ===== EXECUTION ENGINE =====
+
+model CapsuleExecution {
+  id        String            @id @default(cuid())
+  status    ExecutionStatus
+  runtime   RuntimeTarget
+  startedAt DateTime          @default(now())
+  endedAt   DateTime?
+  
+  // Execution context
+  code      String?
+  input     Json?
+  output    Json?
+  errors    String[]
+  
+  // Performance metrics
+  executionTime Int? // milliseconds
+  memoryUsage   Int? // bytes
+  
+  // Relationships
+  capsule   Capsule @relation(fields: [capsuleId], references: [id])
+  capsuleId String
+  
+  // Optional user tracking
+  userId String?
+
+  @@map("capsule_executions")
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  TIMEOUT
+}
+
+enum RuntimeTarget {
+  WASM
+  DOCKER
+  CLOUD_RUN
+}
+
+// ===== ANALYTICS & LEARNING =====
+
+model UserAnalytics {
+  id     String @id @default(cuid())
+  userId String
+  date   DateTime @default(now())
+  
+  // Learning metrics
+  capsulesCompleted    Int @default(0)
+  totalExecutionTime   Int @default(0) // minutes
+  averageScore         Float?
+  conceptsMastered     String[]
+  weakAreas           String[]
+  
+  // Engagement metrics
+  sessionDuration     Int @default(0) // minutes
+  hintsUsed          Int @default(0)
+  attemptsAverage    Float @default(0)
+  
+  user User @relation(fields: [userId], references: [id])
+  
+  @@unique([userId, date])
+  @@map("user_analytics")
+}
+
+model CapsuleAnalytics {
+  id        String @id @default(cuid())
+  capsuleId String
+  date      DateTime @default(now())
+  
+  // Performance metrics
+  totalAttempts     Int @default(0)
+  successRate       Float @default(0)
+  averageTime       Int @default(0) // seconds
+  popularityScore   Float @default(0)
+  
+  // Learning insights
+  commonErrors      Json? // Array of error patterns
+  hintsEffectiveness Json? // Hint usage analytics
+  userFeedback      Json? // Aggregated feedback
+  
+  capsule Capsule @relation(fields: [capsuleId], references: [id])
+  
+  @@unique([capsuleId, date])
+  @@map("capsule_analytics")
+}
+
+// ===== CREATOR FEEDBACK & AI TRAINING =====
+
+model CreatorFeedback {
+  id        String   @id @default(cuid())
+  type      FeedbackType
+  
+  // Original AI generation
+  originalPrompt    String
+  aiGeneratedContent Json
+  
+  // Human edits
+  humanEditedContent Json
+  editSummary       String?
+  qualityScore      Float? // 0-1 rating
+  
+  // Training data
+  isApprovedForTraining Boolean @default(false)
+  editCategories       String[] // ["clarity", "accuracy", "pedagogy"]
+  
+  createdAt DateTime @default(now())
+  
+  // Relationships
+  creator   User    @relation(fields: [creatorId], references: [id])
+  creatorId String
+  capsule   Capsule @relation(fields: [capsuleId], references: [id])
+  capsuleId String
+
+  @@map("creator_feedback")
+}
+
+enum FeedbackType {
+  CODE_GENERATION
+  HINT_GENERATION
+  TEST_CASE_GENERATION
+  EXPLANATION_GENERATION
+}
+
+// ===== BUSINESS & SUBSCRIPTIONS =====
+
+model Subscription {
+  id     String           @id @default(cuid())
+  userId String
+  tier   UserTier
+  status SubscriptionStatus
+  
+  // Stripe integration
+  stripeSubscriptionId String? @unique
+  stripeCustomerId     String?
+  stripePriceId        String?
+  
+  // Usage tracking
+  monthlyExecutions    Int @default(0)
+  monthlyGenerations   Int @default(0)
+  
+  // Dates
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  createdAt         DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id])
+  
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  UNPAID
+}
+
+// ===== SYSTEM HEALTH =====
+
+model SystemMetrics {
+  id   String   @id @default(cuid())
+  date DateTime @default(now())
+  
+  // Performance metrics
+  totalExecutions     Int
+  averageLatency      Float // milliseconds
+  errorRate          Float // percentage
+  
+  // Cost metrics
+  wasmExecutionCost   Float
+  dockerExecutionCost Float
+  aiGenerationCost    Float
+  
+  // Usage metrics
+  activeUsers        Int
+  newSignups        Int
+  capsuleCreations  Int
+  
+  @@unique([date])
+  @@map("system_metrics")
+}

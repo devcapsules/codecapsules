@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "plugins": [{ "name": "next" }],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@codecapsule/core": ["../../packages/core/src"],
+      "@codecapsule/core/*": ["../../packages/core/src/*"],
+      "@codecapsule/ui": ["../../packages/ui/src"],
+      "@codecapsule/ui/*": ["../../packages/ui/src/*"],
+      "@codecapsule/database": ["../../packages/database/src"],
+      "@codecapsule/database/*": ["../../packages/database/src/*"],
+      "@codecapsule/integrations": ["../../packages/integrations/src"],
+      "@codecapsule/integrations/*": ["../../packages/integrations/src/*"],
+      "@codecapsule/utils": ["../../packages/utils/src"],
+      "@codecapsule/utils/*": ["../../packages/utils/src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}

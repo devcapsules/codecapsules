@@ -1,0 +1,25 @@
+#!/usr/bin/env node
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+require("source-map-support/register");
+const cdk = require("aws-cdk-lib");
+const codecapsule_stack_simple_1 = require("../lib/codecapsule-stack-simple");
+const app = new cdk.App();
+// Get environment configuration
+const env = {
+    account: process.env.CDK_DEFAULT_ACCOUNT,
+    region: process.env.CDK_DEFAULT_REGION || 'us-east-1',
+};
+const stackName = 'CodeCapsuleServerlessStack';
+new codecapsule_stack_simple_1.CodeCapsuleStack(app, stackName, {
+    env,
+    description: 'CodeCapsule Serverless Execution Engine - Lambda Functions and API Gateway',
+    tags: {
+        Project: 'CodeCapsule',
+        Environment: process.env.STAGE || 'dev',
+        Owner: 'CodeCapsuleTeam',
+        Purpose: 'ServerlessCodeExecution'
+    }
+});
+app.synth();
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY29kZWNhcHN1bGUuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJjb2RlY2Fwc3VsZS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFDQSx1Q0FBcUM7QUFDckMsbUNBQW1DO0FBQ25DLDhFQUFtRTtBQUVuRSxNQUFNLEdBQUcsR0FBRyxJQUFJLEdBQUcsQ0FBQyxHQUFHLEVBQUUsQ0FBQztBQUUxQixnQ0FBZ0M7QUFDaEMsTUFBTSxHQUFHLEdBQUc7SUFDVixPQUFPLEVBQUUsT0FBTyxDQUFDLEdBQUcsQ0FBQyxtQkFBbUI7SUFDeEMsTUFBTSxFQUFFLE9BQU8sQ0FBQyxHQUFHLENBQUMsa0JBQWtCLElBQUksV0FBVztDQUN0RCxDQUFDO0FBRUYsTUFBTSxTQUFTLEdBQUcsNEJBQTRCLENBQUM7QUFFL0MsSUFBSSwyQ0FBZ0IsQ0FBQyxHQUFHLEVBQUUsU0FBUyxFQUFFO0lBQ25DLEdBQUc7SUFDSCxXQUFXLEVBQUUsNEVBQTRFO0lBQ3pGLElBQUksRUFBRTtRQUNKLE9BQU8sRUFBRSxhQUFhO1FBQ3RCLFdBQVcsRUFBRSxPQUFPLENBQUMsR0FBRyxDQUFDLEtBQUssSUFBSSxLQUFLO1FBQ3ZDLEtBQUssRUFBRSxpQkFBaUI7UUFDeEIsT0FBTyxFQUFFLHlCQUF5QjtLQUNuQztDQUNGLENBQUMsQ0FBQztBQUVILEdBQUcsQ0FBQyxLQUFLLEVBQUUsQ0FBQyIsInNvdXJjZXNDb250ZW50IjpbIiMhL3Vzci9iaW4vZW52IG5vZGVcclxuaW1wb3J0ICdzb3VyY2UtbWFwLXN1cHBvcnQvcmVnaXN0ZXInO1xyXG5pbXBvcnQgKiBhcyBjZGsgZnJvbSAnYXdzLWNkay1saWInO1xyXG5pbXBvcnQgeyBDb2RlQ2Fwc3VsZVN0YWNrIH0gZnJvbSAnLi4vbGliL2NvZGVjYXBzdWxlLXN0YWNrLXNpbXBsZSc7XHJcblxyXG5jb25zdCBhcHAgPSBuZXcgY2RrLkFwcCgpO1xyXG5cclxuLy8gR2V0IGVudmlyb25tZW50IGNvbmZpZ3VyYXRpb25cclxuY29uc3QgZW52ID0ge1xyXG4gIGFjY291bnQ6IHByb2Nlc3MuZW52LkNES19ERUZBVUxUX0FDQ09VTlQsXHJcbiAgcmVnaW9uOiBwcm9jZXNzLmVudi5DREtfREVGQVVMVF9SRUdJT04gfHwgJ3VzLWVhc3QtMScsXHJcbn07XHJcblxyXG5jb25zdCBzdGFja05hbWUgPSAnQ29kZUNhcHN1bGVTZXJ2ZXJsZXNzU3RhY2snO1xyXG5cclxubmV3IENvZGVDYXBzdWxlU3RhY2soYXBwLCBzdGFja05hbWUsIHtcclxuICBlbnYsXHJcbiAgZGVzY3JpcHRpb246ICdDb2RlQ2Fwc3VsZSBTZXJ2ZXJsZXNzIEV4ZWN1dGlvbiBFbmdpbmUgLSBMYW1iZGEgRnVuY3Rpb25zIGFuZCBBUEkgR2F0ZXdheScsXHJcbiAgdGFnczoge1xyXG4gICAgUHJvamVjdDogJ0NvZGVDYXBzdWxlJyxcclxuICAgIEVudmlyb25tZW50OiBwcm9jZXNzLmVudi5TVEFHRSB8fCAnZGV2JyxcclxuICAgIE93bmVyOiAnQ29kZUNhcHN1bGVUZWFtJyxcclxuICAgIFB1cnBvc2U6ICdTZXJ2ZXJsZXNzQ29kZUV4ZWN1dGlvbidcclxuICB9XHJcbn0pO1xyXG5cclxuYXBwLnN5bnRoKCk7Il19

@@ -1,0 +1,26 @@
+{
+  "name": "@codecapsule/integrations",
+  "version": "0.1.0",
+  "description": "External service integrations for CodeCapsule",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "lint": "eslint \"src/**/*.ts\"",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@codecapsule/core": "*",
+    "@codecapsule/utils": "*",
+    "openai": "^4.14.0",
+    "stripe": "^13.11.0"
+  },
+  "devDependencies": {
+    "tsup": "^7.2.0",
+    "typescript": "^5.2.2",
+    "eslint": "^8.50.0"
+  }
+}

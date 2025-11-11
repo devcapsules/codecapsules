@@ -1,0 +1,35 @@
+# Dockerfile for C# Judge Lambda Function
+FROM public.ecr.aws/lambda/dotnet:8
+
+# Install additional tools if needed
+RUN yum update -y && yum clean all
+
+# Set working directory
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+# Copy C# project files
+COPY csharp-judge.cs ${LAMBDA_TASK_ROOT}/Function.cs
+COPY csharp-judge.csproj ${LAMBDA_TASK_ROOT}/ 2>/dev/null || echo '<Project Sdk="Microsoft.NET.Sdk">\
+  <PropertyGroup>\
+    <TargetFramework>net8.0</TargetFramework>\
+    <AWSProjectType>Lambda</AWSProjectType>\
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>\
+    <AssemblyName>CSharpJudge</AssemblyName>\
+    <RootNamespace>CSharpJudge</RootNamespace>\
+  </PropertyGroup>\
+  <ItemGroup>\
+    <PackageReference Include="Amazon.Lambda.Core" Version="2.2.0" />\
+    <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" Version="2.4.0" />\
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.7.0" />\
+  </ItemGroup>\
+</Project>' > ${LAMBDA_TASK_ROOT}/csharp-judge.csproj
+
+# Restore dependencies and build
+RUN dotnet restore
+RUN dotnet build --configuration Release --output /tmp/build
+
+# Copy built assemblies
+RUN cp -r /tmp/build/* ${LAMBDA_TASK_ROOT}/
+
+# Lambda function handler
+CMD ["CSharpJudge::CSharpJudge.Function::FunctionHandler"]

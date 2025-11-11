@@ -1,0 +1,12 @@
+{
+  "name": "codecapsule-javascript-judge",
+  "version": "1.0.0",
+  "description": "CodeCapsule JavaScript execution Lambda function",
+  "main": "index.js",
+  "dependencies": {
+    "vm2": "^3.9.19"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

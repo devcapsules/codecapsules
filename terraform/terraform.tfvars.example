@@ -1,0 +1,62 @@
+# Terraform Configuration for Production Environment
+# This file contains environment-specific variables for production deployment
+
+# ===== CORE CONFIGURATION =====
+aws_region   = "us-east-1"
+environment  = "prod"
+project_name = "codecapsule"
+
+# ===== LAMBDA CONFIGURATION =====
+lambda_timeout     = 30
+lambda_memory_size = 512
+python_runtime     = "python3.11"
+nodejs_runtime     = "nodejs18.x"
+
+# ===== MONITORING CONFIGURATION =====
+log_retention_days      = 30  # Longer retention for production
+enable_xray_tracing     = true
+enable_detailed_monitoring = true
+
+# ===== API GATEWAY CONFIGURATION =====
+api_gateway_stage_name = "prod"
+enable_api_caching     = true
+api_cache_ttl_seconds  = 300
+
+# ===== SECURITY CONFIGURATION =====
+enable_api_key           = false  # Set to true if you want API key authentication
+api_throttle_rate_limit  = 1000
+api_throttle_burst_limit = 2000
+
+# ===== CORS CONFIGURATION =====
+cors_allow_origins = ["*"]  # Restrict this in production if needed
+cors_allow_methods = ["GET", "POST", "OPTIONS"]
+cors_allow_headers = [
+  "Content-Type",
+  "X-Amz-Date", 
+  "Authorization",
+  "X-Api-Key",
+  "X-Amz-Security-Token"
+]
+
+# ===== DEPLOYMENT CONFIGURATION =====
+force_destroy_resources   = false
+enable_deletion_protection = true
+
+# ===== ADDITIONAL TAGS =====
+additional_tags = {
+  Owner       = "CodeCapsule-Team"
+  CostCenter  = "Engineering"
+  Backup      = "Daily"
+  Monitoring  = "Critical"
+}
+
+# ===== SENSITIVE VARIABLES =====
+# Note: These should be provided via environment variables or terraform.tfvars
+# DO NOT commit actual values to version control
+
+# supabase_url = "https://your-project.supabase.co"
+# supabase_service_key = "your-service-key-here"
+# db_host = "your-db-host.supabase.co"
+# db_user = "readonly_user"
+# db_password = "your-secure-password"
+# alarm_email_endpoint = "alerts@yourcompany.com"

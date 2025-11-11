@@ -1,0 +1,190 @@
+/**
+ * AI Service - Centralized Azure OpenAI Integration
+ * 
+ * Provides a unified interface for all content generators to access
+ * Azure OpenAI GPT-4o with proper error handling, retry logic,
+ * and response parsing.
+ */
+
+export interface AIMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface AIResponse {
+  content: string;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+}
+
+export interface AIServiceConfig {
+  apiKey: string;
+  endpoint: string;
+  deployment: string;
+  apiVersion: string;
+  maxTokens?: number;
+  temperature?: number;
+  retries?: number;
+}
+
+export class AIService {
+  private config: AIServiceConfig;
+  
+  constructor(config: AIServiceConfig) {
+    this.config = {
+      maxTokens: 2000,
+      temperature: 0.7,
+      retries: 3,
+      ...config
+    };
+  }
+
+  /**
+   * Generate content using Azure OpenAI GPT-4o
+   */
+  async generateContent(messages: AIMessage[], options?: {
+    maxTokens?: number;
+    temperature?: number;
+    responseFormat?: 'text' | 'json';
+  }): Promise<AIResponse> {
+    const requestOptions = {
+      maxTokens: options?.maxTokens || this.config.maxTokens,
+      temperature: options?.temperature || this.config.temperature
+    };
+
+    for (let attempt = 1; attempt <= (this.config.retries || 3); attempt++) {
+      try {
+        const response = await this.makeAPICall(messages, requestOptions);
+        return this.parseResponse(response, options?.responseFormat);
+      } catch (error) {
+        console.error(`AI generation attempt ${attempt} failed:`, error);
+        
+        if (attempt === this.config.retries) {
+          throw new Error(`AI generation failed after ${this.config.retries} attempts: ${error}`);
+        }
+        
+        // Exponential backoff
+        await this.delay(Math.pow(2, attempt) * 1000);
+      }
+    }
+    
+    throw new Error('AI generation failed');
+  }
+
+  /**
+   * Generate structured JSON content
+   */
+  async generateJSON<T = any>(messages: AIMessage[], schema?: any): Promise<T> {
+    // Add JSON formatting instruction to system message
+    const enhancedMessages = [...messages];
+    if (enhancedMessages[0]?.role === 'system') {
+      enhancedMessages[0].content += '\n\nIMPORTANT: Respond with valid JSON only. No additional text or formatting.';
+    }
+
+    const response = await this.generateContent(enhancedMessages, {
+      responseFormat: 'json',
+      temperature: 0.3 // Lower temperature for more consistent JSON
+    });
+
+    try {
+      return JSON.parse(response.content);
+    } catch (error) {
+      console.error('Failed to parse JSON response:', response.content);
+      throw new Error(`Invalid JSON response from AI: ${error}`);
+    }
+  }
+
+  /**
+   * Generate content with streaming (for future real-time updates)
+   */
+  async *generateContentStream(messages: AIMessage[]): AsyncGenerator<string> {
+    // For now, yield the complete response
+    // TODO: Implement actual streaming when Azure OpenAI supports it
+    const response = await this.generateContent(messages);
+    yield response.content;
+  }
+
+  private async makeAPICall(messages: AIMessage[], options: any): Promise<any> {
+    const url = `${this.config.endpoint}/openai/deployments/${this.config.deployment}/chat/completions?api-version=${this.config.apiVersion}`;
+    
+    const body = {
+      messages: messages.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      })),
+      max_tokens: options.maxTokens,
+      temperature: options.temperature,
+      top_p: 0.95,
+      frequency_penalty: 0,
+      presence_penalty: 0
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': this.config.apiKey
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Azure OpenAI API error (${response.status}): ${errorText}`);
+    }
+
+    return await response.json();
+  }
+
+  private parseResponse(apiResponse: any, format?: 'text' | 'json'): AIResponse {
+    const choice = apiResponse.choices?.[0];
+    if (!choice) {
+      throw new Error('No response from AI');
+    }
+
+    const content = choice.message?.content || '';
+    const usage = apiResponse.usage ? {
+      promptTokens: apiResponse.usage.prompt_tokens,
+      completionTokens: apiResponse.usage.completion_tokens,
+      totalTokens: apiResponse.usage.total_tokens
+    } : undefined;
+
+    return { content, usage };
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}
+
+/**
+ * Factory function to create AI service instance
+ */
+export function createAIService(): AIService {
+  const config: AIServiceConfig = {
+    apiKey: process.env.AZURE_OPENAI_API_KEY || '',
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT || '',
+    deployment: process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o',
+    apiVersion: process.env.AZURE_OPENAI_API_VERSION || '2024-08-01-preview'
+  };
+
+  if (!config.apiKey || !config.endpoint) {
+    throw new Error('Azure OpenAI configuration missing. Please set AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT environment variables.');
+  }
+
+  return new AIService(config);
+}
+
+/**
+ * Safe factory function that doesn't throw on missing config
+ */
+export function tryCreateAIService(): AIService | null {
+  try {
+    return createAIService();
+  } catch (error) {
+    return null;
+  }
+}
