@@ -1,4 +1,4 @@
-# CodeCapsule
+# Devcapsules
 
 AI-powered platform for creating and embedding interactive coding experiences.
 
