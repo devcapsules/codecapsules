@@ -145,7 +145,7 @@ runcmd:
   - echo "[CodeCapsule] ✓ Docker installed and running"
 
   # ── 2. Clone CodeCapsule repo and start Bridge + Piston via Docker Compose ──
-  - git clone --depth 1 https://github.com/YOUR_ORG/codecapsule.git /opt/devcapsules-repo
+  - git clone --depth 1 https://github.com/devcapsules/codecapsules.git /opt/devcapsules-repo
   - mkdir -p /opt/devcapsules-bridge
   - cp /opt/devcapsules-repo/infra/bridge/docker-compose.yml /opt/devcapsules-bridge/
   - |
