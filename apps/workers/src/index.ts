@@ -208,6 +208,10 @@ app.route('/api/v1', api);
 // ══════════════════════════════════════════════════════════════════════════════
 
 app.all('/api/*', (c) => {
+  // Only redirect paths that don't already have /v1/ to prevent infinite loops
+  if (c.req.path.startsWith('/api/v1/')) {
+    return c.json({ success: false, error: 'Not Found', path: c.req.path }, 404);
+  }
   const newPath = c.req.path.replace('/api/', '/api/v1/');
   return c.redirect(newPath, 301);
 });

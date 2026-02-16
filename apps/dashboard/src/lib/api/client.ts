@@ -488,7 +488,7 @@ class DevcapsulesAPIClient {
    * Poll generation job status
    */
   async getJobStatus(jobId: string): Promise<GenerationJob> {
-    return this.makeRequest(`/api/generate/${jobId}`)
+    return this.makeRequest(`/api/generate/${jobId}/status`)
   }
 
   /**

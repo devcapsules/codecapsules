@@ -80,7 +80,7 @@ bucket_name = "devcapsules-assets"
 ENVIRONMENT = "development"
 API_VERSION = "v1"
 LOG_LEVEL = "info"
-CORS_ORIGINS = "http://localhost:3000,http://localhost:3001"
+CORS_ORIGINS = "http://localhost:3000,http://localhost:3001,https://devcapsules.com,https://www.devcapsules.com,https://dashboard.devcapsules.com,https://codecapsule-dashboard.pages.dev"
 
 # ══════════════════════════════════════════════════════════════════════════════
 # AZURE TUNNEL — Cloudflare Tunnel → Azure VMSS

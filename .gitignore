@@ -99,6 +99,7 @@ Thumbs.db
 *.tfstate.*
 .terraform/
 .terraform.lock.hcl
+terraform.tfvars
 
 # Docker
 .dockerignore

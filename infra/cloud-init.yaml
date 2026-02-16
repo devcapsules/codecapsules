@@ -1,19 +1,19 @@
 #cloud-config
-# ═══════════════════════════════════════════════════════════════════════════════
-# CodeCapsule — Azure VM Cloud-Init
+# =============================================================================
+# CodeCapsule - Azure VM Cloud-Init
 #
 # Bootstraps each VMSS instance with:
 #   1. Docker Engine (with compose plugin)
 #   2. Bridge API + Piston stack via Docker Compose
-#      - bridge-api:3000 — Express server (AI pipeline + Piston proxy)
-#      - piston:2000     — Code execution engine (Docker-internal only)
+  #   - bridge-api:3000 - Express server (AI pipeline + Piston proxy)
+  #   - piston:2000     - Code execution engine (Docker-internal only)
 #   3. Language runtimes: Python, JavaScript/Node, Java, C, C++ (via gcc)
-#   4. cloudflared tunnel daemon → routes to bridge-api:3000
+#   4. cloudflared tunnel daemon -> routes to bridge-api:3000
 #
 # Placeholders replaced by the deploy script:
 #   __TUNNEL_ID__,  __ACCOUNT_TAG__,  __TUNNEL_SECRET__,  __TUNNEL_HOSTNAME__
 #   __WORKER_SHARED_SECRET__, __AZURE_OPENAI_API_KEY__, __AZURE_OPENAI_ENDPOINT__
-# ═══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 package_update: true
 package_upgrade: true
@@ -28,7 +28,7 @@ packages:
   - git
 
 write_files:
-  # ── Piston language runtime installer (calls through bridge-api proxy) ─────
+  # -- Piston language runtime installer (calls through bridge-api proxy) -----
   - path: /opt/codecapsule/install-piston-packages.sh
     permissions: "0755"
     content: |
@@ -52,7 +52,7 @@ write_files:
         sleep 2
       done
 
-      # Languages to install — format: "package_name:version"
+      # Languages to install - format: "package_name:version"
       # These map to Piston package identifiers
       # Note: gcc provides c, c++, d, and fortran runtimes
       LANGS=(
@@ -68,16 +68,16 @@ write_files:
         curl -sf -X POST "${BRIDGE_API}/api/v2/packages" \
           -H "Content-Type: application/json" \
           -d "{\"language\":\"${lang}\",\"version\":\"${ver}\"}" \
-          | jq -r '"  → \(.language) \(.version) — \(.status // "installed")"' \
-          || echo "  → WARNING: Failed to install ${lang} (may need manual install)"
+          | jq -r '"  -> \(.language) \(.version) - \(.status // "installed")"' \
+          || echo "  -> WARNING: Failed to install ${lang} (may need manual install)"
       done
 
       echo ""
-      echo "[CodeCapsule] ✓ Installed runtimes:"
+      echo "[CodeCapsule] Installed runtimes:"
       curl -sf "${BRIDGE_API}/api/v2/runtimes" \
         | jq -r '.[] | "  \(.language) \(.version) (aliases: \(.aliases | join(", ")))"'
 
-  # ── Health check script (used by Azure LB probes if needed) ─────────────────
+  # -- Health check script (used by Azure LB probes if needed) -----------------
   - path: /opt/codecapsule/healthcheck.sh
     permissions: "0755"
     content: |
@@ -135,16 +135,16 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
-  - echo "[CodeCapsule] ═══ VM Bootstrap Starting ═══"
+  - 'echo "[CodeCapsule] === VM Bootstrap Starting ==="'
 
-  # ── 1. Install Docker Engine via official script ────────────────────────────
+  # -- 1. Install Docker Engine via official script ----------------------------
   - curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
   - sh /tmp/get-docker.sh
   - systemctl enable docker
   - systemctl start docker
-  - echo "[CodeCapsule] ✓ Docker installed and running"
+  - 'echo "[CodeCapsule] Docker installed and running"'
 
-  # ── 2. Clone CodeCapsule repo and start Bridge + Piston via Docker Compose ──
+  # -- 2. Clone CodeCapsule repo and start Bridge + Piston via Docker Compose --
   - git clone --depth 1 https://github.com/devcapsules/codecapsules.git /opt/devcapsules-repo
   - mkdir -p /opt/devcapsules-bridge
   - cp /opt/devcapsules-repo/infra/bridge/docker-compose.yml /opt/devcapsules-bridge/
@@ -162,29 +162,29 @@ runcmd:
   - |
     cd /opt/devcapsules-bridge
     docker compose up -d --build
-  - echo "[CodeCapsule] ✓ Bridge API + Piston containers started"
+  - 'echo "[CodeCapsule] Bridge API + Piston containers started"'
 
-  # ── 3. Install language runtimes ────────────────────────────────────────────
+  # -- 3. Install language runtimes ----------------------------------------
   - /opt/codecapsule/install-piston-packages.sh
-  - echo "[CodeCapsule] ✓ Language runtimes installed"
+  - 'echo "[CodeCapsule] Language runtimes installed"'
 
-  # ── 4. Install cloudflared ──────────────────────────────────────────────────
+  # -- 4. Install cloudflared -----------------------------------------------
   - curl -L --output /tmp/cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
   - dpkg -i /tmp/cloudflared.deb
-  - echo "[CodeCapsule] ✓ cloudflared installed"
+  - 'echo "[CodeCapsule] cloudflared installed"'
 
-  # ── 5. Start cloudflared tunnel service (config-file mode, HTTP/2) ────────
+  # -- 5. Start cloudflared tunnel service (config-file mode, HTTP/2) --------
   # Config and credentials were written via write_files above
   - mkdir -p /root/.cloudflared /etc/cloudflared
   - systemctl daemon-reload
   - systemctl enable cloudflared
   - systemctl start cloudflared
-  - echo "[CodeCapsule] ✓ cloudflared tunnel connected"
+  - 'echo "[CodeCapsule] cloudflared tunnel connected"'
 
-  # ── 6. Setup health check cron ──────────────────────────────────────────────
+  # -- 6. Setup health check cron --------------------------------------------
   - echo "*/5 * * * * root /opt/codecapsule/healthcheck.sh >> /var/log/codecapsule-health.log 2>&1" > /etc/cron.d/codecapsule-health
 
-  - echo "[CodeCapsule] ═══ VM Bootstrap Complete ═══"
-  - echo "[CodeCapsule] Bridge API: http://localhost:3000"
-  - echo "[CodeCapsule] Piston: http://piston:2000 (Docker-internal only)"
-  - echo "[CodeCapsule] cloudflared: connected to Cloudflare Tunnel → :3000"
+  - 'echo "[CodeCapsule] === VM Bootstrap Complete ==="'
+  - 'echo "[CodeCapsule] Bridge API -> http://localhost:3000"'
+  - 'echo "[CodeCapsule] Piston -> http://piston:2000 (Docker-internal only)"'
+  - 'echo "[CodeCapsule] cloudflared -> connected to Cloudflare Tunnel on :3000"'
