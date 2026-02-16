@@ -503,7 +503,7 @@ class DevcapsulesAPIClient {
       timeout?: number
     }
   ): Promise<GenerateAndExecuteResult> {
-    const pollInterval = options?.pollInterval || 2000 // 2 seconds
+    const pollInterval = options?.pollInterval || 3000 // 3 seconds (avoid rate limits)
     const timeout = options?.timeout || 300000 // 5 minutes max
     
     // Start the job

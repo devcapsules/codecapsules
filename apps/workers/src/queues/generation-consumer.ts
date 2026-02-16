@@ -97,8 +97,43 @@ export async function processGenerationQueue(
   batch: MessageBatch<GenerationJob>,
   env: Env
 ): Promise<void> {
+  console.log(JSON.stringify({
+    type: 'log',
+    level: 'info',
+    action: 'queue.batch_received',
+    messageCount: batch.messages.length,
+    timestamp: new Date().toISOString(),
+  }));
+
   // Create tunnel client once per batch (routes through Cloudflare Tunnel → Azure VMs)
-  const tunnel = createTunnelClient(env, 'generation-consumer', 55_000);
+  let tunnel: ReturnType<typeof createTunnelClient>;
+  try {
+    tunnel = createTunnelClient(env, 'generation-consumer', 55_000);
+  } catch (err) {
+    // If tunnel client creation fails, mark all jobs as failed and ack
+    console.error(JSON.stringify({
+      type: 'alert',
+      level: 'error',
+      action: 'queue.tunnel_client_failed',
+      error: err instanceof Error ? err.message : String(err),
+      envKeys: {
+        hasTunnelUrl: !!env.TUNNEL_URL,
+        hasSharedSecret: !!env.WORKER_SHARED_SECRET,
+      },
+    }));
+
+    for (const message of batch.messages) {
+      const job = message.body;
+      await updateProgress(env, job.jobId, {
+        status: 'failed',
+        progress: 0,
+        currentStep: 'Configuration error — unable to connect to AI pipeline',
+        error: 'Internal configuration error. Please contact support.',
+      });
+      message.ack();
+    }
+    return;
+  }
 
   for (const message of batch.messages) {
     const job = message.body;

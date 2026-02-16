@@ -41,7 +41,11 @@ interface UseCodeGenerationActions {
   clearErrors: () => void
 }
 
-export type UseCodeGenerationReturn = UseCodeGenerationState & UseCodeGenerationActions
+export type UseCodeGenerationReturn = UseCodeGenerationState & UseCodeGenerationActions & {
+  progress: number
+  currentStep: string
+  steps: string[]
+}
 
 export function useCodeGeneration(): UseCodeGenerationReturn {
   const { client } = useApiClient()
@@ -60,6 +64,11 @@ export function useCodeGeneration(): UseCodeGenerationReturn {
   const [isCombinedProcessing, setIsCombinedProcessing] = useState(false)
   const [combinedResult, setCombinedResult] = useState<GenerateAndExecuteResult | null>(null)
   const [combinedError, setCombinedError] = useState<string | null>(null)
+
+  // Progress tracking for polling
+  const [progress, setProgress] = useState(0)
+  const [currentStep, setCurrentStep] = useState('')
+  const [steps, setSteps] = useState<string[]>([])
 
   const generateCode = useCallback(async (request: GenerationRequest): Promise<GenerationResult | null> => {
     setIsGenerating(true)
@@ -118,6 +127,9 @@ export function useCodeGeneration(): UseCodeGenerationReturn {
   const generateAndExecute = useCallback(async (request: GenerateAndExecuteRequest): Promise<GenerateAndExecuteResult | null> => {
     setIsCombinedProcessing(true)
     setCombinedError(null)
+    setProgress(0)
+    setCurrentStep('Starting generation...')
+    setSteps([])
     
     // Clear previous results
     setGenerationResult(null)
@@ -127,7 +139,14 @@ export function useCodeGeneration(): UseCodeGenerationReturn {
     
     try {
       console.log('🔄 Generate + Execute workflow:', request)
-      const result = await client.generateAndExecute(request)
+      const result = await client.generateCapsule(request, {
+        onProgress: (job) => {
+          setProgress(job.progress || 0)
+          setCurrentStep(job.currentStep || '')
+          if (job.steps) setSteps(job.steps)
+        },
+        pollInterval: 3000,
+      })
       
       if (result.success) {
         setCombinedResult(result)
@@ -175,6 +194,9 @@ export function useCodeGeneration(): UseCodeGenerationReturn {
     isCombinedProcessing,
     combinedResult,
     combinedError,
+    progress,
+    currentStep,
+    steps,
     
     // Actions
     generateCode,

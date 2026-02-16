@@ -71,7 +71,8 @@ function getRateLimiter(env: Env, plan: Plan): RateLimit | null {
 
 /** Determine quota type from path. Returns null for non-quota routes. */
 function getQuotaTypeFromPath(path: string): QuotaType | null {
-  if (path.includes('/generate')) return 'generation';
+  // Status polling should NOT count against generation quota
+  if (path.includes('/generate') && !path.includes('/status')) return 'generation';
   if (path.includes('/execute')) return 'execution';
   return null;
 }
@@ -82,6 +83,12 @@ export const rateLimiter = createMiddleware<{
   Bindings: Env;
   Variables: { auth: Auth | null; requestId: string; quotaKey?: string };
 }>(async (c, next) => {
+  // Skip rate limiting for status polling (read-only, high-frequency)
+  if (c.req.method === 'GET' && c.req.path.includes('/status')) {
+    await next();
+    return;
+  }
+
   const auth = c.get('auth');
   const plan: Plan = auth?.plan || 'free';
 
