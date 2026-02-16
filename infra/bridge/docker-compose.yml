@@ -33,11 +33,11 @@ services:
     networks:
       - devcapsules_net
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:2000/api/v2/runtimes"]
-      interval: 30s
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:2000/api/v2/runtimes',r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))\""]
+      interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 30s
+      retries: 5
+      start_period: 15s
 
   # ── 2. Bridge API — Internal Route Handler + Piston Proxy ──────────────────
   bridge-api:
