@@ -37,7 +37,7 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
   const [mode, setMode] = useState<'prompt' | 'template'>('prompt');
   const [localError, setLocalError] = useState<string>('');
   
-  const { generateAndExecute, isCombinedProcessing, combinedError: generationError, clearErrors, progress, currentStep, steps } = useCodeGeneration();
+  const { generateAndExecute, isCombinedProcessing, combinedError: generationError, clearErrors, currentStep } = useCodeGeneration();
   const { isConnected } = useAPI();
 
   console.log('🔍 Modal Debug - isCombinedProcessing:', isCombinedProcessing, 'isConnected:', isConnected);
@@ -154,54 +154,6 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
 
           <div className="p-6 space-y-6">
 
-            {/* Generation Progress Overlay */}
-            {isCombinedProcessing && (
-              <div className="bg-slate-900/95 rounded-xl border border-slate-700/50 p-8 text-center space-y-6">
-                {/* Animated Spinner */}
-                <div className="flex justify-center">
-                  <div className="relative">
-                    <div className="w-16 h-16 border-4 border-slate-700 rounded-full" />
-                    <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-blue-500 rounded-full animate-spin" />
-                    <div className="absolute inset-2 w-12 h-12 border-4 border-transparent border-t-purple-500 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
-                  </div>
-                </div>
-
-                {/* Step Text */}
-                <div>
-                  <p className="text-white font-semibold text-lg">
-                    {currentStep || 'Starting generation...'}
-                  </p>
-                  <p className="text-slate-400 text-sm mt-1">This usually takes 30-60 seconds</p>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-700 ease-out"
-                    style={{ width: `${Math.max(progress, 5)}%` }}
-                  />
-                </div>
-
-                {/* Step Indicators */}
-                {steps && steps.length > 0 && (
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {steps.map((step: string, i: number) => (
-                      <span
-                        key={i}
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          step.includes('✓')
-                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                            : 'bg-blue-500/20 text-blue-400 border border-blue-500/30 animate-pulse'
-                        }`}
-                      >
-                        {step}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* The "Magic" Input Area */}
             <div className="relative group">
               <div className={`absolute -inset-0.5 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 opacity-20 group-focus-within:opacity-100 transition duration-500 blur-sm`}></div>
@@ -307,7 +259,7 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
               {isCombinedProcessing ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                  <span>Generating...</span>
+                  <span className="truncate max-w-[280px]">{currentStep || 'Starting generation...'}</span>
                 </>
               ) : (
                 <>
