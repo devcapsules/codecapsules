@@ -461,14 +461,219 @@ class DevcapsulesAPIClient {
   }
 
   /**
-   * Publish a capsule (make it public)
+   * Publish a capsule (make it public) by updating is_published flag
    */
   async publishCapsule(id: string): Promise<Capsule> {
-    const response = await this.makeRequest<{ success: boolean; capsule: Capsule }>(
-      `/api/capsules/${id}/publish`,
-      { method: 'POST' }
+    const response = await this.makeRequest<{ success: boolean; data: { id: string } }>(
+      `/api/capsules/${id}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ isPublished: true }),
+      }
     )
-    return response.capsule
+    return { id: response.data.id } as Capsule
+  }
+
+  /**
+   * Validate capsule by running reference solution against test cases
+   * Uses the execute-tests endpoint to verify all test cases pass
+   */
+  async validateCapsule(
+    capsule: any,
+    testCases?: any[]
+  ): Promise<{
+    success: boolean
+    validation?: {
+      allTestsPassed: boolean
+      passedCount: number
+      totalCount: number
+      results?: any[]
+    }
+    readyToPublish?: boolean
+    error?: string
+  }> {
+    try {
+      const language = (capsule.language || 'python').toLowerCase()
+      const isSQL = language === 'sql'
+
+      // Get the reference solution
+      const referenceSolution = isSQL
+        ? capsule.content?.primary?.database?.solution
+        : capsule.content?.primary?.code?.wasmVersion?.solution
+
+      if (!referenceSolution) {
+        return { success: false, error: 'No reference solution found to validate', readyToPublish: false }
+      }
+
+      // Get test cases
+      let cases = testCases?.length
+        ? testCases
+        : isSQL
+          ? capsule.content?.primary?.database?.testCases
+          : capsule.content?.primary?.code?.wasmVersion?.testCases
+
+      if (!cases || cases.length === 0) {
+        // No test cases — skip validation and allow publish
+        console.log('⚠️ No test cases found, skipping validation')
+        return {
+          success: true,
+          validation: { allTestsPassed: true, passedCount: 0, totalCount: 0 },
+          readyToPublish: true,
+        }
+      }
+
+      // Transform editor display format → backend format if needed
+      // Editor format: { id, name, input: "nums = [2,7], target = 9", expected: "[0,1]" }
+      // Backend format: { input_args: [[2,7], 9], expected_output: [0,1], description: "..." }
+      cases = cases.map((tc: any) => {
+        // Already in backend format
+        if (tc.input_args !== undefined) return tc
+
+        // Try to parse editor display format into backend format
+        try {
+          // Parse input string like "nums = [2,7,11,15], target = 9" into args
+          const inputStr = tc.input || ''
+          const args: unknown[] = []
+          
+          // Try splitting by comma-separated assignments
+          const assignments = inputStr.split(/,\s*(?=[a-zA-Z_])/)
+          for (const assignment of assignments) {
+            const match = assignment.match(/\w+\s*=\s*(.+)/)
+            if (match) {
+              try {
+                args.push(JSON.parse(match[1].trim()))
+              } catch {
+                args.push(match[1].trim())
+              }
+            }
+          }
+
+          // Parse expected output
+          let expected: unknown = tc.expected || tc.expected_output
+          if (typeof expected === 'string') {
+            try {
+              expected = JSON.parse(expected)
+            } catch {
+              // Keep as string
+            }
+          }
+
+          return {
+            input_args: args.length > 0 ? args : [inputStr],
+            expected_output: expected,
+            description: tc.name || tc.description || `Test ${tc.id || ''}`,
+          }
+        } catch {
+          // Fallback: pass raw values
+          return {
+            input_args: [tc.input],
+            expected_output: tc.expected,
+            description: tc.name || tc.description || 'Test',
+          }
+        }
+      })
+
+      // Extract function name from reference solution
+      const fnMatch = referenceSolution.match(/def\s+(\w+)/) ||
+                       referenceSolution.match(/function\s+(\w+)/) ||
+                       referenceSolution.match(/const\s+(\w+)\s*=/)
+      const functionName = fnMatch?.[1] || 'solution'
+
+      console.log('🧪 Validating with execute-tests:', { language, functionName, testCount: cases.length })
+
+      // Call execute/tests endpoint
+      const result = await this.makeRequest<{
+        success: boolean
+        summary: {
+          totalTests: number
+          passedTests: number
+          failedTests: number
+          successRate: number
+          allPassed: boolean
+        }
+        results: any[]
+      }>('/api/execute/tests', {
+        method: 'POST',
+        body: JSON.stringify({
+          userCode: referenceSolution,
+          testCases: cases,
+          language,
+          functionName,
+        }),
+      })
+
+      return {
+        success: true,
+        validation: {
+          allTestsPassed: result.summary.allPassed,
+          passedCount: result.summary.passedTests,
+          totalCount: result.summary.totalTests,
+          results: result.results,
+        },
+        readyToPublish: result.summary.allPassed,
+      }
+    } catch (error) {
+      console.error('❌ Validation failed:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Validation request failed',
+        readyToPublish: false,
+      }
+    }
+  }
+
+  /**
+   * Save capsule (create in DB) and optionally publish it
+   * This is the combined flow: POST /capsules then optionally PUT with isPublished
+   */
+  async saveCapsuleAndPublish(
+    capsule: any,
+    options?: { publish?: boolean }
+  ): Promise<{
+    success: boolean
+    capsule?: { id: string; title: string; isPublished: boolean; createdAt: string }
+    message?: string
+    error?: string
+  }> {
+    try {
+      // Step 1: Create the capsule
+      const createResult = await this.makeRequest<{
+        success: boolean
+        data: { id: string; title: string }
+      }>('/api/capsules', {
+        method: 'POST',
+        body: JSON.stringify(capsule),
+      })
+
+      const capsuleId = createResult.data.id
+      console.log('✅ Capsule created:', capsuleId)
+
+      // Step 2: If publish requested, update the is_published flag
+      if (options?.publish) {
+        await this.makeRequest(`/api/capsules/${capsuleId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ isPublished: true }),
+        })
+        console.log('✅ Capsule published:', capsuleId)
+      }
+
+      return {
+        success: true,
+        capsule: {
+          id: capsuleId,
+          title: createResult.data.title,
+          isPublished: !!options?.publish,
+          createdAt: new Date().toISOString(),
+        },
+        message: options?.publish ? 'Capsule saved and published!' : 'Capsule saved as draft!',
+      }
+    } catch (error) {
+      console.error('❌ Save failed:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to save capsule',
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -634,7 +839,7 @@ class DevcapsulesAPIClient {
       failed: number
     }
   }> {
-    return this.makeRequest('/api/execute-tests', {
+    return this.makeRequest('/api/execute/tests', {
       method: 'POST',
       body: JSON.stringify({ code, language, testCases }),
     })
@@ -703,6 +908,8 @@ export const useApiClient = () => {
     updateCapsule: apiClient.updateCapsule.bind(apiClient),
     deleteCapsule: apiClient.deleteCapsule.bind(apiClient),
     publishCapsule: apiClient.publishCapsule.bind(apiClient),
+    validateCapsule: apiClient.validateCapsule.bind(apiClient),
+    saveCapsuleAndPublish: apiClient.saveCapsuleAndPublish.bind(apiClient),
     
     // Generation
     generateCapsule: apiClient.generateCapsule.bind(apiClient),

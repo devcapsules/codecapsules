@@ -1,10 +1,11 @@
 /**
  * Publish Capsule Hook
  * 
- * Hook for validating and publishing capsules to the database using the correct API endpoints.
- * This replaces the old save functionality with the proper workflow:
- * 1. Validate capsule (test cases)
- * 2. Publish to database
+ * Hook for validating and publishing capsules to the database.
+ * Workflow:
+ * 1. Validate — run reference solution against test cases via /execute-tests
+ * 2. Save — create capsule via POST /capsules
+ * 3. Publish — set is_published via PUT /capsules/:id
  */
 
 import { useState, useCallback } from 'react'
@@ -61,7 +62,7 @@ export function usePublishCapsule(): UsePublishCapsuleReturn {
   const [publishResult, setPublishResult] = useState<PublishResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Validate capsule (test cases)
+  // Validate capsule — runs reference solution against test cases via execute-tests
   const validateCapsule = useCallback(async (capsule: any, testCases?: any[]): Promise<ValidationResult | null> => {
     setIsValidating(true)
     setError(null)
@@ -69,17 +70,19 @@ export function usePublishCapsule(): UsePublishCapsuleReturn {
     try {
       console.log('🧪 Validating capsule:', capsule.title)
       
-      // Extract test cases from capsule if not provided
-      const casesToTest = testCases || capsule.content?.primary?.code?.wasmVersion?.testCases || []
+      const result = await client.validateCapsule(capsule, testCases)
       
-      const result = await client.validateCapsule(capsule, casesToTest)
+      setValidationResult(result)
       
-      if (result.success) {
-        setValidationResult(result)
-        console.log('✅ Validation successful:', result.validation)
+      if (result.success && result.readyToPublish) {
+        console.log('✅ Validation passed:', result.validation)
+      } else if (result.success && !result.readyToPublish) {
+        const msg = `Validation failed: ${result.validation?.passedCount}/${result.validation?.totalCount} tests passed`
+        setError(msg)
+        console.warn('⚠️', msg)
       } else {
         setError(result.error || 'Validation failed')
-        console.error('❌ Validation failed:', result.error)
+        console.error('❌ Validation error:', result.error)
       }
       
       return result
@@ -93,46 +96,50 @@ export function usePublishCapsule(): UsePublishCapsuleReturn {
     }
   }, [client])
 
-  // Publish capsule to database
+  // Save/Publish capsule — creates in DB and optionally publishes
   const publishCapsule = useCallback(async (capsule: any, options?: { publish?: boolean }): Promise<PublishResult | null> => {
     setIsPublishing(true)
     setError(null)
     
     try {
-      console.log('🚀 Publishing capsule:', capsule.title)
+      console.log('🚀 Saving capsule:', capsule.title)
       
-      const result = await client.publishCapsule(capsule, options)
+      const result = await client.saveCapsuleAndPublish(capsule, options)
       
       if (result.success) {
         setPublishResult(result)
-        console.log('✅ Publish successful:', result.message)
+        console.log('✅ Save successful:', result.message)
       } else {
-        setError(result.error || 'Publish failed')
-        console.error('❌ Publish failed:', result.error)
+        setError(result.error || 'Save failed')
+        console.error('❌ Save failed:', result.error)
       }
       
       return result
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Publish request failed'
+      const errorMessage = error instanceof Error ? error.message : 'Save request failed'
       setError(errorMessage)
-      console.error('❌ Publish request failed:', error)
+      console.error('❌ Save request failed:', error)
       return null
     } finally {
       setIsPublishing(false)
     }
   }, [client])
 
-  // Combined validate and publish workflow
+  // Combined validate → save → publish workflow
   const validateAndPublish = useCallback(async (capsule: any, testCases?: any[]): Promise<PublishResult | null> => {
     // Step 1: Validate
+    console.log('🔄 Step 1: Validating capsule...')
     const validation = await validateCapsule(capsule, testCases)
     
     if (!validation?.success || !validation?.readyToPublish) {
-      setError('Capsule validation failed. Cannot publish.')
+      const msg = validation?.error || 
+        `Validation failed: ${validation?.validation?.passedCount || 0}/${validation?.validation?.totalCount || 0} tests passed. Fix the solution or test cases and try again.`
+      setError(msg)
       return null
     }
     
-    // Step 2: Publish
+    // Step 2: Save and Publish
+    console.log('🔄 Step 2: Saving and publishing capsule...')
     return await publishCapsule(capsule, { publish: true })
   }, [validateCapsule, publishCapsule])
 
