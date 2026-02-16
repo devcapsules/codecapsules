@@ -336,6 +336,18 @@ async function runSingleTest(
 }
 
 /**
+ * UTF-8 safe base64 encode (btoa only handles Latin1)
+ */
+function utf8ToBase64(str: string): string {
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
+
+/**
  * Generate test harness code
  */
 function generateTestHarness(
@@ -344,8 +356,8 @@ function generateTestHarness(
   functionName: string,
   testCase: { input_args: unknown[]; expected_output: unknown }
 ): string {
-  // Base64 encode test data (Layer 1 defense)
-  const testDataB64 = btoa(JSON.stringify({
+  // Base64 encode test data (UTF-8 safe)
+  const testDataB64 = utf8ToBase64(JSON.stringify({
     input_args: testCase.input_args,
     expected_output: testCase.expected_output,
   }));

@@ -576,6 +576,8 @@ export default function CapsuleEditor() {
           solutionStub: isSQL ? (database.starterQuery || capsuleJson.starterCode) : (capsuleJson.starterCode || capsuleJson.code || '// Your code here'),
           referenceSolution: isSQL ? (database.solution || capsuleJson.solution) : (capsuleJson.solution || capsuleJson.starterCode || '// Solution not available'),
           testCases: transformedTestCases,
+          // Preserve raw test cases from AI pipeline for validation (input_args/expected_output format)
+          _rawTestCases: rawTestCases || [],
           language: capsuleJson.language || 'javascript',
           difficulty: capsuleJson.difficulty || 'medium',
           executionOutput: capsuleJson.executionOutput || '',
@@ -991,6 +993,20 @@ export default function CapsuleEditor() {
       const language = (capsuleData as any).language || 'javascript';
       const isSQL = language.toLowerCase() === 'sql';
       
+      // Use raw test cases from pipeline (input_args/expected_output format) for validation
+      // Fall back to display-format test cases if raw ones aren't available
+      const rawTestCases = (capsuleData as any)._rawTestCases || [];
+      const hasRawTestCases = rawTestCases.length > 0 && rawTestCases[0]?.input_args !== undefined;
+      const validationTestCases = hasRawTestCases ? rawTestCases : capsuleData.testCases || [];
+      
+      console.log('🔍 Test cases for validation:', {
+        hasRawTestCases,
+        rawCount: rawTestCases.length,
+        displayCount: capsuleData.testCases?.length || 0,
+        sampleRaw: rawTestCases[0],
+        usingRaw: hasRawTestCases
+      });
+      
       // Transform capsule data to API format
       const capsuleData_ = {
         title: capsuleData.title,
@@ -1007,7 +1023,7 @@ export default function CapsuleEditor() {
               seedData: (capsuleData as any).seed_data || [],
               starterQuery: capsuleData.solutionStub || 'SELECT * FROM users;',
               solution: capsuleData.referenceSolution || capsuleData.solutionStub,
-              testCases: capsuleData.testCases || [],
+              testCases: validationTestCases,
               schema_setup: (capsuleData as any).schema_setup || [],
               test_data_setup: (capsuleData as any).test_data_setup || [],
               expected_result: (capsuleData as any).expected_result || null
@@ -1017,7 +1033,7 @@ export default function CapsuleEditor() {
               wasmVersion: {
                 solution: capsuleData.referenceSolution || capsuleData.solutionStub,
                 starterCode: capsuleData.solutionStub,
-                testCases: capsuleData.testCases
+                testCases: validationTestCases
               }
             },
             problemStatement: capsuleData.problemStatement
@@ -1034,11 +1050,9 @@ export default function CapsuleEditor() {
       
       console.log('🔄 Validating and publishing capsule:', capsuleData.title, '| Type:', isSQL ? 'SQL' : 'CODE');
       
-      // Extract test cases for validation
-      const testCasesForValidation = capsuleData.testCases || [];
-      console.log('📋 Passing test cases to validation:', testCasesForValidation.length, 'test cases');
+      console.log('📋 Passing test cases to validation:', validationTestCases.length, 'test cases');
       
-      const result = await validateAndPublish(capsuleData_, testCasesForValidation);
+      const result = await validateAndPublish(capsuleData_, validationTestCases);
       
       if (result?.success) {
         alert(`🎉 Capsule validated and published successfully! ID: ${result.capsule?.id}`);
