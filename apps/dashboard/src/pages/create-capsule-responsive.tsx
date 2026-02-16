@@ -320,7 +320,7 @@ export default function CreateCapsulePage() {
             >
               <Bars3Icon className="h-6 w-6" />
             </button>
-            <h1 className="text-lg font-semibold text-white">CodeCapsule</h1>
+            <h1 className="text-lg font-semibold text-white">Devcapsules</h1>
           </div>
           <div className="flex items-center space-x-2">
             {generationState.generatedContent && (

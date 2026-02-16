@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Link from 'next/link';
 
 export function FAQSection() {
   const [openFAQ, setOpenFAQ] = useState<number | null>(null);
@@ -68,9 +69,9 @@ export function FAQSection() {
             Still have questions? We're here to help.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-6 py-3 rounded-lg font-semibold text-sm transition-all transform hover:scale-105">
+            <Link href="/signup" className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-6 py-3 rounded-lg font-semibold text-sm transition-all transform hover:scale-105">
               Start Free Trial
-            </button>
+            </Link>
             <button className="border border-gray-600 hover:border-gray-500 px-6 py-3 rounded-lg font-semibold text-sm transition-all hover:bg-gray-800/50">
               Schedule a Demo
             </button>

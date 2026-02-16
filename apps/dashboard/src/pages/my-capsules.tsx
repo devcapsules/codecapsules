@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/router';
-import { useEffect } from 'react';
+import { Trash2, Edit, Play, Clock, Code, Database, Terminal, MoreVertical } from 'lucide-react';
 
 export default function MyCapsules() {
   const { user, loading } = useAuth();

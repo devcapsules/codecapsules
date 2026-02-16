@@ -20,7 +20,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@codecapsule/core": "*",
+    "@devcapsules/core": "*",
     "clsx": "^2.0.0",
     "lucide-react": "^0.292.0"
   },

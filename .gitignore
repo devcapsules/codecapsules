@@ -5,8 +5,10 @@ node_modules/
 
 # Production builds
 .next/
+out/
 dist/
 build/
+.serverless/
 
 # Environment files
 .env
@@ -14,6 +16,11 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Secrets & keys
+*.pem
+*.key
+*.p12
 
 # Logs
 npm-debug.log*

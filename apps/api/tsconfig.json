@@ -1,10 +1,28 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["es6", "dom"],
+    "module": "commonjs",
+    "moduleResolution": "node",
     "outDir": "./dist",
     "rootDir": "../../",
-    "incremental": false
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "noEmit": false,
+    "declaration": false,
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "noImplicitAny": false,
+    "jsx": "react",
+    "baseUrl": "../../",
+    "paths": {
+      "@codecapsule/database": ["./packages/database/src"],
+      "@codecapsule/database/*": ["./packages/database/src/*"],
+      "@codecapsule/core": ["./packages/core/src"],
+      "@codecapsule/core/*": ["./packages/core/src/*"]
+    }
   },
-  "include": ["src/**/*", "../../packages/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*", "../../packages/core/**/*", "../../packages/database/**/*", "../../packages/runtime/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts", "../../packages/ui/**/*", "../../packages/database/scripts/**/*"]
 }

@@ -38,8 +38,8 @@ export class BackendAIService implements IAIService {
       }));
 
       const response = await createChatCompletion(openAIMessages, {
-        temperature: options?.temperature || 0.7,
-        max_tokens: options?.maxTokens || 2000,
+        temperature: options?.temperature ?? 0.5, // Slightly lower default
+        max_tokens: options?.maxTokens || 1500, // Reduced from 2000
         response_format: options?.responseFormat === 'json' ? { type: 'json_object' } : undefined
       });
 
@@ -57,7 +57,11 @@ export class BackendAIService implements IAIService {
     }
   }
 
-  async generateJSON<T = any>(messages: AIMessage[], schema?: any): Promise<T> {
+  async generateJSON<T = any>(messages: AIMessage[], options?: any): Promise<T> {
+    // Extract options for JSON generation
+    const maxTokens = options?.max_tokens || options?.maxTokens || 1500; // Reduced from 2000
+    const temperature = options?.temperature ?? 0.2; // Lower for more consistent output
+    
     // Add JSON formatting instruction to system message
     const enhancedMessages = [...messages];
     if (enhancedMessages[0]?.role === 'system') {
@@ -66,7 +70,8 @@ export class BackendAIService implements IAIService {
 
     const response = await this.generateContent(enhancedMessages, {
       responseFormat: 'json',
-      temperature: 0.3 // Lower temperature for more consistent JSON
+      temperature: temperature,
+      maxTokens: maxTokens
     });
 
     try {

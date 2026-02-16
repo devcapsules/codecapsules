@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 
 export function ValuePropsSection() {
   const [isVisible, setIsVisible] = useState(false);
@@ -110,12 +111,12 @@ export function ValuePropsSection() {
         {/* Bottom CTA with animation */}
         <div className={`text-center mt-12 transition-all duration-1000 delay-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <p className="text-gray-400 mb-6">
-            Join 10,000+ creators already making their content interactive
+            Ready to make your technical content interactive?
           </p>
-          <button className="group bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg shadow-blue-500/25 hover:shadow-2xl hover:shadow-blue-500/40 relative overflow-hidden">
-            <span className="relative z-10">Get Started Free</span>
+          <Link href="/signup" className="group inline-block bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg shadow-blue-500/25 hover:shadow-2xl hover:shadow-blue-500/40 relative overflow-hidden">
+            <span className="relative z-10">Join Early Access</span>
             <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
-          </button>
+          </Link>
         </div>
       </div>
     </section>

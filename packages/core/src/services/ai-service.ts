@@ -90,10 +90,81 @@ export class AIService {
     });
 
     try {
-      return JSON.parse(response.content);
+      // Clean the response by removing markdown code blocks and explanatory text
+      let cleanedContent = response.content.trim();
+      
+      // Handle explanatory text followed by JSON
+      if (cleanedContent.includes('```json')) {
+        // Extract content between ```json and ``` markers
+        const jsonMatch = cleanedContent.match(/```json\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+          cleanedContent = jsonMatch[1].trim();
+        }
+      } else if (cleanedContent.startsWith('```json') && cleanedContent.endsWith('```')) {
+        cleanedContent = cleanedContent.slice(7, -3).trim(); // Remove ```json and ```
+      } else if (cleanedContent.startsWith('```') && cleanedContent.endsWith('```')) {
+        cleanedContent = cleanedContent.slice(3, -3).trim(); // Remove ``` and ```
+      } else {
+        // Handle cases where there's explanatory text before JSON without markdown
+        const jsonStart = cleanedContent.indexOf('{');
+        if (jsonStart > 0) {
+          // There's text before the JSON, extract just the JSON part
+          const jsonEnd = cleanedContent.lastIndexOf('}');
+          if (jsonEnd > jsonStart) {
+            cleanedContent = cleanedContent.substring(jsonStart, jsonEnd + 1);
+          }
+        }
+      }
+      
+      // Try to fix common JSON issues
+      // Fix incorrectly escaped quotes in values like "\"a\".repeat(1000)"
+      cleanedContent = cleanedContent.replace(/"\\"([^"]*)\\"\.repeat\((\d+)\)"/g, (match, char, count) => {
+        const repeatedString = char.repeat(parseInt(count));
+        return `"${repeatedString.slice(0, 100)}..."`;  // Truncate very long strings
+      });
+      
+      return JSON.parse(cleanedContent);
     } catch (error) {
       console.error('Failed to parse JSON response:', response.content);
-      throw new Error(`Invalid JSON response from AI: ${error}`);
+      
+      // Try one more time with more aggressive cleaning
+      try {
+        let fallbackContent = response.content.trim();
+        
+        // Remove explanatory text and markdown
+        if (fallbackContent.includes('```json')) {
+          // Extract content between ```json and ``` markers
+          const jsonMatch = fallbackContent.match(/```json\s*([\s\S]*?)```/);
+          if (jsonMatch) {
+            fallbackContent = jsonMatch[1].trim();
+          }
+        } else if (fallbackContent.includes('```')) {
+          fallbackContent = fallbackContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
+        }
+        
+        // Remove any explanatory text before JSON
+        const jsonStart = fallbackContent.indexOf('{');
+        const jsonEnd = fallbackContent.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+          fallbackContent = fallbackContent.substring(jsonStart, jsonEnd + 1);
+        }
+        
+        // Replace problematic patterns
+        fallbackContent = fallbackContent
+          .replace(/"\\"([^"]*)\\"\.repeat\(\d+\)"/g, '"$1$1$1..."')  // Simple fallback for repeat patterns
+          .replace(/\\"/g, '"')  // Fix escaped quotes
+          .replace(/\n\s*"/g, '"')  // Fix newlines in strings
+          .replace(/"\s*\n/g, '"')  // Fix newlines after strings
+          .replace(/\{\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,?\s*\}/g, '["$1", "$2", "$3"]')  // Fix Python set notation {a,b,c} -> [a,b,c]
+          .replace(/\{\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,?\s*\}/g, '["$1", "$2"]')  // Fix 2-element sets
+          .replace(/\{\s*"([^"]+)"\s*\}/g, '["$1"]')  // Fix 1-element sets
+          .replace(/-Infinity/g, 'null');  // Fix -Infinity which is not valid JSON
+          
+        return JSON.parse(fallbackContent);
+      } catch (fallbackError) {
+        console.error('Fallback JSON parsing also failed. Original error:', error);
+        throw new Error(`Invalid JSON response from AI: ${error}`);
+      }
     }
   }
 

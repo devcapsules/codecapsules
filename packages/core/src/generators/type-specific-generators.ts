@@ -1206,10 +1206,12 @@ export class DatabaseGenerator {
     const databaseSpecificInstructions = `
 🗄️ DATABASE EXERCISE REQUIREMENTS:
 
+IMPORTANT: Create a clean, engaging problem statement. DO NOT include the generation instructions or requirements from the user prompt in your response. Transform the user's request into a proper learning exercise.
+
 STRUCTURE YOUR RESPONSE AS:
 {
   "title": "Database exercise title",
-  "description": "What learners will accomplish with databases",
+  "description": "Clean problem statement explaining the scenario and task for learners (NOT the generation requirements)",
   "databaseType": "postgresql",
   "schema": {
     "tables": [

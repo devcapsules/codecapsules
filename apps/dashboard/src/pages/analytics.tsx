@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/router';
-import { useEffect } from 'react';
+import B2BAnalyticsDashboard from '../components/B2BAnalyticsDashboard';
+import ProTierDashboard from '../components/ProTierDashboard';
+import CohortDashboard from '../components/CohortDashboard';
+import CapsuleDeepDive from '../components/CapsuleDeepDive';
 
 // Mock analytics data
 const mockAnalytics = {
@@ -179,12 +182,40 @@ export default function Analytics() {
   const [selectedCapsule, setSelectedCapsule] = useState('all');
   const [dateRange, setDateRange] = useState('30d');
   const [selectedCohort, setSelectedCohort] = useState('all');
+  const [realTimeAnalytics, setRealTimeAnalytics] = useState<any>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [dashboardView, setDashboardView] = useState<'pro' | 'cohort' | 'deep-dive'>('pro');
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
     }
   }, [user, loading, router]);
+
+  const fetchRealTimeAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      
+      const [engagement, pedagogical, failingTests] = await Promise.all([
+        fetch(`${apiUrl}/api/analytics/engagement/demo_capsule`).then(r => r.json()),
+        fetch(`${apiUrl}/api/analytics/pedagogical/demo_org`).then(r => r.json()),
+        fetch(`${apiUrl}/api/analytics/failing-tests/demo_org`).then(r => r.json())
+      ]);
+      
+      setRealTimeAnalytics({ engagement, pedagogical, failingTests });
+    } catch (error) {
+      console.error('Failed to fetch analytics:', error);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchRealTimeAnalytics();
+    }
+  }, [user]);
 
   if (loading) {
     return (
@@ -203,8 +234,29 @@ export default function Analytics() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white mb-2">Analytics Dashboard</h1>
-          <p className="text-slate-400">Deep insights into learning patterns and pedagogical effectiveness</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-white mb-2">Analytics Dashboard</h1>
+              <p className="text-slate-400">Deep insights into learning patterns and pedagogical effectiveness</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={fetchRealTimeAnalytics}
+                disabled={analyticsLoading}
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                <svg className={`w-4 h-4 ${analyticsLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0V9a8 8 0 1115.356 2m-15.356 0H4" />
+                </svg>
+                {analyticsLoading ? 'Updating...' : 'Refresh Analytics'}
+              </button>
+              {realTimeAnalytics && (
+                <div className="text-xs text-slate-400">
+                  Last updated: {new Date().toLocaleTimeString()}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Filters */}
@@ -284,7 +336,123 @@ export default function Analytics() {
           />
         </div>
 
-        {/* Main Content Grid */}
+        {/* Premium Analytics Dashboards */}
+        {user && (user as any).tier !== 'FREE' && (
+          <div className="mb-8">
+            {/* Dashboard Type Selector */}
+            <div className="flex space-x-1 bg-slate-800/50 p-1 rounded-lg mb-6">
+              <button
+                onClick={() => setDashboardView('pro')}
+                className={`flex-1 text-left px-4 py-3 rounded-lg transition-colors ${
+                  dashboardView === 'pro'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-300 hover:bg-slate-700/50'
+                }`}
+              >
+                <div className="font-medium">📝 Pro Tier (Bloggers)</div>
+                <div className="text-xs opacity-75">Content engagement metrics</div>
+              </button>
+              <button
+                onClick={() => setDashboardView('cohort')}
+                className={`flex-1 text-left px-4 py-3 rounded-lg transition-colors ${
+                  dashboardView === 'cohort'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-300 hover:bg-slate-700/50'
+                }`}
+              >
+                <div className="font-medium">👥 B2B Cohort View</div>
+                <div className="text-xs opacity-75">Student outcomes & pedagogy</div>
+              </button>
+              <button
+                onClick={() => setDashboardView('deep-dive')}
+                className={`flex-1 text-left px-4 py-3 rounded-lg transition-colors ${
+                  dashboardView === 'deep-dive'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-300 hover:bg-slate-700/50'
+                }`}
+              >
+                <div className="font-medium">🎯 Capsule Deep-Dive</div>
+                <div className="text-xs opacity-75">The "Money" view for sales</div>
+              </button>
+            </div>
+
+            {/* Dashboard Content */}
+            {analyticsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <span className="ml-3 text-blue-300">Loading analytics dashboard...</span>
+              </div>
+            ) : (
+              <div>
+                {dashboardView === 'pro' && (
+                  <ProTierDashboard userId={(user as any).id || 'demo_user'} />
+                )}
+                
+                {dashboardView === 'cohort' && (
+                  <CohortDashboard 
+                    cohortId={selectedCohort === 'all' ? 'demo_cohort' : selectedCohort}
+                    instructorId={(user as any).id}
+                  />
+                )}
+                
+                {dashboardView === 'deep-dive' && (
+                  <CapsuleDeepDive 
+                    capsuleId={selectedCapsule === 'all' ? 'demo_capsule' : selectedCapsule}
+                    cohortId={selectedCohort === 'all' ? undefined : selectedCohort}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Upgrade Prompt for Free Users */}
+        {user && (user as any).tier === 'FREE' && (
+          <div className="mb-8">
+            <div className="bg-gradient-to-r from-yellow-600/10 to-orange-600/10 border border-yellow-600/30 rounded-lg p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">🚀 Unlock Premium Analytics</h3>
+                  <p className="text-yellow-300 text-sm">Get the insights that drive educational success</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-yellow-600/5 border border-yellow-600/20 rounded-lg p-4">
+                  <div className="font-medium text-white mb-2">📝 Pro Tier</div>
+                  <div className="text-sm text-yellow-200">Content engagement rates, completion funnels, top-performing posts</div>
+                </div>
+                <div className="bg-yellow-600/5 border border-yellow-600/20 rounded-lg p-4">
+                  <div className="font-medium text-white mb-2">👥 B2B Dashboard</div>
+                  <div className="text-sm text-yellow-200">Student progress grids, at-risk identification, cohort insights</div>
+                </div>
+                <div className="bg-yellow-600/5 border border-yellow-600/20 rounded-lg p-4">
+                  <div className="font-medium text-white mb-2">🎯 Deep-Dive</div>
+                  <div className="text-sm text-yellow-200">Failing test case analysis, the "money view" for sales demos</div>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button className="bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white px-6 py-3 rounded-lg font-medium transition-all">
+                  Upgrade to Pro ($29/mo)
+                </button>
+                <button className="bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-all">
+                  Get B2B Plan ($99/mo)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Basic Analytics Overview */}
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-white mb-2">📊 Basic Analytics Overview</h3>
+          <p className="text-slate-400 text-sm">General insights and performance metrics</p>
+        </div>
+        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Failing Test Cases Chart */}
           <div className="lg:col-span-1">

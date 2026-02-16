@@ -8,6 +8,7 @@
 import { CapsuleGenerationEngine } from './generation-engine';
 import { CreatorFeedbackCapture } from '../types/creator-feedback';
 import type { GenerationConfig } from './generation-engine';
+import { AIService } from '../services/ai-service';
 
 /**
  * Example 1: Free Tier WASM Generation
@@ -16,12 +17,15 @@ import type { GenerationConfig } from './generation-engine';
  * that runs efficiently in WASM sandboxes.
  */
 export const generateFreeTierCapsule = async () => {
+  const aiService = new AIService({
+    apiKey: process.env.AZURE_OPENAI_KEY!,
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT!,
+    deployment: 'gpt-4o',
+    apiVersion: '2024-06-01'
+  });
+  
   const engine = new CapsuleGenerationEngine(
-    {
-      apiKey: process.env.AZURE_OPENAI_KEY!,
-      endpoint: process.env.AZURE_OPENAI_ENDPOINT!,
-      deploymentName: 'gpt-4o'
-    },
+    aiService,
     CreatorFeedbackCapture
   );
 
@@ -59,12 +63,15 @@ export const generateFreeTierCapsule = async () => {
  * with full Docker capabilities and higher quality.
  */
 export const generateProTierCapsule = async () => {
+  const aiService = new AIService({
+    apiKey: process.env.AZURE_OPENAI_KEY!,
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT!,
+    deployment: 'gpt-4o',
+    apiVersion: '2024-06-01'
+  });
+  
   const engine = new CapsuleGenerationEngine(
-    {
-      apiKey: process.env.AZURE_OPENAI_KEY!,
-      endpoint: process.env.AZURE_OPENAI_ENDPOINT!,
-      deploymentName: 'gpt-4o'
-    },
+    aiService,
     CreatorFeedbackCapture
   );
 
@@ -106,12 +113,15 @@ export const generateEducationalCurriculum = async (
   topics: string[],
   institutionId: string
 ) => {
+  const aiService = new AIService({
+    apiKey: process.env.AZURE_OPENAI_KEY!,
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT!,
+    deployment: 'gpt-4o',
+    apiVersion: '2024-06-01'
+  });
+  
   const engine = new CapsuleGenerationEngine(
-    {
-      apiKey: process.env.AZURE_OPENAI_KEY!,
-      endpoint: process.env.AZURE_OPENAI_ENDPOINT!,
-      deploymentName: 'gpt-4o'
-    },
+    aiService,
     CreatorFeedbackCapture
   );
 
@@ -191,12 +201,15 @@ export const generateWithCreatorFeedback = async (
   prompt: string,
   previousFeedback?: string
 ) => {
+  const aiService = new AIService({
+    apiKey: process.env.AZURE_OPENAI_KEY!,
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT!,
+    deployment: 'gpt-4o',
+    apiVersion: '2024-06-01'
+  });
+  
   const engine = new CapsuleGenerationEngine(
-    {
-      apiKey: process.env.AZURE_OPENAI_KEY!,
-      endpoint: process.env.AZURE_OPENAI_ENDPOINT!,
-      deploymentName: 'gpt-4o'
-    },
+    aiService,
     CreatorFeedbackCapture
   );
 

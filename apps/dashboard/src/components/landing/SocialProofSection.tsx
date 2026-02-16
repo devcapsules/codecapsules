@@ -7,81 +7,107 @@ export function SocialProofSection() {
         {/* Section Header */}
         <div className="text-center mb-12">
           <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4">
-            Join <span className="text-green-400">1,200+ Creators</span> Making Interactive Content
+            Built for <span className="text-blue-400">Technical Creators</span> Like You
           </h2>
+          <p className="text-lg text-gray-300 max-w-3xl mx-auto">
+            Coming Soon - Join our early access program and be among the first to transform static content into interactive experiences
+          </p>
         </div>
 
-        {/* Metrics Bar */}
+        {/* Early Access Benefits */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 max-w-4xl mx-auto">
-          <div className="text-center">
-            <div className="text-3xl md:text-4xl font-bold text-green-400 mb-2">3x</div>
-            <div className="text-gray-300 text-sm">Higher Engagement</div>
+          <div className="text-center bg-gray-800/30 border border-gray-700 rounded-xl p-6">
+            <div className="text-3xl md:text-4xl font-bold text-green-400 mb-2">✨</div>
+            <div className="text-white font-semibold mb-2">Early Access</div>
+            <div className="text-gray-300 text-sm">Be first to try the platform</div>
           </div>
-          <div className="text-center">
-            <div className="text-3xl md:text-4xl font-bold text-blue-400 mb-2">50K+</div>
-            <div className="text-gray-300 text-sm">Interactive Sessions</div>
+          <div className="text-center bg-gray-800/30 border border-gray-700 rounded-xl p-6">
+            <div className="text-3xl md:text-4xl font-bold text-blue-400 mb-2">50%</div>
+            <div className="text-white font-semibold mb-2">Launch Discount</div>
+            <div className="text-gray-300 text-sm">Exclusive pricing for beta users</div>
           </div>
-          <div className="text-center">
-            <div className="text-3xl md:text-4xl font-bold text-purple-400 mb-2">4.8/5</div>
-            <div className="text-gray-300 text-sm">Creator Rating</div>
+          <div className="text-center bg-gray-800/30 border border-gray-700 rounded-xl p-6">
+            <div className="text-3xl md:text-4xl font-bold text-purple-400 mb-2">🎯</div>
+            <div className="text-white font-semibold mb-2">Direct Feedback</div>
+            <div className="text-gray-300 text-sm">Shape the product roadmap</div>
           </div>
         </div>
 
-        {/* Testimonial Carousel (4 Cards in 2x2) */}
+        {/* Problem Scenarios (What creators struggle with) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Testimonial 1 - Course Creator */}
+          {/* Course Creator Problem */}
           <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6">
-            <div className="flex text-yellow-400 mb-4">
-              ⭐⭐⭐⭐⭐
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mr-4">
+                <span className="text-2xl">🎓</span>
+              </div>
+              <div>
+                <div className="font-semibold text-white">Course Creators</div>
+                <div className="text-gray-400 text-sm">Low completion rates</div>
+              </div>
             </div>
-            <blockquote className="text-gray-300 mb-6 text-sm leading-relaxed">
-              "My Python course completion went from 18% to 34% in 2 weeks. Students love coding directly in the lesson instead of switching apps."
+            <blockquote className="text-gray-300 text-sm leading-relaxed mb-4">
+              "Students watch my coding videos but never practice. They get stuck setting up environments and just give up."
             </blockquote>
-            <div className="border-t border-gray-700 pt-4">
-              <div className="font-semibold text-white text-sm">Sarah K.</div>
-              <div className="text-gray-400 text-xs">Course Creator (12K students on Udemy)</div>
+            <div className="text-blue-400 text-sm font-medium">
+              → DevCapsules lets students code directly in your lessons
             </div>
           </div>
 
-          {/* Testimonial 2 - API Documentation */}
+          {/* Documentation Writer Problem */}
           <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6">
-            <div className="flex text-yellow-400 mb-4">
-              ⭐⭐⭐⭐⭐
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mr-4">
+                <span className="text-2xl">📚</span>
+              </div>
+              <div>
+                <div className="font-semibold text-white">API Documentation</div>
+                <div className="text-gray-400 text-sm">Poor adoption rates</div>
+              </div>
             </div>
-            <blockquote className="text-gray-300 mb-6 text-sm leading-relaxed">
-              "Our API docs went from boring code samples to interactive examples. Developers actually try our APIs now instead of just reading about them."
+            <blockquote className="text-gray-300 text-sm leading-relaxed mb-4">
+              "Developers read our docs but don't actually try our API. Static examples just aren't compelling enough."
             </blockquote>
-            <div className="border-t border-gray-700 pt-4">
-              <div className="font-semibold text-white text-sm">Alex Chen</div>
-              <div className="text-gray-400 text-xs">DevRel at TechCorp</div>
+            <div className="text-green-400 text-sm font-medium">
+              → Turn boring docs into interactive API playgrounds
             </div>
           </div>
 
-          {/* Testimonial 3 - Corporate Training */}
+          {/* Corporate Training Problem */}
           <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6">
-            <div className="flex text-yellow-400 mb-4">
-              ⭐⭐⭐⭐⭐
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center mr-4">
+                <span className="text-2xl">🏢</span>
+              </div>
+              <div>
+                <div className="font-semibold text-white">Corporate Training</div>
+                <div className="text-gray-400 text-sm">Slow onboarding</div>
+              </div>
             </div>
-            <blockquote className="text-gray-300 mb-6 text-sm leading-relaxed">
-              "We onboard 500 developers annually. CodeCapsule cut our training time in half with hands-on exercises that work in our LMS."
+            <blockquote className="text-gray-300 text-sm leading-relaxed mb-4">
+              "New developers need weeks to get productive. Most training time is wasted on environment setup instead of actual coding."
             </blockquote>
-            <div className="border-t border-gray-700 pt-4">
-              <div className="font-semibold text-white text-sm">Marcus Rodriguez</div>
-              <div className="text-gray-400 text-xs">L&D Director at Global Bank</div>
+            <div className="text-purple-400 text-sm font-medium">
+              → Instant coding environments for faster onboarding
             </div>
           </div>
 
-          {/* Testimonial 4 - Tech Blogger */}
+          {/* Tech Blogger Problem */}
           <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6">
-            <div className="flex text-yellow-400 mb-4">
-              ⭐⭐⭐⭐⭐
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center mr-4">
+                <span className="text-2xl">✍️</span>
+              </div>
+              <div>
+                <div className="font-semibold text-white">Tech Bloggers</div>
+                <div className="text-gray-400 text-sm">Low engagement</div>
+              </div>
             </div>
-            <blockquote className="text-gray-300 mb-6 text-sm leading-relaxed">
-              "My React tutorial went viral because readers could actually play with the code. 5K upvotes on r/programming and counting!"
+            <blockquote className="text-gray-300 text-sm leading-relaxed mb-4">
+              "Readers scroll past code examples without trying them. My tutorials get buried while interactive content goes viral."
             </blockquote>
-            <div className="border-t border-gray-700 pt-4">
-              <div className="font-semibold text-white text-sm">Jamie Foster</div>
-              <div className="text-gray-400 text-xs">Tech Blogger (Dev.to Top Author)</div>
+            <div className="text-orange-400 text-sm font-medium">
+              → Make your tutorials stand out with interactive code
             </div>
           </div>
         </div>

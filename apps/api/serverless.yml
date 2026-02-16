@@ -1,0 +1,75 @@
+service: codecapsule-api
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  memorySize: 2048
+  timeout: 29
+  httpApi:
+    cors:
+      allowedOrigins:
+        - https://devcapsules.com
+        - https://www.devcapsules.com
+        - https://codecapsule-dashboard.pages.dev
+        - https://codecapsule-embed.pages.dev
+        - http://localhost:3000
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+        - Accept
+        - Origin
+        - X-Requested-With
+      allowedMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - PATCH
+        - OPTIONS
+      allowCredentials: true
+  environment:
+    DATABASE_URL: postgresql://postgres.dinerkhhhoibcrznysen:Myashwanth@14@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+    DIRECT_URL: postgresql://postgres.dinerkhhhoibcrznysen:Myashwanth@14@aws-1-ap-south-1.pooler.supabase.com:5432/postgres
+    AZURE_OPENAI_API_KEY: 725j57U64ApE0ZEMtGmZABKLt8jKVQM3axeAuVTxplAw85ZVzsx3JQQJ99CBACHYHv6XJ3w3AAAAACOGZVX6
+    AZURE_OPENAI_ENDPOINT: https://devcapsules-resource.cognitiveservices.azure.com
+    AZURE_OPENAI_API_VERSION: 2025-01-01-preview
+    AZURE_OPENAI_DEPLOYMENT: gpt-4o
+    NODE_ENV: production
+    CORS_ORIGIN: https://devcapsules.com,https://www.devcapsules.com,https://codecapsule-dashboard.pages.dev,https://codecapsule-embed.pages.dev
+    # Queue System (Piston EC2)
+    USE_QUEUE_EXECUTION: "true"
+    UPSTASH_REDIS_URL: https://real-gnu-38110.upstash.io
+    UPSTASH_REDIS_TOKEN: AZTeAAIncDFmNmJkOTlkYTk3MTY0NjYxYmY5YTk4OGM5NWJhNTgwNnAxMzgxMTA
+    PISTON_URL: http://44.222.105.71:2000
+    # Hybrid Bridge (Workers → Lambda)
+    WORKER_SHARED_SECRET: ${env:WORKER_SHARED_SECRET, 'JiM8zgIDLZ2TASfqeA8py0i8GfKWk7AEjykf5l+F90I='}
+    ALLOW_DIRECT_ACCESS: "true"
+
+functions:
+  api:
+    handler: server-lambda-wrapper.handler
+    timeout: 29
+    memorySize: 1024  # Reduced from 3008 - Lambda is just routing/proxy
+    events:
+      - httpApi:
+          path: /{proxy+}
+          method: ANY
+      - httpApi:
+          path: /
+          method: ANY
+
+package:
+  individually: false
+  patterns:
+    - "!**"
+    - dist/**
+    - prisma/**
+    - server-lambda-wrapper.js
+    - node_modules/**
+    - "!node_modules/.cache/**"
+    - "!node_modules/@types/**"
+    - "!node_modules/typescript/**"
+    - "!node_modules/eslint/**"
+    - "!node_modules/prettier/**"
+    - "!node_modules/@typescript-eslint/**"

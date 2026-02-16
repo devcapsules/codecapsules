@@ -1,5 +1,5 @@
 /**
- * Database Queries - High-level operations for CodeCapsule
+ * Database Queries - High-level operations for Devcapsules
  */
 
 import { prisma } from './client'
@@ -227,6 +227,7 @@ export const capsuleQueries = {
   async updateCapsule(id: string, updates: {
     title?: string
     description?: string
+    type?: CapsuleType
     content?: any
     runtime?: any
     pedagogy?: any
@@ -239,6 +240,21 @@ export const capsuleQueries = {
         updatedAt: new Date()
       }
     })
+  },
+
+  /**
+   * Delete capsule and related data
+   */
+  async deleteCapsule(id: string) {
+    // Delete in order due to foreign key constraints
+    await prisma.$transaction([
+      // Delete analytics first
+      prisma.capsuleAnalytics.deleteMany({ where: { capsuleId: id } }),
+      // Delete executions
+      prisma.capsuleExecution.deleteMany({ where: { capsuleId: id } }),
+      // Finally delete the capsule
+      prisma.capsule.delete({ where: { id } })
+    ])
   }
 }
 

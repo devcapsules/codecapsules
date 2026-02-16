@@ -1,0 +1,18 @@
+name = "codecapsule-analytics-worker"
+main = "src/index.ts"
+compatibility_date = "2024-03-01"
+
+# Environment variables (set via wrangler secret)
+[vars]
+EVENT_HUB_NAME = "codecapsule-analytics"
+SUPABASE_URL = "https://your-project.supabase.co"
+ALLOWED_ORIGINS = "*.codecapsule.com,localhost:*,127.0.0.1:*"
+
+# Secrets (set via: wrangler secret put SECRET_NAME)
+# EVENT_HUB_CONNECTION_STRING
+# SUPABASE_ANON_KEY
+
+# Resource limits for high-performance analytics
+[limits]
+cpu_ms = 50  # 50ms CPU time per request
+memory_mb = 128  # 128MB memory limit

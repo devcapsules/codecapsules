@@ -1,5 +1,5 @@
 {
-  "name": "@codecapsule/embed",
+  "name": "@devcapsules/embed",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,7 +11,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@codecapsule/core": "*",
+    "@devcapsules/core": "*",
     "@codecapsule/ui": "*",
     "@codecapsule/utils": "*",
     "react": "^18.2.0",

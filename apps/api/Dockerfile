@@ -1,30 +1,32 @@
-# Use Node.js 18 LTS
-FROM node:18-alpine
+FROM node:20-bullseye-slim
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY turbo.json ./
+# Install OpenSSL for Prisma compatibility
+RUN apt-get update -y && apt-get install -y openssl libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Copy workspace packages
-COPY packages/ ./packages/
-COPY apps/api/ ./apps/api/
+# Copy package files
+COPY package.json ./
+COPY package-lock.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm install --production
 
-# Build the application
-WORKDIR /app/apps/api
-RUN npm run build
+# Copy built server files
+COPY dist/ ./dist/
+COPY prisma/ ./prisma/
+COPY .env.production ./
+
+# Install Prisma CLI and generate client
+RUN npm install @prisma/client prisma
+RUN npx prisma generate
 
 # Expose port
 EXPOSE 3001
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3001/health || exit 1
+# Environment variables
+ENV NODE_ENV=production
+ENV PORT=3001
 
-# Start the application
-CMD ["npm", "start"]
+# Start the comprehensive server
+CMD ["node", "dist/apps/api/src/server.js"]

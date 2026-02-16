@@ -8,10 +8,8 @@ export function Footer() {
           {/* Company Info */}
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center mb-4">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mr-3">
-                <span className="text-white font-bold text-lg">C</span>
-              </div>
-              <span className="text-lg font-bold text-white">CodeCapsule</span>
+              <img src="/favicon.ico" alt="Devcapsules" className="w-10 h-10 mr-3" />
+              <span className="text-lg font-bold text-white">Devcapsules</span>
             </div>
             <p className="text-gray-400 text-sm mb-4 leading-relaxed">
               Interactive Coding for Everyone
@@ -49,9 +47,7 @@ export function Footer() {
             <ul className="space-y-2">
               <li><a href="#features" className="text-gray-400 hover:text-white text-sm transition-colors">Features</a></li>
               <li><a href="#pricing" className="text-gray-400 hover:text-white text-sm transition-colors">Pricing</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">Examples</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">Documentation</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">Blog</a></li>
+              <li><a href="/blog" className="text-gray-400 hover:text-white text-sm transition-colors">Blog</a></li>
             </ul>
           </div>
 
@@ -59,11 +55,8 @@ export function Footer() {
           <div>
             <h3 className="text-white font-semibold mb-4 text-sm">Company</h3>
             <ul className="space-y-2">
-              <li><a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">About</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">Careers</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">Press</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">Contact</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">Partners</a></li>
+              <li><a href="/about" className="text-gray-400 hover:text-white text-sm transition-colors">About</a></li>
+              <li><a href="/contact" className="text-gray-400 hover:text-white text-sm transition-colors">Contact</a></li>
             </ul>
           </div>
 
@@ -71,25 +64,21 @@ export function Footer() {
           <div>
             <h3 className="text-white font-semibold mb-4 text-sm">Support</h3>
             <ul className="space-y-2">
-              <li><a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">Help Center</a></li>
-              <li><a href="#faq" className="text-gray-400 hover:text-white text-sm transition-colors">FAQ</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">Community</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">Status</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">Security</a></li>
+              <li><a href="/faq" className="text-gray-400 hover:text-white text-sm transition-colors">FAQ</a></li>
             </ul>
           </div>
         </div>
 
         <div className="border-t border-gray-800 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex flex-wrap justify-center md:justify-start space-x-6 mb-4 md:mb-0">
-              <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">Privacy Policy</a>
-              <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">Terms of Service</a>
-              <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">Cookie Policy</a>
-              <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">GDPR</a>
+            <div className="flex flex-wrap justify-center md:justify-start space-x-4 mb-4 md:mb-0 text-sm">
+              <a href="/privacy" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</a>
+              <a href="/terms" className="text-gray-400 hover:text-white transition-colors">Terms of Service</a>
+              <a href="/cookies" className="text-gray-400 hover:text-white transition-colors">Cookie Policy</a>
+              <a href="/refund-policy" className="text-gray-400 hover:text-white transition-colors">Refund Policy</a>
             </div>
             <p className="text-gray-400 text-sm">
-              © 2025 CodeCapsule. All rights reserved.
+              © 2026 Devcapsules. All rights reserved.
             </p>
           </div>
         </div>

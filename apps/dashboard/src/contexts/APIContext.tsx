@@ -2,7 +2,7 @@
  * API Context Provider
  * 
  * Manages API connection state and provides methods for
- * interacting with the CodeCapsule API server.
+ * interacting with the Devcapsules API server.
  */
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
@@ -76,8 +76,8 @@ export function APIProvider({ children }: APIProviderProps) {
   useEffect(() => {
     checkConnection()
     
-    // Refresh health status every 30 seconds
-    const interval = setInterval(refreshHealth, 30000)
+    // Refresh health status every 5 minutes (reduced from 30 seconds to save Redis requests)
+    const interval = setInterval(refreshHealth, 300000)
     
     return () => clearInterval(interval)
   }, [])

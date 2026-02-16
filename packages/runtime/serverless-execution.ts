@@ -138,20 +138,33 @@ export class ServerlessExecutionEngine {
     }
 
     try {
-      // Try serverless execution first
-      if (this.apiGatewayBaseUrl !== 'http://localhost:3002') {
+      // Try serverless execution first (if not localhost and not forcing local fallback)
+      if (this.apiGatewayBaseUrl !== 'http://localhost:3002' && !this.useLocalFallback) {
         return await this.executeViaLambda(config, request)
       }
       
-      // Fallback to local execution for development
+      // Use local execution for development or when fallback is enabled
       if (this.useLocalFallback) {
+        console.log(`🔄 Using local execution fallback for ${language}`)
         return await this.executeLocally(language, request)
       }
-
-      throw new Error('No execution method available')
+      
+      // If local fallback is disabled, try Lambda anyway
+      return await this.executeViaLambda(config, request)
       
     } catch (error) {
       console.error(`Execution failed for ${language}:`, error)
+      
+      // If Lambda failed and we haven't tried local fallback yet, try it now
+      if (!this.useLocalFallback && this.apiGatewayBaseUrl !== 'http://localhost:3002') {
+        console.log(`🔄 Lambda failed, attempting local execution fallback for ${language}`)
+        try {
+          return await this.executeLocally(language, request)
+        } catch (localError) {
+          console.error(`Local fallback also failed:`, localError)
+        }
+      }
+      
       return {
         success: false,
         error: `Execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -166,45 +179,82 @@ export class ServerlessExecutionEngine {
   private async executeViaLambda(config: LambdaFunctionConfig, request: ExecutionRequest): Promise<ExecutionResult> {
     const endpoint = `${this.apiGatewayBaseUrl}${config.endpoint}`
     
+    console.log(`🔍 Lambda Debug - Endpoint: ${endpoint}`)
+    console.log(`🔍 Lambda Debug - Base URL: ${this.apiGatewayBaseUrl}`)
+    console.log(`🔍 Lambda Debug - Config endpoint: ${config.endpoint}`)
+    
     try {
+      // Prepare headers with authentication
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+      
+      // Add API key if available
+      const apiKey = process.env.AWS_API_KEY
+      if (apiKey && apiKey !== 'your-api-key-here') {
+        headers['x-api-key'] = apiKey
+        console.log(`🔍 Lambda Debug - Using API key: ${apiKey.substring(0, 10)}...`)
+      } else {
+        console.log(`🔍 Lambda Debug - No API key configured`)
+      }
+
+      const requestBody = {
+        code: request.source_code,
+        testInput: request.input || '',
+        timeout: request.time_limit || 10
+      }
+      
+      console.log(`🔍 Lambda Debug - Request body keys: ${Object.keys(requestBody)}`)
+      console.log(`🔍 Lambda Debug - Code length: ${request.source_code?.length || 0} chars`)
+
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          code: request.source_code,
-          testInput: request.input || '',
-          timeout: request.time_limit || 10
-        }),
+        headers,
+        body: JSON.stringify(requestBody),
         // Add timeout slightly longer than the Lambda timeout
         signal: AbortSignal.timeout((request.time_limit || 10) * 1000 + 5000)
       })
 
+      console.log(`🔍 Lambda Debug - Response status: ${response.status} ${response.statusText}`)
+      console.log(`🔍 Lambda Debug - Response headers:`, response.headers)
+
       if (!response.ok) {
-        throw new Error(`Lambda execution failed: ${response.status} ${response.statusText}`)
+        const errorText = await response.text()
+        console.log(`🔍 Lambda Debug - Error response body: ${errorText}`)
+        throw new Error(`Lambda execution failed: ${response.status} ${response.statusText} - ${errorText}`)
       }
 
       const result = await response.json()
+      console.log(`🔍 Lambda Debug - Raw response:`, result)
       
-      // Parse Lambda response format (statusCode + body)
+      // Handle both direct Lambda response and API Gateway wrapped response
       let parsedResult = result
-      if (result.body && typeof result.body === 'string') {
-        parsedResult = JSON.parse(result.body)
+      
+      // If wrapped in API Gateway format, unwrap it
+      if (result.statusCode && result.body) {
+        console.log(`🔍 Lambda Debug - Unwrapping API Gateway response`)
+        if (typeof result.body === 'string') {
+          parsedResult = JSON.parse(result.body)
+        } else {
+          parsedResult = result.body
+        }
       }
       
-      // Normalize response format - handle both direct Lambda response and API Gateway response
-      const isSuccess = (result.statusCode === 200 || !result.statusCode) && (parsedResult.success === true || parsedResult.success === 'true')
+      console.log(`🔍 Lambda Debug - Parsed result:`, parsedResult)
+      
+      // Check if execution was successful
+      const isSuccess = parsedResult.success === true || parsedResult.success === 'true'
+      
       return {
         success: isSuccess,
         stdout: parsedResult.stdout || '',
         stderr: parsedResult.stderr || '',
-        exit_code: parsedResult.exitCode || 0,
+        exit_code: parsedResult.exitCode || parsedResult.exitCode || 0,
         execution_time: parsedResult.executionTime || 0,
         memory_used: parsedResult.memoryUsed || 0,
         compile_output: parsedResult.compile_output || '',
-        error: parsedResult.error || (parsedResult.success === false ? parsedResult.stderr : ''),
+        error: parsedResult.error || (!isSuccess ? parsedResult.stderr : ''),
         timestamp: Date.now()
       }
       
@@ -219,13 +269,12 @@ export class ServerlessExecutionEngine {
   private async executeLocally(language: SupportedLanguage, request: ExecutionRequest): Promise<ExecutionResult> {
     console.log(`🔄 Local fallback execution for ${language}`)
     
-    // This would typically use the local Lambda function files or a simple interpreter
-    // For now, return a mock successful result for development
+    // Real local execution using system interpreters
     switch (language) {
       case 'python':
-        return this.mockPythonExecution(request)
+        return await this.mockPythonExecution(request)
       case 'javascript':
-        return this.mockJavaScriptExecution(request)
+        return await this.mockJavaScriptExecution(request)
       case 'sql':
         return this.mockSQLExecution(request)
       default:
@@ -237,63 +286,124 @@ export class ServerlessExecutionEngine {
     }
   }
 
-  private mockPythonExecution(request: ExecutionRequest): ExecutionResult {
-    // Simple mock that would work for basic Python code
-    const code = request.source_code.trim()
-    
-    if (code.includes('print(')) {
-      const match = code.match(/print\(['"]([^'"]*)['"]\)/)
-      const output = match ? match[1] : 'Hello, World!'
+  private async mockPythonExecution(request: ExecutionRequest): Promise<ExecutionResult> {
+    return new Promise((resolve) => {
+      const { spawn } = require('child_process');
+      const startTime = Date.now();
       
-      return {
-        success: true,
-        stdout: output + '\n',
-        stderr: '',
-        exit_code: 0,
-        execution_time: 0.05,
-        memory_used: 12,
-        timestamp: Date.now()
+      // Create a temporary Python process
+      const python = spawn('python', ['-c', request.source_code], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        timeout: (request.time_limit || 5) * 1000,
+        windowsHide: true
+      });
+      
+      let stdout = '';
+      let stderr = '';
+      
+      // Provide input if available
+      if (request.input) {
+        python.stdin.write(request.input);
+        python.stdin.end();
+      } else {
+        python.stdin.end();
       }
-    }
-    
-    return {
-      success: true,
-      stdout: '# Code executed successfully (mock)\n',
-      stderr: '',
-      exit_code: 0,
-      execution_time: 0.1,
-      memory_used: 15,
-      timestamp: Date.now()
-    }
+      
+      // Collect output
+      python.stdout.on('data', (data: Buffer) => {
+        stdout += data.toString();
+      });
+      
+      python.stderr.on('data', (data: Buffer) => {
+        stderr += data.toString();
+      });
+      
+      python.on('close', (code: number) => {
+        const executionTime = Date.now() - startTime;
+        
+        resolve({
+          success: code === 0,
+          stdout: stdout,
+          stderr: stderr,
+          exit_code: code || 0,
+          execution_time: executionTime / 1000,
+          memory_used: 0, // Can't easily measure memory in local execution
+          timestamp: Date.now()
+        });
+      });
+      
+      python.on('error', (error: Error) => {
+        resolve({
+          success: false,
+          stdout: '',
+          stderr: `Execution error: ${error.message}`,
+          exit_code: 1,
+          execution_time: (Date.now() - startTime) / 1000,
+          memory_used: 0,
+          timestamp: Date.now()
+        });
+      });
+    });
   }
 
-  private mockJavaScriptExecution(request: ExecutionRequest): ExecutionResult {
-    const code = request.source_code.trim()
-    
-    if (code.includes('console.log(')) {
-      const match = code.match(/console\.log\(['"]([^'"]*)['"]\)/)
-      const output = match ? match[1] : 'Hello, World!'
+  private async mockJavaScriptExecution(request: ExecutionRequest): Promise<ExecutionResult> {
+    return new Promise((resolve) => {
+      const { spawn } = require('child_process');
+      const startTime = Date.now();
       
-      return {
-        success: true,
-        stdout: output + '\n',
-        stderr: '',
-        exit_code: 0,
-        execution_time: 0.03,
-        memory_used: 8,
-        timestamp: Date.now()
+      // Create a temporary Node.js process
+      const node = spawn('node', ['-e', request.source_code], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        timeout: (request.time_limit || 5) * 1000,
+        windowsHide: true
+      });
+      
+      let stdout = '';
+      let stderr = '';
+      
+      // Provide input if available
+      if (request.input) {
+        node.stdin.write(request.input);
+        node.stdin.end();
+      } else {
+        node.stdin.end();
       }
-    }
-    
-    return {
-      success: true,
-      stdout: '// Code executed successfully (mock)\n',
-      stderr: '',
-      exit_code: 0,
-      execution_time: 0.08,
-      memory_used: 10,
-      timestamp: Date.now()
-    }
+      
+      // Collect output
+      node.stdout.on('data', (data: Buffer) => {
+        stdout += data.toString();
+      });
+      
+      node.stderr.on('data', (data: Buffer) => {
+        stderr += data.toString();
+      });
+      
+      node.on('close', (code: number) => {
+        const executionTime = Date.now() - startTime;
+        
+        resolve({
+          success: code === 0,
+          stdout: stdout,
+          stderr: stderr,
+          exit_code: code || 0,
+          execution_time: executionTime / 1000,
+          memory_used: 0,
+          timestamp: Date.now()
+        });
+      });
+      
+      node.on('error', (error: Error) => {
+        resolve({
+          success: false,
+          stdout: '',
+          stderr: `Execution error: ${error.message}`,
+          exit_code: 1,
+          execution_time: (Date.now() - startTime) / 1000,
+          memory_used: 0,
+          timestamp: Date.now()
+        });
+      });
+    });
   }
 
   private mockSQLExecution(request: ExecutionRequest): ExecutionResult {

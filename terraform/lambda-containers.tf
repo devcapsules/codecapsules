@@ -96,55 +96,55 @@ resource "aws_lambda_function" "java_executor" {
   depends_on = [aws_ecr_repository.java_lambda]
 }
 
-# C# Lambda Function (Container-based)
-resource "aws_lambda_function" "csharp_executor" {
-  function_name = "codecapsule-csharp-executor"
-  role         = aws_iam_role.container_lambda_role.arn
-  package_type = "Image"
-  image_uri    = "${aws_ecr_repository.csharp_lambda.repository_url}:latest"
-  
-  timeout     = 30
-  memory_size = 1024
+# C# Lambda Function (Container-based) - Commented out until container image is built
+# resource "aws_lambda_function" "csharp_executor" {
+#   function_name = "codecapsule-csharp-executor"
+#   role         = aws_iam_role.container_lambda_role.arn
+#   package_type = "Image"
+#   image_uri    = "${aws_ecr_repository.csharp_lambda.repository_url}:latest"
+#   
+#   timeout     = 30
+#   memory_size = 1024
+#
+#   environment {
+#     variables = {
+#       WORKSPACE_PATH = "/tmp/workspace"
+#     }
+#   }
+#
+#   tags = {
+#     Name        = "CodeCapsule CSharp Executor"
+#     Environment = "production"
+#     Language    = "csharp"
+#   }
+#
+#   depends_on = [aws_ecr_repository.csharp_lambda]
+# }
 
-  environment {
-    variables = {
-      WORKSPACE_PATH = "/tmp/workspace"
-    }
-  }
-
-  tags = {
-    Name        = "CodeCapsule CSharp Executor"
-    Environment = "production"
-    Language    = "csharp"
-  }
-
-  depends_on = [aws_ecr_repository.csharp_lambda]
-}
-
-# Go Lambda Function (Container-based)
-resource "aws_lambda_function" "go_executor" {
-  function_name = "codecapsule-go-executor"
-  role         = aws_iam_role.container_lambda_role.arn
-  package_type = "Image"
-  image_uri    = "${aws_ecr_repository.go_lambda.repository_url}:latest"
-  
-  timeout     = 30
-  memory_size = 1024
-
-  environment {
-    variables = {
-      WORKSPACE_PATH = "/tmp/workspace"
-    }
-  }
-
-  tags = {
-    Name        = "CodeCapsule Go Executor"
-    Environment = "production"
-    Language    = "go"
-  }
-
-  depends_on = [aws_ecr_repository.go_lambda]
-}
+# Go Lambda Function (Container-based) - Commented out until container image is built
+# resource "aws_lambda_function" "go_executor" {
+#   function_name = "codecapsule-go-executor"
+#   role         = aws_iam_role.container_lambda_role.arn
+#   package_type = "Image"
+#   image_uri    = "${aws_ecr_repository.go_lambda.repository_url}:latest"
+#   
+#   timeout     = 30
+#   memory_size = 1024
+#
+#   environment {
+#     variables = {
+#       WORKSPACE_PATH = "/tmp/workspace"
+#     }
+#   }
+#
+#   tags = {
+#     Name        = "CodeCapsule Go Executor"
+#     Environment = "production"
+#     Language    = "go"
+#   }
+#
+#   depends_on = [aws_ecr_repository.go_lambda]
+# }
 
 # Container Lambda Functions will be integrated later
 # For now, we'll create ECR repositories and Lambda functions

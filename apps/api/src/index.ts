@@ -1,17 +1,15 @@
-import express from 'express'
-import cors from 'cors'
-import helmet from 'helmet'
-import dotenv from 'dotenv'
-import { 
-  createGenerationEngine,
-  type GenerationConfig,
-  type GenerationResult
-} from '../../../packages/core/src/generators/generation-engine'
-import type { CapsuleType } from '../../../packages/core/src/types/capsule'
-import type { RuntimeTarget } from '../../../packages/core/src/types/runtime-aware'
+// LEGACY API FILE - DEPRECATED
+// This file contains complex legacy code that needs refactoring
+// The working, integrated API is in server.ts
 
-// Load environment variables
-dotenv.config()
+export * from './server'
+
+console.warn('⚠️  WARNING: index.ts is deprecated. Use server.ts for the integrated Devcapsules API with analytics.')
+
+// Rest of file disabled due to legacy issues - use server.ts
+/* 
+Legacy code commented out - contains many broken functions
+Use server.ts for the working integrated API
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -54,12 +52,23 @@ async function handleSectionRegeneration(req: any, res: any, params: {
     // Create a targeted prompt for section regeneration
     const sectionPrompt = createSectionRegenerationPrompt(type, section, existingContent)
     
-    // Generate new content for the specific section
-    const context = createGenerationContext(type, sectionPrompt, difficulty, runtime, language)
-    let result = await generateContentByType(type, context)
+    // Generate new content for the specific section using the generation engine
+    const config: GenerationConfig = {
+      prompt: sectionPrompt,
+      capsuleType: type as CapsuleType,
+      difficulty: difficulty as any,
+      runtimeTarget: runtime as RuntimeTarget,
+      constraints: {} as any,
+      aiModel: 'gpt-4o',
+      useCreatorFeedback: false,
+      qualityThreshold: 0.7,
+      maxRegenerationAttempts: 3
+    }
+    
+    let result = await generationEngine.generateCapsule(config)
     
     // Merge the regenerated section with existing content
-    const updatedContent = mergeSectionWithExistingContent(existingContent, section, result.content)
+    const updatedContent = mergeSectionWithExistingContent(existingContent, section, result.capsule)
     
     res.json({
       success: true,
@@ -416,5 +425,6 @@ app.post('/api/widgets', (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 CodeCapsule API server running on port ${PORT}`)
+  console.log(`🚀 Devcapsules API server running on port ${PORT}`)
 })
+*/

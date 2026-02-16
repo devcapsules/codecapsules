@@ -12,7 +12,7 @@
  * No containers, no VMs, no Judge0 complexity - just pure serverless execution.
  */
 
-import { prisma } from '@codecapsule/database'
+import { prisma } from '../../database/src/client'
 
 // ===== SERVERLESS EXECUTION INTERFACES =====
 
@@ -125,9 +125,11 @@ export class ServerlessExecutionEngine {
       timeout: request.timeoutSeconds || 10
     }
 
-    if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
-      // Running in AWS - invoke Lambda directly
-      return await this.invokeLambdaFunction('codecapsule-python-judge', lambdaPayload)
+    // Use AWS Lambda via API Gateway for real execution
+    const lambdaUrl = process.env.AWS_LAMBDA_URL || 'https://q0qr0uqja7.execute-api.us-east-1.amazonaws.com/dev'
+    
+    if (lambdaUrl && lambdaUrl !== 'local') {
+      return await this.invokeLambdaViaAPI(lambdaUrl, 'python', lambdaPayload)
     } else {
       // Development mode - simulate execution
       return this.simulatePythonExecution(request)
@@ -144,8 +146,11 @@ export class ServerlessExecutionEngine {
       timeout: request.timeoutSeconds || 10
     }
 
-    if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
-      return await this.invokeLambdaFunction('codecapsule-javascript-judge', lambdaPayload)
+    // Use AWS Lambda via API Gateway for real execution
+    const lambdaUrl = process.env.AWS_LAMBDA_URL || 'https://q0qr0uqja7.execute-api.us-east-1.amazonaws.com/dev'
+    
+    if (lambdaUrl && lambdaUrl !== 'local') {
+      return await this.invokeLambdaViaAPI(lambdaUrl, 'javascript', lambdaPayload)
     } else {
       return this.simulateJavaScriptExecution(request)
     }
@@ -224,7 +229,76 @@ export class ServerlessExecutionEngine {
   // ===== AWS LAMBDA INTEGRATION =====
 
   /**
-   * Invoke AWS Lambda function for code execution
+   * Invoke AWS Lambda function via API Gateway
+   */
+  private async invokeLambdaViaAPI(
+    apiGatewayUrl: string,
+    language: string,
+    payload: any
+  ): Promise<ServerlessExecutionResult> {
+    const startTime = Date.now()
+    
+    try {
+      console.log(`🚀 Invoking Lambda via API Gateway: ${language}`)
+      console.log(`🌐 URL: ${apiGatewayUrl}/${language}`)
+      console.log(`📦 Payload:`, JSON.stringify(payload, null, 2))
+
+      // Prepare headers with authentication
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+      
+      // Add API key if available
+      const apiKey = process.env.AWS_API_KEY
+      if (apiKey && apiKey !== 'your-api-key-here') {
+        headers['x-api-key'] = apiKey
+      }
+
+      const response = await fetch(`${apiGatewayUrl}/execute/${language}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      })
+
+      if (!response.ok) {
+        throw new Error(`Lambda API call failed: ${response.status} ${response.statusText}`)
+      }
+
+      const lambdaResult = await response.json()
+      const executionTime = Date.now() - startTime
+
+      console.log(`✅ Lambda execution completed in ${executionTime}ms`)
+      console.log(`📤 Result:`, JSON.stringify(lambdaResult, null, 2))
+
+      // Transform Lambda response to our format
+      return {
+        success: lambdaResult.success || !lambdaResult.error,
+        stdout: lambdaResult.stdout || lambdaResult.output || '',
+        stderr: lambdaResult.stderr || lambdaResult.error || '',
+        executionTime: lambdaResult.executionTime || executionTime,
+        memoryUsed: lambdaResult.memoryUsed || 0,
+        exitCode: lambdaResult.exitCode || (lambdaResult.success ? 0 : 1),
+        error: lambdaResult.error
+      }
+
+    } catch (error) {
+      const executionTime = Date.now() - startTime
+      console.error(`❌ Lambda API call failed:`, error)
+      
+      return {
+        success: false,
+        stdout: '',
+        stderr: `Lambda execution failed: ${error instanceof Error ? error.message : String(error)}`,
+        executionTime,
+        memoryUsed: 0,
+        exitCode: 1,
+        error: String(error)
+      }
+    }
+  }
+
+  /**
+   * Invoke AWS Lambda function for code execution (deprecated - keeping for backward compatibility)
    */
   private async invokeLambdaFunction(
     functionName: string, 

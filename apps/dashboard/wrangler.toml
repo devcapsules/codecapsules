@@ -1,0 +1,12 @@
+compatibility_date = "2024-11-27"
+name = "codecapsule-dashboard"
+
+[build]
+command = "npm run build"
+publish = "out"
+
+[[env_vars]]
+API_BASE_URL = "https://devcapsules-api.devleep-edu.workers.dev"
+
+[build.environment]
+NODE_VERSION = "18"

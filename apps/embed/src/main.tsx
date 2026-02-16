@@ -1,7 +1,7 @@
 /// <reference types="./vite-env.d.ts" />
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import CodeCapsuleEmbed from './components/codecapsuleEmbed'
+import AdaptiveCapsuleEmbed from './components/AdaptiveCapsuleEmbed'
 import './index.css'
 
 // Get widget ID from URL params or data attributes
@@ -11,7 +11,7 @@ const getWidgetId = () => {
                    document.currentScript?.getAttribute('data-widget-id')
   
   if (!widgetId) {
-    console.error('CodeCapsule: No widget ID provided')
+    console.error('Devcapsules: No widget ID provided')
     return null
   }
   
@@ -21,14 +21,14 @@ const getWidgetId = () => {
 const widgetId = getWidgetId()
 
 if (widgetId) {
-  const container = document.getElementById('codecapsule-root') || document.body
+  const container = document.getElementById('devcapsules-root') || document.body
   const root = ReactDOM.createRoot(container)
   
   root.render(
     <React.StrictMode>
-      <CodeCapsuleEmbed widgetId={widgetId} />
+      <AdaptiveCapsuleEmbed widgetId={widgetId} />
     </React.StrictMode>,
   )
 } else {
-  document.body.innerHTML = '<div style="color: red; padding: 20px;">CodeCapsule: Invalid widget configuration</div>'
+  document.body.innerHTML = '<div style="color: red; padding: 20px;">Devcapsules: Invalid widget configuration</div>'
 }

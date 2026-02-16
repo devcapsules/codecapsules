@@ -40,4 +40,4 @@ services:
 
 networks:
   default:
-    name: codecapsule-api
+    name: devcapsules-api

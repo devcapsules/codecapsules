@@ -7,6 +7,7 @@
 
 import { CapsuleGenerationEngine } from './generation-engine';
 import { CreatorFeedbackCapture } from '../types/creator-feedback';
+import { AIService } from '../services/ai-service';
 
 // Test configuration
 const testConfig = {
@@ -34,12 +35,15 @@ const testConfig = {
 };
 
 // Initialize the engine
+const aiService = new AIService({
+  apiKey: 'your-azure-openai-key',
+  endpoint: 'https://your-instance.openai.azure.com',
+  deployment: 'gpt-4o',
+  apiVersion: '2024-06-01'
+});
+
 const engine = new CapsuleGenerationEngine(
-  {
-    apiKey: 'your-azure-openai-key',
-    endpoint: 'https://your-instance.openai.azure.com',
-    deploymentName: 'gpt-4o'
-  },
+  aiService,
   CreatorFeedbackCapture
 );
 

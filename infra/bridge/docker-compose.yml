@@ -1,0 +1,74 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# CodeCapsule — Azure VM Docker Compose
+#
+# Runs the complete backend stack on a single Azure VMSS instance:
+#   1. Piston  (code execution engine) — private Docker network only
+#   2. Bridge API (Express server) — /internal/* + /api/v2/* proxy
+#
+# cloudflared (host systemd service) sends ALL tunnel traffic to bridge:3000.
+# Piston is NEVER exposed to the host — only bridge-api can reach it via
+# Docker internal DNS at http://piston:2000.
+#
+# Usage:
+#   docker compose up -d          # start stack
+#   docker compose logs -f        # tail logs
+#   docker compose down           # stop
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  # ── 1. Piston — Code Execution Engine ──────────────────────────────────────
+  piston:
+    image: ghcr.io/engineer-man/piston:latest
+    container_name: devcapsules_piston
+    restart: always
+    # NOT exposed to host — only bridge-api reaches it on the Docker network
+    expose:
+      - "2000"
+    tmpfs:
+      - /piston/jobs:exec,size=256M    # Ephemeral execution scratch
+    volumes:
+      - piston-packages:/piston/packages    # Persist installed runtimes
+    networks:
+      - devcapsules_net
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:2000/api/v2/runtimes"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ── 2. Bridge API — Internal Route Handler + Piston Proxy ──────────────────
+  bridge-api:
+    build:
+      context: /opt/devcapsules-repo       # Monorepo root (cloned by cloud-init)
+      dockerfile: apps/bridge-api/Dockerfile
+    container_name: devcapsules_bridge
+    restart: always
+    ports:
+      # Exposed to host so cloudflared → localhost:3000
+      - "3000:3000"
+    depends_on:
+      piston:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - PISTON_URL=http://piston:2000      # Docker internal DNS
+    networks:
+      - devcapsules_net
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  piston-packages:
+    driver: local
+
+networks:
+  devcapsules_net:
+    driver: bridge

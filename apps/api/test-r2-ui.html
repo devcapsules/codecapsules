@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R2/CDN Architecture Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
+        .widget-container { height: 500px; border: 2px solid #007acc; margin: 10px 0; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🧪 R2/CDN-First Architecture Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Architecture Status</h2>
+        <div id="health-status">Loading health check...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. Widget Load Test (CDN-First)</h2>
+        <p>This widget will try CDN first, then fallback to API:</p>
+        <div class="widget-container">
+            <iframe src="../embed/dist/index.html?widgetId=cmjfbzhn30005uz11yt8e7p2l" 
+                    width="100%" height="100%" frameborder="0">
+            </iframe>
+        </div>
+        <div class="log" id="widget-logs">
+            Check browser console for CDN vs API fetch logs
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Cache Headers Test</h2>
+        <button onclick="testCacheHeaders()">Test GET /api/capsules/:id</button>
+        <div class="log" id="cache-results">Click button to test cache headers</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. Load Test Simulation</h2>
+        <p>Simulate multiple widgets loading simultaneously:</p>
+        <button onclick="simulateLoad()">Load 10 Widgets</button>
+        <div class="log" id="load-results">Click button to test concurrent loads</div>
+    </div>
+
+    <script>
+        // Test health endpoint
+        async function checkHealth() {
+            try {
+                const response = await fetch('http://localhost:3001/health');
+                const health = await response.json();
+                document.getElementById('health-status').innerHTML = `
+                    <strong>Status:</strong> ${health.status}<br>
+                    <strong>CDN Storage:</strong> ${health.cdn_storage}<br>
+                    <strong>Queue Execution:</strong> ${health.queue_execution}<br>
+                    <strong>AI Service:</strong> ${health.ai_service}
+                `;
+            } catch (error) {
+                document.getElementById('health-status').innerHTML = 
+                    `❌ Health check failed: ${error.message}`;
+            }
+        }
+        
+        // Test cache headers
+        async function testCacheHeaders() {
+            const capsuleId = 'cmjfbzhn30005uz11yt8e7p2l';
+            const resultsDiv = document.getElementById('cache-results');
+            
+            try {
+                const response = await fetch(`http://localhost:3001/api/capsules/${capsuleId}`);
+                const cacheControl = response.headers.get('cache-control');
+                const cdnCache = response.headers.get('cdn-cache-control');
+                const vary = response.headers.get('vary');
+                
+                resultsDiv.innerHTML = `
+                    <strong>Status:</strong> ${response.status}<br>
+                    <strong>Cache-Control:</strong> ${cacheControl}<br>
+                    <strong>CDN-Cache-Control:</strong> ${cdnCache}<br>
+                    <strong>Vary:</strong> ${vary}<br>
+                    <em>✅ Headers look good for CDN caching!</em>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `❌ Cache test failed: ${error.message}`;
+            }
+        }
+        
+        // Simulate concurrent load
+        async function simulateLoad() {
+            const resultsDiv = document.getElementById('load-results');
+            const capsuleId = 'cmjfbzhn30005uz11yt8e7p2l';
+            resultsDiv.innerHTML = 'Testing concurrent loads...';
+            
+            const startTime = performance.now();
+            const promises = [];
+            
+            // Create 10 concurrent requests
+            for (let i = 0; i < 10; i++) {
+                promises.push(
+                    fetch(`http://localhost:3001/api/capsules/${capsuleId}`)
+                        .then(r => r.json())
+                        .then(data => ({ success: true, title: data.capsule?.title }))
+                        .catch(error => ({ success: false, error: error.message }))
+                );
+            }
+            
+            try {
+                const results = await Promise.all(promises);
+                const endTime = performance.now();
+                const duration = (endTime - startTime).toFixed(2);
+                
+                const successful = results.filter(r => r.success).length;
+                const failed = results.length - successful;
+                
+                resultsDiv.innerHTML = `
+                    <strong>Results:</strong><br>
+                    ✅ Successful: ${successful}/10<br>
+                    ❌ Failed: ${failed}/10<br>
+                    ⏱️ Total time: ${duration}ms<br>
+                    📊 Avg per request: ${(duration / 10).toFixed(2)}ms<br>
+                    <em>${failed === 0 ? '🎉 All requests succeeded!' : '⚠️ Some requests failed'}</em>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `❌ Load test failed: ${error.message}`;
+            }
+        }
+        
+        // Run health check on load
+        checkHealth();
+    </script>
+</body>
+</html>

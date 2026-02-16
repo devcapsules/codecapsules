@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 export function PlatformShowcaseSection() {
   return (
@@ -98,9 +99,9 @@ export function PlatformShowcaseSection() {
           <p className="text-gray-400 mb-4">
             Already have content? Make it interactive in minutes.
           </p>
-          <button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8 py-3 rounded-xl font-semibold transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25">
+          <Link href="/signup" className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8 py-3 rounded-xl font-semibold transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25">
             Start Free Trial
-          </button>
+          </Link>
         </div>
       </div>
     </section>

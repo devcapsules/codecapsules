@@ -495,7 +495,33 @@ CONTENT GENERATION REQUIREMENTS:
 - Generate content for capsule type: ${config.capsuleType}
 - Target difficulty: ${config.difficulty}
 - Estimated completion time: ${config.estimatedTime || 15} minutesOUTPUT FORMAT:
-${config.capsuleType === 'code' ? `
+${config.capsuleType === 'database' ? `
+For DATABASE problems, respond with this JSON structure:
+{
+  "title": "Clear, engaging title",
+  "description": "Clean problem statement - Transform the user request into a proper learning scenario. DO NOT include generation instructions or requirements from the prompt.",
+  "content": {
+    "schema": {
+      "tables": [{"name": "table_name", "columns": ["column1 (TYPE)", "column2 (TYPE)"]}]
+    },
+    "sampleData": "Representative data for the scenario",
+    "query": "The SQL query challenge",
+    "solution": "Complete solution query",
+    "testCases": [{"input": "test setup", "expected": "expected result", "description": "Test description"}]
+  },
+  "pedagogicalData": {
+    "learningObjectives": ["objective1", "objective2"],
+    "hints": [{"content": "hint text", "trigger": "on_request"}],
+    "concepts": ["SQL fundamentals", "Database design"]
+  }
+}
+
+CRITICAL DATABASE REQUIREMENTS:
+- description MUST be a clean learning scenario, NOT the generation instructions
+- Include realistic database schema and sample data
+- Provide progressive difficulty in queries
+- Focus on practical SQL skills
+` : config.capsuleType === 'code' ? `
 For CODING problems, respond with this JSON structure:
 {
   "title": "Clear, engaging title",
@@ -575,12 +601,18 @@ Focus on creating pedagogically sound, engaging learning experiences that help l
       console.log(`🔧 Initial JSON parse failed, attempting to fix...`);
       
       // Fix common issues:
-      // 1. Escape unescaped newlines in string values
-      let fixed = cleaned.replace(/"([^"]*?)(\n|\r\n|\r)([^"]*?)"/g, (match, before, newline, after) => {
+      // 1. Convert Python values to JSON equivalents
+      let fixed = cleaned
+        .replace(/\bNone\b/g, 'null')
+        .replace(/\bTrue\b/g, 'true')
+        .replace(/\bFalse\b/g, 'false');
+      
+      // 2. Escape unescaped newlines in string values
+      fixed = fixed.replace(/"([^"]*?)(\n|\r\n|\r)([^"]*?)"/g, (match, before, newline, after) => {
         return `"${before}\\n${after}"`;
       });
       
-      // 2. Fix unescaped quotes within strings (basic approach)
+      // 3. Fix unescaped quotes within strings (basic approach)
       fixed = fixed.replace(/: "([^"]*?)"([^,}\]]*?)"/g, ': "$1\\"$2"');
       
       console.log(`🔧 Attempting to parse fixed JSON...`);

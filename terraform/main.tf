@@ -179,6 +179,40 @@ resource "aws_lambda_function" "sql_judge" {
   ]
 }
 
+# SQL Validator Lambda Function (for capsule generation validation)
+resource "aws_lambda_function" "sql_validator" {
+  filename         = "${path.module}/lambda-zips/sql-validator.zip"
+  function_name    = "${local.function_name_prefix}-sql-validator"
+  role            = aws_iam_role.lambda_execution_role.arn
+  handler         = "lambda_function.lambda_handler"
+  source_code_hash = filebase64sha256("${path.module}/lambda-zips/sql-validator.zip")
+  runtime         = "python3.11"
+  timeout         = 30
+  memory_size     = 512
+
+  environment {
+    variables = {
+      DB_HOST              = var.db_host
+      DB_NAME              = "postgres"
+      DB_USER              = var.db_user
+      DB_PASSWORD          = var.db_password
+      LOG_LEVEL           = "INFO"
+      PYTHONPATH          = "/var/runtime:/var/task"
+    }
+  }
+
+  tracing_config {
+    mode = "Active"
+  }
+
+  description = "CodeCapsule SQL capsule validator with SQLite and PostgreSQL support"
+
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_basic_execution,
+    aws_cloudwatch_log_group.sql_validator_log_group
+  ]
+}
+
 # ===== CLOUDWATCH LOG GROUPS =====
 
 resource "aws_cloudwatch_log_group" "python_judge_log_group" {
@@ -193,6 +227,11 @@ resource "aws_cloudwatch_log_group" "javascript_judge_log_group" {
 
 resource "aws_cloudwatch_log_group" "sql_judge_log_group" {
   name              = "/aws/lambda/${local.function_name_prefix}-sql-judge"
+  retention_in_days = 7
+}
+
+resource "aws_cloudwatch_log_group" "sql_validator_log_group" {
+  name              = "/aws/lambda/${local.function_name_prefix}-sql-validator"
   retention_in_days = 7
 }
 
@@ -222,22 +261,25 @@ resource "aws_api_gateway_deployment" "codecapsule_deployment" {
     aws_api_gateway_method.javascript_execute_post,
     aws_api_gateway_method.sql_execute_post,
     aws_api_gateway_method.java_execute_post,
-    aws_api_gateway_method.csharp_execute_post,
-    aws_api_gateway_method.go_execute_post,
+    # aws_api_gateway_method.csharp_execute_post,  # Commented out
+    # aws_api_gateway_method.go_execute_post,  # Commented out
     aws_api_gateway_method.health_check_get,
+    aws_api_gateway_method.validate_sql_post,
     aws_api_gateway_integration.python_execute_post,
     aws_api_gateway_integration.javascript_execute_post,
     aws_api_gateway_integration.sql_execute_post,
     aws_api_gateway_integration.java_execute_post,
-    aws_api_gateway_integration.csharp_execute_post,
-    aws_api_gateway_integration.go_execute_post,
+    # aws_api_gateway_integration.csharp_execute_post,  # Commented out
+    # aws_api_gateway_integration.go_execute_post,  # Commented out
     aws_api_gateway_integration.health_check_get,
+    aws_api_gateway_integration.validate_sql_post,
     aws_api_gateway_integration.python_execute_options,
     aws_api_gateway_integration.javascript_execute_options,
     aws_api_gateway_integration.sql_execute_options,
     aws_api_gateway_integration.java_execute_options,
     aws_api_gateway_integration.csharp_execute_options,
-    aws_api_gateway_integration.go_execute_options
+    aws_api_gateway_integration.go_execute_options,
+    aws_api_gateway_integration.validate_sql_options
   ]
 
   rest_api_id = aws_api_gateway_rest_api.codecapsule_api.id
@@ -348,6 +390,20 @@ resource "aws_api_gateway_resource" "execute_go" {
   rest_api_id = aws_api_gateway_rest_api.codecapsule_api.id
   parent_id   = aws_api_gateway_resource.execute.id
   path_part   = "go"
+}
+
+# /validate resource
+resource "aws_api_gateway_resource" "validate" {
+  rest_api_id = aws_api_gateway_rest_api.codecapsule_api.id
+  parent_id   = aws_api_gateway_rest_api.codecapsule_api.root_resource_id
+  path_part   = "validate"
+}
+
+# /validate/sql resource
+resource "aws_api_gateway_resource" "validate_sql" {
+  rest_api_id = aws_api_gateway_rest_api.codecapsule_api.id
+  parent_id   = aws_api_gateway_resource.validate.id
+  path_part   = "sql"
 }
 
 # /health resource

@@ -1,0 +1,518 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // Optional for Supabase connection pooling
+}
+
+// ===== CORE ENTITIES =====
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  avatar    String?
+  tier      UserTier @default(FREE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Auth (Supabase)
+  authId String @unique // Supabase user ID
+
+  // Relationships
+  capsules        Capsule[]
+  analytics       UserAnalytics[]
+  creatorFeedback CreatorFeedback[]
+  subscriptions   Subscription[]
+  
+  // NEW: Playlist relationships
+  playlists          Playlist[]
+  playlistProgress   PlaylistProgress[]
+
+  @@map("users")
+}
+
+enum UserTier {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+// ===== CAPSULE SYSTEM =====
+
+model Capsule {
+  id          String      @id @default(cuid())
+  title       String
+  description String
+  
+  // Legacy fields (for backward compatibility)
+  type        CapsuleType
+  language    String?
+  difficulty  Difficulty
+  tags        String[]
+
+  // NEW: BaseCapsule structure (production-ready)
+  capsuleTypeNew        BaseCapsuleType? @map("capsule_type_new")
+  problemStatementMd    String?          @map("problem_statement_md") @db.Text
+  runtimeConfig         Json?            @map("runtime_config")
+  configData            Json?            @map("config_data")
+
+  // Universal Capsule Data (JSON) - Legacy
+  content          Json // AdaptiveContent
+  runtime          Json // RuntimeConfiguration
+  pedagogy         Json // Pedagogy framework
+  business         Json // Business metrics
+
+  // Legacy compatibility
+  legacyData Json?
+
+  // Metadata
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  creator   User   @relation(fields: [creatorId], references: [id])
+  creatorId String
+
+  executions      CapsuleExecution[]
+  analytics       CapsuleAnalytics[]
+  creatorFeedback CreatorFeedback[]
+  playlistItems   PlaylistItem[]
+
+  @@map("capsules")
+}
+
+enum CapsuleType {
+  CODE
+  QUIZ
+  TERMINAL
+  DATABASE
+  SYSTEM_DESIGN
+}
+
+// NEW: BaseCapsule types (simplified, production-ready)
+enum BaseCapsuleType {
+  CODE
+  DATABASE
+  TERMINAL
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+// ===== EXECUTION ENGINE =====
+
+model CapsuleExecution {
+  id        String            @id @default(cuid())
+  status    ExecutionStatus
+  runtime   RuntimeTarget
+  startedAt DateTime          @default(now())
+  endedAt   DateTime?
+  
+  // Execution context
+  code      String?
+  input     Json?
+  output    Json?
+  errors    String[]
+  
+  // Performance metrics
+  executionTime Int? // milliseconds
+  memoryUsage   Int? // bytes
+  
+  // Relationships
+  capsule   Capsule @relation(fields: [capsuleId], references: [id])
+  capsuleId String
+  
+  // Optional user tracking
+  userId String?
+
+  @@map("capsule_executions")
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  TIMEOUT
+}
+
+enum RuntimeTarget {
+  WASM
+  DOCKER
+  CLOUD_RUN
+}
+
+// ===== ANALYTICS & LEARNING =====
+
+model UserAnalytics {
+  id     String @id @default(cuid())
+  userId String
+  date   DateTime @default(now())
+  
+  // Learning metrics
+  capsulesCompleted    Int @default(0)
+  totalExecutionTime   Int @default(0) // minutes
+  averageScore         Float?
+  conceptsMastered     String[]
+  weakAreas           String[]
+  
+  // Engagement metrics
+  sessionDuration     Int @default(0) // minutes
+  hintsUsed          Int @default(0)
+  attemptsAverage    Float @default(0)
+  
+  user User @relation(fields: [userId], references: [id])
+  
+  @@unique([userId, date])
+  @@map("user_analytics")
+}
+
+model CapsuleAnalytics {
+  id        String @id @default(cuid())
+  capsuleId String
+  date      DateTime @default(now())
+  
+  // Performance metrics
+  totalAttempts     Int @default(0)
+  successRate       Float @default(0)
+  averageTime       Int @default(0) // seconds
+  popularityScore   Float @default(0)
+  
+  // Learning insights
+  commonErrors      Json? // Array of error patterns
+  hintsEffectiveness Json? // Hint usage analytics
+  userFeedback      Json? // Aggregated feedback
+  
+  capsule Capsule @relation(fields: [capsuleId], references: [id])
+  
+  @@unique([capsuleId, date])
+  @@map("capsule_analytics")
+}
+
+// ===== CREATOR FEEDBACK & AI TRAINING =====
+
+model CreatorFeedback {
+  id        String   @id @default(cuid())
+  type      FeedbackType
+  
+  // Original AI generation
+  originalPrompt    String
+  aiGeneratedContent Json
+  
+  // Human edits
+  humanEditedContent Json
+  editSummary       String?
+  qualityScore      Float? // 0-1 rating
+  
+  // Training data
+  isApprovedForTraining Boolean @default(false)
+  editCategories       String[] // ["clarity", "accuracy", "pedagogy"]
+  
+  createdAt DateTime @default(now())
+  
+  // Relationships
+  creator   User    @relation(fields: [creatorId], references: [id])
+  creatorId String
+  capsule   Capsule @relation(fields: [capsuleId], references: [id])
+  capsuleId String
+
+  @@map("creator_feedback")
+}
+
+enum FeedbackType {
+  CODE_GENERATION
+  HINT_GENERATION
+  TEST_CASE_GENERATION
+  EXPLANATION_GENERATION
+}
+
+// ===== BUSINESS & SUBSCRIPTIONS =====
+
+model Subscription {
+  id     String           @id @default(cuid())
+  userId String
+  tier   UserTier
+  status SubscriptionStatus
+  
+  // Stripe integration
+  stripeSubscriptionId String? @unique
+  stripeCustomerId     String?
+  stripePriceId        String?
+  
+  // Usage tracking
+  monthlyExecutions    Int @default(0)
+  monthlyGenerations   Int @default(0)
+  
+  // Dates
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  createdAt         DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id])
+  
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  UNPAID
+}
+
+// ===== SYSTEM HEALTH =====
+
+model SystemMetrics {
+  id   String   @id @default(cuid())
+  date DateTime @default(now())
+  
+  // Performance metrics
+  totalExecutions     Int
+  averageLatency      Float // milliseconds
+  errorRate          Float // percentage
+  
+  // Cost metrics
+  wasmExecutionCost   Float
+  dockerExecutionCost Float
+  aiGenerationCost    Float
+  
+  // Usage metrics
+  activeUsers        Int
+  newSignups        Int
+  capsuleCreations  Int
+  
+  @@unique([date])
+  @@map("system_metrics")
+}
+
+// ===== PLAYLIST SYSTEM =====
+
+model Playlist {
+  id          String   @id @default(uuid()) @map("playlist_id")
+  title       String
+  description String?
+  isPublic    Boolean  @default(false) @map("is_public")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  creator   User   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  creatorId String @map("creator_id")
+
+  items    PlaylistItem[]
+  progress PlaylistProgress[]
+
+  @@map("playlists")
+}
+
+model PlaylistItem {
+  id        String   @id @default(uuid()) @map("item_id")
+  order     Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relationships
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  playlistId String   @map("playlist_id")
+  
+  capsule   Capsule @relation(fields: [capsuleId], references: [id], onDelete: Cascade)
+  capsuleId String  @map("capsule_id")
+
+  @@unique([playlistId, order], name: "unique_playlist_order")
+  @@unique([playlistId, capsuleId], name: "unique_playlist_capsule")
+  @@map("playlist_items")
+}
+
+model PlaylistProgress {
+  id             String   @id @default(uuid()) @map("progress_id")
+  sessionId      String   @map("session_id")
+  currentStep    Int      @default(1) @map("current_step")
+  completedSteps Int[]    @default([]) @map("completed_steps")
+  startedAt      DateTime @default(now()) @map("started_at")
+  lastActivity   DateTime @default(now()) @map("last_activity")
+
+  // Relationships
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  playlistId String   @map("playlist_id")
+  
+  // Optional user (for logged-in users)
+  learner   User?   @relation(fields: [learnerId], references: [id], onDelete: SetNull)
+  learnerId String? @map("learner_id")
+
+  @@map("playlist_progress")
+}
+
+// ===== PRODUCTION ANALYTICS SCHEMA =====
+// High-performance analytics tables for hybrid-cloud deployment
+
+model EventStream {
+  id        BigInt   @id @default(autoincrement())
+  eventId   String   @default(uuid()) @map("event_id")
+  
+  // Event metadata
+  eventType   String   @map("event_type")
+  capsuleId   String?  @map("capsule_id")
+  userId      String?  @map("user_id")
+  sessionId   String?  @map("session_id")
+  
+  // Tracking data
+  timestamp   DateTime @default(now())
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  referrer    String?
+  
+  // Event payload
+  eventData   Json?    @map("event_data")
+  
+  // Processing metadata
+  processed   Boolean  @default(false)
+  processedAt DateTime? @map("processed_at")
+  batchId     String?   @map("batch_id")
+  
+  @@map("analytics_event_stream")
+}
+
+model CapsuleHourlyStats {
+  id          BigInt   @id @default(autoincrement())
+  capsuleId   String   @map("capsule_id")
+  hourBucket  DateTime @map("hour_bucket")
+  
+  // Engagement metrics
+  totalSessions  Int @default(0) @map("total_sessions")
+  uniqueUsers    Int @default(0) @map("unique_users")
+  totalRuns      Int @default(0) @map("total_runs")
+  successfulRuns Int @default(0) @map("successful_runs")
+  
+  // Performance metrics
+  avgSessionDurationSeconds    Int     @default(0) @map("avg_session_duration_seconds")
+  avgTimeToFirstRunSeconds     Int     @default(0) @map("avg_time_to_first_run_seconds")
+  avgAttemptsPerCompletion     Decimal @default(0) @map("avg_attempts_per_completion") @db.Decimal(4,2)
+  
+  // Learning metrics
+  completionRate     Decimal @default(0) @map("completion_rate") @db.Decimal(5,4)
+  hintUsageRate      Decimal @default(0) @map("hint_usage_rate") @db.Decimal(5,4)
+  solutionViewRate   Decimal @default(0) @map("solution_view_rate") @db.Decimal(5,4)
+  
+  // Error analysis
+  totalErrors        Int  @default(0) @map("total_errors")
+  commonErrorTypes   Json? @map("common_error_types")
+  
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@unique([capsuleId, hourBucket])
+  @@map("analytics_capsule_hourly_stats")
+}
+
+model UserDailyStats {
+  id     BigInt   @id @default(autoincrement())
+  userId String   @map("user_id")
+  date   DateTime @db.Date
+  
+  // Activity metrics
+  capsulesAttempted Int @default(0) @map("capsules_attempted")
+  capsulesCompleted Int @default(0) @map("capsules_completed")
+  totalRuns         Int @default(0) @map("total_runs")
+  successfulRuns    Int @default(0) @map("successful_runs")
+  
+  // Learning progress  
+  sessionDurationSeconds Int      @default(0) @map("session_duration_seconds")
+  hintsUsed             Int      @default(0) @map("hints_used")
+  conceptsMastered      String[] @map("concepts_mastered")
+  
+  // Engagement quality
+  avgAttemptsPerCapsule Decimal @default(0) @map("avg_attempts_per_capsule") @db.Decimal(4,2)
+  completionStreak      Int     @default(0) @map("completion_streak")
+  
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@unique([userId, date])
+  @@map("analytics_user_daily_stats")
+}
+
+model OrganizationDailyStats {
+  id             BigInt   @id @default(autoincrement())
+  organizationId String   @map("organization_id")
+  date           DateTime @db.Date
+  
+  // Student metrics
+  activeStudents              Int @default(0) @map("active_students")
+  totalSessions               Int @default(0) @map("total_sessions")
+  avgSessionDurationSeconds   Int @default(0) @map("avg_session_duration_seconds")
+  
+  // Performance metrics
+  totalCapsulesCompleted      Int     @default(0) @map("total_capsules_completed")
+  overallSuccessRate          Decimal @default(0) @map("overall_success_rate") @db.Decimal(5,4)
+  avgAttemptsPerCompletion    Decimal @default(0) @map("avg_attempts_per_completion") @db.Decimal(4,2)
+  
+  // Pedagogical insights
+  atRiskStudentCount          Int      @default(0) @map("at_risk_student_count")
+  topStrugglingConcepts       String[] @map("top_struggling_concepts")
+  mostFailedTestCases         Json?    @map("most_failed_test_cases")
+  
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@unique([organizationId, date])
+  @@map("analytics_organization_daily_stats")
+}
+
+model TestCaseFailures {
+  id           BigInt   @id @default(autoincrement())
+  capsuleId    String   @map("capsule_id")
+  testCaseId   String   @map("test_case_id")
+  testCaseName String?  @map("test_case_name")
+  
+  // Failure metrics (updated daily)
+  date         DateTime @db.Date
+  totalAttempts Int     @default(0) @map("total_attempts")
+  failureCount  Int     @default(0) @map("failure_count")
+  failureRate   Decimal @default(0) @map("failure_rate") @db.Decimal(5,4)
+  
+  // Error analysis
+  commonErrorMessages       Json?    @map("common_error_messages")
+  affectedUserCount         Int?     @map("affected_user_count")
+  avgAttemptsBeforeSuccess  Decimal? @map("avg_attempts_before_success") @db.Decimal(4,2)
+  
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@unique([capsuleId, testCaseId, date])
+  @@map("analytics_test_case_failures")
+}
+
+model ActiveSessions {
+  sessionId String   @id @map("session_id")
+  userId    String?  @map("user_id")
+  capsuleId String?  @map("capsule_id")
+  
+  // Session metadata
+  startedAt    DateTime @default(now()) @map("started_at")
+  lastActivity DateTime @default(now()) @map("last_activity")
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  
+  // Current state
+  currentCode   String? @map("current_code") @db.Text
+  attemptsCount Int     @default(0) @map("attempts_count")
+  hintsUsed     Int     @default(0) @map("hints_used")
+  isCompleted   Boolean @default(false) @map("is_completed")
+  
+  // Expires after 1 hour of inactivity
+  expiresAt DateTime @default(dbgenerated("(NOW() + INTERVAL '1 hour')")) @map("expires_at")
+  
+  @@map("analytics_active_sessions")
+}

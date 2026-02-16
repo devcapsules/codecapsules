@@ -1,0 +1,22 @@
+{
+  "name": "codecapsule-analytics-processor",
+  "version": "1.0.0",
+  "description": "Azure Function to process analytics events from Event Hubs and update Supabase",
+  "main": "index.js",
+  "scripts": {
+    "start": "func start",
+    "test": "jest",
+    "deploy": "func azure functionapp publish codecapsule-analytics",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.0.0",
+    "@prisma/client": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "typescript": "^5.0.0",
+    "jest": "^29.0.0",
+    "prisma": "^5.0.0"
+  }
+}

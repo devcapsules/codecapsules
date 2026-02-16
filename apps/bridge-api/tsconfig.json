@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "./dist",
+    "rootDir": "../../",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "declaration": false,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": "../../",
+    "paths": {
+      "@codecapsule/utils": ["packages/utils/src/index.ts"],
+      "@codecapsule/utils/*": ["packages/utils/src/*"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "../../packages/core/src/agents/**/*",
+    "../../packages/core/src/services/ai-service.ts",
+    "../../packages/core/src/types/base-capsule.ts",
+    "../../packages/utils/src/**/*"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

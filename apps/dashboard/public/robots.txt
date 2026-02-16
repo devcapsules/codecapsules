@@ -1,0 +1,47 @@
+# Robots.txt for Devcapsules.com
+# Optimized for better "devcapsules" brand discovery and SEO
+
+User-agent: *
+Allow: /
+
+# Allow important public pages for SEO
+Allow: /blog/
+Allow: /contact
+Allow: /faq
+Allow: /terms
+Allow: /privacy
+Allow: /cookies
+Allow: /refund-policy
+Allow: /courses
+Allow: /about
+Allow: /pricing
+Allow: /features
+
+# Disallow private and admin areas
+Disallow: /api/
+Disallow: /auth/
+Disallow: /_next/
+Disallow: /admin/
+Disallow: /dashboard/*
+Disallow: /my-capsules
+Disallow: /account
+Disallow: /create-capsule
+Disallow: /analytics
+
+# Allow public dashboard page
+Allow: /dashboard$
+
+# Sitemap location for better indexing
+Sitemap: https://devcapsules.com/sitemap.xml
+
+# Crawl-delay for polite crawling
+Crawl-delay: 1
+
+# Special directives for major search engines
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1

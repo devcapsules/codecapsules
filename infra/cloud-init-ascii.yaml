@@ -1,0 +1,118 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - jq
+  - git
+
+write_files:
+  - path: /opt/codecapsule/install-piston-packages.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -e
+      PISTON_API="http://localhost:2000"
+      echo "[CodeCapsule] Waiting for Piston API on port 2000..."
+      for i in $(seq 1 90); do
+        if curl -sf "${PISTON_API}/api/v2/runtimes" > /dev/null 2>&1; then
+          echo "[CodeCapsule] Piston API ready (attempt ${i})"
+          break
+        fi
+        if [ "$i" -eq 90 ]; then
+          echo "[CodeCapsule] ERROR: Piston API did not start within 3 minutes"
+          exit 1
+        fi
+        sleep 2
+      done
+      LANGS=(
+        "python:3.10.0"
+        "node:18.15.0"
+        "java:15.0.2"
+        "gcc:10.2.0"
+      )
+      for entry in "${LANGS[@]}"; do
+        IFS=":" read -r lang ver <<< "$entry"
+        echo "[CodeCapsule] Installing ${lang} ${ver}..."
+        curl -sf -X POST "${PISTON_API}/api/v2/packages" \
+          -H "Content-Type: application/json" \
+          -d "{\"language\":\"${lang}\",\"version\":\"${ver}\"}" || echo "  WARNING: Failed to install ${lang}"
+      done
+      echo "[CodeCapsule] Installed runtimes:"
+      curl -sf "${PISTON_API}/api/v2/runtimes" | jq -r '.[] | "  \(.language) \(.version)"'
+
+  - path: /opt/codecapsule/healthcheck.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      docker ps > /dev/null 2>&1 || { echo "FAIL: Docker not running"; exit 1; }
+      docker inspect piston_api --format='{{.State.Running}}' 2>/dev/null | grep -q true \
+        || { echo "FAIL: Piston container not running"; exit 1; }
+      curl -sf http://localhost:2000/api/v2/runtimes > /dev/null \
+        || { echo "FAIL: Piston API not responding"; exit 1; }
+      systemctl is-active --quiet cloudflared \
+        || { echo "FAIL: cloudflared not running"; exit 1; }
+      echo "OK: All services healthy"
+
+  - path: /root/.cloudflared/__TUNNEL_ID__.json
+    permissions: "0600"
+    content: |
+      {"AccountTag":"__ACCOUNT_TAG__","TunnelSecret":"__TUNNEL_SECRET__","TunnelID":"__TUNNEL_ID__","Endpoint":""}
+
+  - path: /etc/cloudflared/config.yml
+    permissions: "0644"
+    content: |
+      tunnel: __TUNNEL_ID__
+      credentials-file: /root/.cloudflared/__TUNNEL_ID__.json
+      protocol: http2
+      no-autoupdate: true
+      ingress:
+        - hostname: __TUNNEL_HOSTNAME__
+          service: http://localhost:2000
+        - service: http_status:404
+
+  - path: /etc/systemd/system/cloudflared.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=cloudflared
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      TimeoutStartSec=60
+      Type=notify
+      ExecStart=/usr/bin/cloudflared --config /etc/cloudflared/config.yml tunnel run
+      Restart=on-failure
+      RestartSec=5s
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - echo "[CodeCapsule] VM Bootstrap Starting"
+  - curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+  - sh /tmp/get-docker.sh
+  - systemctl enable docker
+  - systemctl start docker
+  - echo "[CodeCapsule] Docker installed"
+  - git clone https://github.com/engineer-man/piston /opt/piston-source
+  - cd /opt/piston-source && docker compose up -d api
+  - echo "[CodeCapsule] Piston container started"
+  - /opt/codecapsule/install-piston-packages.sh
+  - echo "[CodeCapsule] Language runtimes installed"
+  - curl -L --output /tmp/cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+  - dpkg -i /tmp/cloudflared.deb
+  - echo "[CodeCapsule] cloudflared installed"
+  - mkdir -p /root/.cloudflared /etc/cloudflared
+  - systemctl daemon-reload
+  - systemctl enable cloudflared
+  - systemctl start cloudflared
+  - echo "[CodeCapsule] cloudflared tunnel connected"
+  - echo "*/5 * * * * root /opt/codecapsule/healthcheck.sh >> /var/log/codecapsule-health.log 2>&1" > /etc/cron.d/codecapsule-health
+  - echo "[CodeCapsule] VM Bootstrap Complete"

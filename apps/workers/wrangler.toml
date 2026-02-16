@@ -1,0 +1,233 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# DevCapsules Cloudflare Workers Configuration
+# ══════════════════════════════════════════════════════════════════════════════
+
+name = "devcapsules-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ══════════════════════════════════════════════════════════════════════════════
+# KV Namespaces — Cache + Sessions + Job Progress + Rate Limits
+# ══════════════════════════════════════════════════════════════════════════════
+[[kv_namespaces]]
+binding = "CACHE"
+id = "e193354d21ef47db980be492fe584ecc"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "f939d98a209b428a9ba38ed030b72c3b"
+
+[[kv_namespaces]]
+binding = "JOB_PROGRESS"
+id = "5a3a4cef7eb84396b7527f79c425c742"
+
+[[kv_namespaces]]
+binding = "RATE_LIMITS"
+id = "1c8ebeda88ba49ea8317288678bfd7ee"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Rate Limiting — Native Cloudflare Edge Rate Limiters (atomic, per-PoP)
+# Per-minute abuse prevention. Daily quotas handled separately via KV.
+# ══════════════════════════════════════════════════════════════════════════════
+[[ratelimits]]
+name = "RATE_LIMITER_FREE"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
+
+[[ratelimits]]
+name = "RATE_LIMITER_CREATOR"
+namespace_id = "1002"
+simple = { limit = 60, period = 60 }
+
+[[ratelimits]]
+name = "RATE_LIMITER_TEAM"
+namespace_id = "1003"
+simple = { limit = 300, period = 60 }
+
+# ══════════════════════════════════════════════════════════════════════════════
+# D1 Database — Primary SQLite Database
+# ══════════════════════════════════════════════════════════════════════════════
+[[d1_databases]]
+binding = "DB"
+database_name = "devcapsules-db"
+database_id = "4d303cb4-9dee-41ec-b0e0-228691ecd151"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Queues — Async Generation Jobs
+# ══════════════════════════════════════════════════════════════════════════════
+[[queues.producers]]
+binding = "GENERATION_QUEUE"
+queue = "generation-queue"
+
+[[queues.consumers]]
+queue = "generation-queue"
+max_batch_size = 1
+max_retries = 3
+dead_letter_queue = "generation-dlq"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# R2 Storage — Assets + Exports
+# ══════════════════════════════════════════════════════════════════════════════
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "devcapsules-assets"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Environment Variables (Non-Secret)
+# ══════════════════════════════════════════════════════════════════════════════
+[vars]
+ENVIRONMENT = "development"
+API_VERSION = "v1"
+LOG_LEVEL = "info"
+CORS_ORIGINS = "http://localhost:3000,http://localhost:3001"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# AZURE TUNNEL — Cloudflare Tunnel → Azure VMSS
+# Workers call Azure VMs for AI generation pipeline + code execution (Piston)
+# VMs have no public IP; cloudflared connects to same Tunnel ID
+# ══════════════════════════════════════════════════════════════════════════════
+# Tunnel URL for AI generation pipeline (3-agent pipeline on Azure VMs)
+TUNNEL_URL = "https://tunnel.devcapsules.com"
+
+# Piston code execution URL (routed through same Cloudflare Tunnel)
+PISTON_URL = "https://tunnel.devcapsules.com"
+
+# Azure OpenAI endpoint (key is a secret)
+AZURE_OPENAI_ENDPOINT = "https://devcapsules-resource.cognitiveservices.azure.com"
+AZURE_OPENAI_DEPLOYMENT = "gpt-4o"
+AZURE_OPENAI_API_VERSION = "2025-01-01-preview"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Secrets (set via: wrangler secret put SECRET_NAME)
+# ══════════════════════════════════════════════════════════════════════════════
+# AZURE_OPENAI_API_KEY     — Azure OpenAI authentication
+# JWT_SECRET               — JWT signing key for auth
+# WORKER_SHARED_SECRET     — HMAC secret for Workers ↔ Azure VMs auth (Tunnel Bridge)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Cron Triggers — Scheduled Jobs
+# ══════════════════════════════════════════════════════════════════════════════
+[triggers]
+crons = ["*/15 * * * *"]  # Analytics aggregation every 15 minutes
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Staging Environment
+# ══════════════════════════════════════════════════════════════════════════════
+[env.staging]
+name = "devcapsules-api-staging"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+CORS_ORIGINS = "https://staging.devcapsules.com"
+# Azure VM tunnel URLs
+TUNNEL_URL = "https://tunnel-staging.devcapsules.com"
+PISTON_URL = "https://tunnel-staging.devcapsules.com"
+
+# Use same resources for now (can separate later)
+[[env.staging.kv_namespaces]]
+binding = "CACHE"
+id = "e193354d21ef47db980be492fe584ecc"
+
+[[env.staging.kv_namespaces]]
+binding = "SESSIONS"
+id = "f939d98a209b428a9ba38ed030b72c3b"
+
+[[env.staging.kv_namespaces]]
+binding = "JOB_PROGRESS"
+id = "5a3a4cef7eb84396b7527f79c425c742"
+
+[[env.staging.kv_namespaces]]
+binding = "RATE_LIMITS"
+id = "1c8ebeda88ba49ea8317288678bfd7ee"
+
+[[env.staging.ratelimits]]
+name = "RATE_LIMITER_FREE"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
+
+[[env.staging.ratelimits]]
+name = "RATE_LIMITER_CREATOR"
+namespace_id = "1002"
+simple = { limit = 60, period = 60 }
+
+[[env.staging.ratelimits]]
+name = "RATE_LIMITER_TEAM"
+namespace_id = "1003"
+simple = { limit = 300, period = 60 }
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "devcapsules-db"
+database_id = "4d303cb4-9dee-41ec-b0e0-228691ecd151"
+
+[[env.staging.queues.producers]]
+binding = "GENERATION_QUEUE"
+queue = "generation-queue"
+
+[[env.staging.queues.consumers]]
+queue = "generation-queue"
+max_batch_size = 1
+max_retries = 3
+dead_letter_queue = "generation-dlq"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Production Environment
+# ══════════════════════════════════════════════════════════════════════════════
+[env.production]
+name = "devcapsules-api-production"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+LOG_LEVEL = "warn"
+CORS_ORIGINS = "https://devcapsules.com,https://www.devcapsules.com,https://dashboard.devcapsules.com"
+# Azure VM tunnel URLs
+TUNNEL_URL = "https://tunnel.devcapsules.com"
+PISTON_URL = "https://tunnel.devcapsules.com"
+
+# Production uses same resources (single-tenant setup)
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = "e193354d21ef47db980be492fe584ecc"
+
+[[env.production.kv_namespaces]]
+binding = "SESSIONS"
+id = "f939d98a209b428a9ba38ed030b72c3b"
+
+[[env.production.kv_namespaces]]
+binding = "JOB_PROGRESS"
+id = "5a3a4cef7eb84396b7527f79c425c742"
+
+[[env.production.kv_namespaces]]
+binding = "RATE_LIMITS"
+id = "1c8ebeda88ba49ea8317288678bfd7ee"
+
+[[env.production.ratelimits]]
+name = "RATE_LIMITER_FREE"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
+
+[[env.production.ratelimits]]
+name = "RATE_LIMITER_CREATOR"
+namespace_id = "1002"
+simple = { limit = 60, period = 60 }
+
+[[env.production.ratelimits]]
+name = "RATE_LIMITER_TEAM"
+namespace_id = "1003"
+simple = { limit = 300, period = 60 }
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "devcapsules-db"
+database_id = "4d303cb4-9dee-41ec-b0e0-228691ecd151"
+
+[[env.production.queues.producers]]
+binding = "GENERATION_QUEUE"
+queue = "generation-queue"
+
+[[env.production.queues.consumers]]
+queue = "generation-queue"
+max_batch_size = 1
+max_retries = 3
+dead_letter_queue = "generation-dlq"

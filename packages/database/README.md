@@ -24,8 +24,8 @@ pnpm db:studio
 Required in your `.env`:
 
 ```
-DATABASE_URL="postgresql://username:password@localhost:5432/codecapsule"
-DIRECT_URL="postgresql://username:password@localhost:5432/codecapsule"
+DATABASE_URL="postgresql://username:password@localhost:5432/devcapsules"
+DIRECT_URL="postgresql://username:password@localhost:5432/devcapsules"
 ```
 
 For Supabase, use:

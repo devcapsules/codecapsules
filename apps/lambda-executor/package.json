@@ -1,0 +1,20 @@
+{
+  "name": "@codecapsule/lambda-executor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AWS Lambda container for heavy language execution (Java, C++, C)",
+  "main": "dist/handler.js",
+  "scripts": {
+    "build": "tsc",
+    "deploy": "npm run build && aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $AWS_ACCOUNT.dkr.ecr.us-east-1.amazonaws.com && docker build -t piston-executor . && docker tag piston-executor:latest $AWS_ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/piston-executor:latest && docker push $AWS_ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/piston-executor:latest",
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.131",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  }
+}

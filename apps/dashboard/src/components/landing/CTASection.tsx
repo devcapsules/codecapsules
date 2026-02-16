@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 export function CTASection() {
   return (
@@ -18,9 +19,9 @@ export function CTASection() {
           <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6">
             <h3 className="font-semibold text-white mb-2">Course Creators & Bloggers</h3>
             <p className="text-gray-300 text-sm mb-4">Turn static tutorials into interactive experiences</p>
-            <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25">
+            <Link href="/signup" className="block w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 text-center">
               Start Free Trial
-            </button>
+            </Link>
           </div>
           
           <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6">

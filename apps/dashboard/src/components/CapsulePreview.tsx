@@ -1,6 +1,19 @@
 import React from 'react';
 import { PlayIcon, LightBulbIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
+// Helper function to clean markdown from text
+function cleanMarkdown(text: string): string {
+  if (!text) return '';
+  
+  return text
+    .replace(/^#{1,6}\s+/gm, '') // Remove markdown headers
+    .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold formatting
+    .replace(/\*(.*?)\*/g, '$1') // Remove italic formatting
+    .replace(/^\s*-\s*/gm, '• ') // Convert markdown lists to bullet points
+    .replace(/\n{3,}/g, '\n\n') // Limit consecutive line breaks
+    .trim();
+}
+
 interface CapsulePreviewProps {
   type: 'code' | 'quiz' | 'terminal' | 'system-design' | null;
   language?: string;
@@ -46,7 +59,7 @@ export function CapsulePreview({
             {/* Problem Statement */}
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-3">{generatedContent.title}</h2>
-              <p className="text-gray-700 leading-relaxed">{generatedContent.description}</p>
+              <p className="text-gray-700 leading-relaxed">{cleanMarkdown(generatedContent.description)}</p>
             </section>
 
             {/* Starter Code */}
@@ -184,7 +197,7 @@ export function CapsulePreview({
           <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center">
             <span className="text-white text-xs font-bold">CC</span>
           </div>
-          <span className="font-medium text-gray-700">CodeCapsule</span>
+          <span className="font-medium text-gray-700">Devcapsules</span>
         </div>
         <div className={`px-2 py-1 rounded text-xs font-medium border ${difficultyColors[difficulty]}`}>
           {difficulty}
@@ -352,7 +365,7 @@ export function CapsulePreview({
 
       {/* Footer */}
       <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex items-center justify-between text-xs text-gray-500">
-        <span>Powered by CodeCapsule</span>
+        <span>Powered by Devcapsules</span>
         <div className="flex items-center space-x-4">
           <span>🔥 2.1k runs</span>
           <span>⭐ 4.8/5</span>

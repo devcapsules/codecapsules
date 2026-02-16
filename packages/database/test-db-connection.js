@@ -22,10 +22,10 @@ async function testDatabaseConnection() {
     
     // Test creating a sample user (for testing)
     const testUser = await prisma.user.upsert({
-      where: { email: 'test@codecapsule.com' },
+      where: { email: 'test@devcapsules.com' },
       update: {},
       create: {
-        email: 'test@codecapsule.com',
+        email: 'test@devcapsules.com',
         name: 'Test User',
         authId: 'test-auth-id',
         tier: 'FREE'

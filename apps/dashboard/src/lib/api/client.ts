@@ -1,23 +1,36 @@
 /**
- * CodeCapsule API Client
+ * Devcapsules API Client v2
  * 
- * Connects the frontend to the API server for AI generation and code execution.
- * Supports both development and production environments with automatic detection.
+ * Connects the frontend to the Cloudflare Workers API.
+ * Supports async generation with polling, authentication, and versioned endpoints.
+ * 
+ * @version 2.0.0
+ * @author Devcapsules Team
  */
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export type SupportedLanguage = 'python' | 'javascript' | 'java' | 'cpp' | 'c' | 'sql'
+export type Difficulty = 'easy' | 'medium' | 'hard'
+export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed'
+export type ExecutionRuntime = 'edge' | 'lambda'
 
 export interface GenerationRequest {
   prompt: string
-  language: 'python' | 'javascript' | 'java' | 'csharp' | 'go' | 'sql'
-  difficulty?: 'easy' | 'medium' | 'hard'
+  language: SupportedLanguage
+  difficulty?: Difficulty
   concepts?: string[]
+  includeTestCases?: boolean
+  includeHints?: boolean
 }
 
 export interface ExecutionRequest {
-  source_code: string
-  language: 'python' | 'javascript' | 'java' | 'csharp' | 'go' | 'sql'
+  code: string
+  language: SupportedLanguage
   input?: string
-  time_limit?: number
-  memory_limit?: number
+  timeout?: number
 }
 
 export interface GenerationResult {
@@ -41,6 +54,20 @@ export interface ExecutionResult {
   compile_output?: string
   error?: string
   timestamp: number
+  runtime?: ExecutionRuntime
+}
+
+// Async generation job types
+export interface GenerationJob {
+  jobId: string
+  status: JobStatus
+  progress: number
+  stage: string
+  eta?: number
+  result?: any
+  error?: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface GenerateAndExecuteRequest extends GenerationRequest {
@@ -49,52 +76,182 @@ export interface GenerateAndExecuteRequest extends GenerationRequest {
 
 export interface GenerateAndExecuteResult {
   success: boolean
-  generation: GenerationResult
-  execution: ExecutionResult
-  combined_success: boolean
+  capsule: any
+  metadata?: any
+  qualityScore?: number
+  suggestions?: string[]
   error?: string
 }
 
 export interface HealthStatus {
-  status: string
+  success: boolean
+  version: string
   timestamp: string
-  ai_service: 'connected' | 'mock'
-  execution_mode: 'local' | 'serverless'
-  aws_gateway: string
-  supported_languages: Array<{
-    language: string
-    runtime: 'native' | 'container'
-    maxMemory: number
-    maxTimeout: number
-  }>
+  services: {
+    d1: boolean
+    kv: boolean
+    ai: boolean
+    queues: boolean
+  }
+  edge: {
+    region: string
+    colo: string
+  }
 }
 
-class CodeCapsuleAPIClient {
+// Capsule types
+export interface Capsule {
+  id: string
+  title: string
+  description: string
+  language: SupportedLanguage
+  difficulty: Difficulty
+  starterCode: string
+  solutionCode: string
+  testCases: TestCase[]
+  hints?: string[]
+  concepts?: string[]
+  metadata?: Record<string, any>
+  status: 'draft' | 'published'
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TestCase {
+  input: string
+  expectedOutput: string
+  isHidden?: boolean
+}
+
+// Auth types
+export interface AuthTokens {
+  accessToken: string
+  refreshToken?: string
+  expiresAt: number
+}
+
+export interface User {
+  id: string
+  email: string
+  name?: string
+  plan: 'free' | 'creator' | 'b2b' | 'enterprise'
+}
+
+// ============================================================================
+// API Client Class
+// ============================================================================
+
+class DevcapsulesAPIClient {
   private baseUrl: string
-  
+  private apiVersion = 'v1'
+  private authToken: string | null = null
+  private apiKey: string | null = null
+
   constructor() {
-    // Environment-based API URL detection
     this.baseUrl = this.detectApiUrl()
+    this.loadStoredAuth()
   }
 
+  // ---------------------------------------------------------------------------
+  // Configuration
+  // ---------------------------------------------------------------------------
+
   private detectApiUrl(): string {
-    // Check for explicit API URL in environment
     if (typeof window !== 'undefined') {
       // Client-side: check for build-time env vars
-      return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      // Priority: Cloudflare Workers > Lambda > Local
+      return process.env.NEXT_PUBLIC_WORKERS_API_URL 
+        || process.env.NEXT_PUBLIC_API_URL 
+        || 'http://localhost:8787'
     } else {
-      // Server-side: check for server env vars
-      return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      // Server-side
+      return process.env.WORKERS_API_URL 
+        || process.env.API_URL 
+        || process.env.NEXT_PUBLIC_API_URL 
+        || 'http://localhost:8787'
     }
   }
 
-  private async makeRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`
+  private loadStoredAuth(): void {
+    if (typeof window === 'undefined') return
+    
+    try {
+      const stored = localStorage.getItem('devcapsules_auth')
+      if (stored) {
+        const auth = JSON.parse(stored)
+        if (auth.expiresAt > Date.now()) {
+          this.authToken = auth.accessToken
+        } else {
+          localStorage.removeItem('devcapsules_auth')
+        }
+      }
+      
+      // Also check for API key
+      this.apiKey = localStorage.getItem('devcapsules_api_key')
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
+  setAuthToken(tokens: AuthTokens): void {
+    this.authToken = tokens.accessToken
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('devcapsules_auth', JSON.stringify(tokens))
+    }
+  }
+
+  setApiKey(key: string): void {
+    this.apiKey = key
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('devcapsules_api_key', key)
+    }
+  }
+
+  clearAuth(): void {
+    this.authToken = null
+    this.apiKey = null
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('devcapsules_auth')
+      localStorage.removeItem('devcapsules_api_key')
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // HTTP Client
+  // ---------------------------------------------------------------------------
+
+  private getEndpoint(path: string): string {
+    // Add version prefix if not present
+    if (path.startsWith('/api/')) {
+      return `${this.baseUrl}/api/${this.apiVersion}${path.slice(4)}`
+    }
+    return `${this.baseUrl}${path}`
+  }
+
+  private getAuthHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {}
+    
+    if (this.apiKey) {
+      headers['X-API-Key'] = this.apiKey
+    } else if (this.authToken) {
+      headers['Authorization'] = `Bearer ${this.authToken}`
+    }
+    
+    return headers
+  }
+
+  private async makeRequest<T>(
+    endpoint: string, 
+    options: RequestInit = {},
+    requireAuth = true
+  ): Promise<T> {
+    const url = this.getEndpoint(endpoint)
     
     const defaultOptions: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        ...(requireAuth ? this.getAuthHeaders() : {}),
       },
     }
 
@@ -112,8 +269,20 @@ class CodeCapsuleAPIClient {
       
       const response = await fetch(url, mergedOptions)
       
+      // Handle specific error codes
+      if (response.status === 401) {
+        this.clearAuth()
+        throw new Error('Authentication required. Please log in.')
+      }
+      
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After')
+        throw new Error(`Rate limited. Please try again in ${retryAfter || 60} seconds.`)
+      }
+      
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`)
+        const errorBody = await response.json().catch(() => ({}))
+        throw new Error(errorBody.error || `API Error: ${response.status} ${response.statusText}`)
       }
 
       const data = await response.json()
@@ -126,41 +295,27 @@ class CodeCapsuleAPIClient {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Health & Status
+  // ---------------------------------------------------------------------------
+
   /**
    * Check API server health and configuration
    */
   async getHealth(): Promise<HealthStatus> {
-    return this.makeRequest<HealthStatus>('/health')
+    return this.makeRequest<HealthStatus>('/health', {}, false)
   }
 
   /**
-   * Generate code using AI
+   * Test API connectivity
    */
-  async generateCode(request: GenerationRequest): Promise<GenerationResult> {
-    return this.makeRequest<GenerationResult>('/api/generate', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    })
-  }
-
-  /**
-   * Execute code using serverless runtime
-   */
-  async executeCode(request: ExecutionRequest): Promise<ExecutionResult> {
-    return this.makeRequest<ExecutionResult>('/api/execute', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    })
-  }
-
-  /**
-   * Generate and execute code in one request (optimal for UX)
-   */
-  async generateAndExecute(request: GenerateAndExecuteRequest): Promise<GenerateAndExecuteResult> {
-    return this.makeRequest<GenerateAndExecuteResult>('/api/generate-and-execute', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    })
+  async testConnection(): Promise<boolean> {
+    try {
+      const health = await this.getHealth()
+      return health.success === true
+    } catch {
+      return false
+    }
   }
 
   /**
@@ -170,30 +325,401 @@ class CodeCapsuleAPIClient {
     return this.baseUrl
   }
 
+  // ---------------------------------------------------------------------------
+  // Authentication
+  // ---------------------------------------------------------------------------
+
   /**
-   * Test API connectivity
+   * Login with email and password
    */
-  async testConnection(): Promise<boolean> {
-    try {
-      const health = await this.getHealth()
-      return health.status === 'ok'
-    } catch {
-      return false
+  async login(email: string, password: string): Promise<{ user: User; tokens: AuthTokens }> {
+    const response = await this.makeRequest<{ 
+      success: boolean
+      user: User
+      accessToken: string
+      expiresIn: number 
+    }>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }, false)
+
+    const tokens: AuthTokens = {
+      accessToken: response.accessToken,
+      expiresAt: Date.now() + (response.expiresIn * 1000),
     }
+    
+    this.setAuthToken(tokens)
+    return { user: response.user, tokens }
+  }
+
+  /**
+   * Register a new account
+   */
+  async register(email: string, password: string, name?: string): Promise<{ user: User; tokens: AuthTokens }> {
+    const response = await this.makeRequest<{
+      success: boolean
+      user: User
+      accessToken: string
+      expiresIn: number
+    }>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, name }),
+    }, false)
+
+    const tokens: AuthTokens = {
+      accessToken: response.accessToken,
+      expiresAt: Date.now() + (response.expiresIn * 1000),
+    }
+    
+    this.setAuthToken(tokens)
+    return { user: response.user, tokens }
+  }
+
+  /**
+   * Logout and clear tokens
+   */
+  logout(): void {
+    this.clearAuth()
+  }
+
+  /**
+   * Create a new API key
+   */
+  async createApiKey(name: string): Promise<{ key: string; keyId: string }> {
+    return this.makeRequest('/api/auth/api-keys', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    })
+  }
+
+  // ---------------------------------------------------------------------------
+  // Capsule CRUD
+  // ---------------------------------------------------------------------------
+
+  /**
+   * List user's capsules
+   */
+  async listCapsules(options?: { 
+    status?: 'draft' | 'published'
+    limit?: number
+    offset?: number 
+  }): Promise<{ capsules: Capsule[]; total: number }> {
+    const params = new URLSearchParams()
+    if (options?.status) params.set('status', options.status)
+    if (options?.limit) params.set('limit', options.limit.toString())
+    if (options?.offset) params.set('offset', options.offset.toString())
+    
+    const query = params.toString() ? `?${params.toString()}` : ''
+    return this.makeRequest(`/api/capsules${query}`)
+  }
+
+  /**
+   * Get a single capsule by ID
+   */
+  async getCapsule(id: string): Promise<Capsule> {
+    const response = await this.makeRequest<{ success: boolean; capsule: Capsule }>(
+      `/api/capsules/${id}`
+    )
+    return response.capsule
+  }
+
+  /**
+   * Create a new capsule
+   */
+  async createCapsule(capsule: Partial<Capsule>): Promise<Capsule> {
+    const response = await this.makeRequest<{ success: boolean; capsule: Capsule }>(
+      '/api/capsules',
+      {
+        method: 'POST',
+        body: JSON.stringify(capsule),
+      }
+    )
+    return response.capsule
+  }
+
+  /**
+   * Update an existing capsule
+   */
+  async updateCapsule(id: string, updates: Partial<Capsule>): Promise<Capsule> {
+    const response = await this.makeRequest<{ success: boolean; capsule: Capsule }>(
+      `/api/capsules/${id}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      }
+    )
+    return response.capsule
+  }
+
+  /**
+   * Delete a capsule
+   */
+  async deleteCapsule(id: string): Promise<void> {
+    await this.makeRequest(`/api/capsules/${id}`, { method: 'DELETE' })
+  }
+
+  /**
+   * Publish a capsule (make it public)
+   */
+  async publishCapsule(id: string): Promise<Capsule> {
+    const response = await this.makeRequest<{ success: boolean; capsule: Capsule }>(
+      `/api/capsules/${id}/publish`,
+      { method: 'POST' }
+    )
+    return response.capsule
+  }
+
+  // ---------------------------------------------------------------------------
+  // Async Generation (with polling)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Start async capsule generation
+   * Returns a job ID for polling
+   */
+  async startGeneration(request: GenerationRequest): Promise<{ jobId: string }> {
+    return this.makeRequest('/api/generate', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
+  }
+
+  /**
+   * Poll generation job status
+   */
+  async getJobStatus(jobId: string): Promise<GenerationJob> {
+    return this.makeRequest(`/api/generate/${jobId}`)
+  }
+
+  /**
+   * Generate capsule with automatic polling
+   * Calls onProgress callback during generation
+   */
+  async generateCapsule(
+    request: GenerationRequest,
+    options?: {
+      onProgress?: (job: GenerationJob) => void
+      pollInterval?: number
+      timeout?: number
+    }
+  ): Promise<GenerateAndExecuteResult> {
+    const pollInterval = options?.pollInterval || 2000 // 2 seconds
+    const timeout = options?.timeout || 300000 // 5 minutes max
+    
+    // Start the job
+    const { jobId } = await this.startGeneration(request)
+    
+    const startTime = Date.now()
+    
+    // Poll until complete
+    while (true) {
+      if (Date.now() - startTime > timeout) {
+        throw new Error('Generation timed out after 5 minutes')
+      }
+
+      await this.sleep(pollInterval)
+      
+      const job = await this.getJobStatus(jobId)
+      
+      // Call progress callback
+      options?.onProgress?.(job)
+      
+      if (job.status === 'completed') {
+        // job.result = { capsule, qualityScore, costBreakdown, pipeline }
+        // Frontend expects capsule at top level, not nested under .capsule
+        const capsuleData = job.result?.capsule || job.result
+        return {
+          success: true,
+          capsule: capsuleData,
+          qualityScore: job.result?.qualityScore,
+          metadata: job.result?.metadata,
+          suggestions: job.result?.suggestions || [],
+        }
+      }
+      
+      if (job.status === 'failed') {
+        return {
+          success: false,
+          capsule: null,
+          error: job.error || 'Generation failed',
+        }
+      }
+    }
+  }
+
+  /**
+   * Legacy synchronous generation (for backwards compatibility)
+   * @deprecated Use generateCapsule() with polling instead
+   */
+  async generateCode(request: GenerationRequest): Promise<GenerationResult> {
+    console.warn('generateCode() is deprecated. Use generateCapsule() for async generation.')
+    
+    const result = await this.generateCapsule(request)
+    
+    return {
+      success: result.success,
+      code: result.capsule?.solutionCode || '',
+      explanation: result.capsule?.explanation,
+      concepts: result.capsule?.concepts,
+      quality_score: result.qualityScore,
+      error: result.error,
+      timestamp: Date.now(),
+    }
+  }
+
+  /**
+   * Legacy generate and execute (for backwards compatibility)
+   * @deprecated Use generateCapsule() instead
+   */
+  async generateAndExecute(request: GenerateAndExecuteRequest): Promise<GenerateAndExecuteResult> {
+    return this.generateCapsule(request)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Code Execution
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Execute code
+   * Automatically routes to edge (Python/JS) or Lambda (Java/C++)
+   */
+  async executeCode(request: ExecutionRequest): Promise<ExecutionResult> {
+    const response = await this.makeRequest<{
+      success: boolean
+      output?: string
+      stdout?: string
+      stderr?: string
+      exitCode?: number
+      executionTime?: number
+      runtime?: ExecutionRuntime
+      error?: string
+    }>('/api/execute', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
+
+    return {
+      success: response.success,
+      stdout: response.stdout || response.output,
+      stderr: response.stderr,
+      exit_code: response.exitCode,
+      execution_time: response.executionTime,
+      error: response.error,
+      timestamp: Date.now(),
+      runtime: response.runtime,
+    }
+  }
+
+  /**
+   * Execute tests for a capsule
+   */
+  async executeTests(
+    code: string,
+    language: SupportedLanguage,
+    testCases: TestCase[]
+  ): Promise<{
+    success: boolean
+    results: Array<{
+      passed: boolean
+      input: string
+      expected: string
+      actual: string
+      executionTime?: number
+    }>
+    summary: {
+      total: number
+      passed: number
+      failed: number
+    }
+  }> {
+    return this.makeRequest('/api/execute-tests', {
+      method: 'POST',
+      body: JSON.stringify({ code, language, testCases }),
+    })
+  }
+
+  // ---------------------------------------------------------------------------
+  // Analytics
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Get capsule analytics
+   */
+  async getCapsuleAnalytics(capsuleId: string): Promise<{
+    views: number
+    completions: number
+    avgTime: number
+    passRate: number
+  }> {
+    return this.makeRequest(`/api/analytics/capsule/${capsuleId}`)
+  }
+
+  /**
+   * Get creator dashboard stats
+   */
+  async getCreatorStats(): Promise<{
+    totalCapsules: number
+    totalViews: number
+    totalCompletions: number
+    avgRating: number
+  }> {
+    return this.makeRequest('/api/analytics/creator')
+  }
+
+  // ---------------------------------------------------------------------------
+  // Utilities
+  // ---------------------------------------------------------------------------
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms))
   }
 }
 
-// Create singleton instance
-export const apiClient = new CodeCapsuleAPIClient()
+// ============================================================================
+// Exports
+// ============================================================================
 
-// Convenience hooks for React components
+// Create singleton instance
+export const apiClient = new DevcapsulesAPIClient()
+
+// React hook for API client
 export const useApiClient = () => {
   return {
     client: apiClient,
     baseUrl: apiClient.getApiUrl(),
-    generateCode: apiClient.generateCode.bind(apiClient),
+    
+    // Auth
+    login: apiClient.login.bind(apiClient),
+    register: apiClient.register.bind(apiClient),
+    logout: apiClient.logout.bind(apiClient),
+    createApiKey: apiClient.createApiKey.bind(apiClient),
+    
+    // Capsules
+    listCapsules: apiClient.listCapsules.bind(apiClient),
+    getCapsule: apiClient.getCapsule.bind(apiClient),
+    createCapsule: apiClient.createCapsule.bind(apiClient),
+    updateCapsule: apiClient.updateCapsule.bind(apiClient),
+    deleteCapsule: apiClient.deleteCapsule.bind(apiClient),
+    publishCapsule: apiClient.publishCapsule.bind(apiClient),
+    
+    // Generation
+    generateCapsule: apiClient.generateCapsule.bind(apiClient),
+    startGeneration: apiClient.startGeneration.bind(apiClient),
+    getJobStatus: apiClient.getJobStatus.bind(apiClient),
+    
+    // Execution
     executeCode: apiClient.executeCode.bind(apiClient),
+    executeTests: apiClient.executeTests.bind(apiClient),
+    
+    // Analytics
+    getCapsuleAnalytics: apiClient.getCapsuleAnalytics.bind(apiClient),
+    getCreatorStats: apiClient.getCreatorStats.bind(apiClient),
+    
+    // Legacy (deprecated)
+    generateCode: apiClient.generateCode.bind(apiClient),
     generateAndExecute: apiClient.generateAndExecute.bind(apiClient),
+    
+    // Health
     getHealth: apiClient.getHealth.bind(apiClient),
     testConnection: apiClient.testConnection.bind(apiClient),
   }

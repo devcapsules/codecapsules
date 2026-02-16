@@ -12,16 +12,10 @@ export default defineConfig({
     },
   },
   build: {
-    lib: {
-      entry: path.resolve(__dirname, 'src/main.tsx'),
-      name: 'CodeCapsuleEmbed',
-      fileName: 'codecapsule-embed',
-      formats: ['umd']
-    },
+    outDir: 'dist',
     rollupOptions: {
-      external: [],
-      output: {
-        globals: {}
+      input: {
+        main: path.resolve(__dirname, 'index.html')
       }
     }
   },

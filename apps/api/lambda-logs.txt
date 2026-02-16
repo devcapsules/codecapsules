@@ -1,0 +1,24 @@
+﻿{
+    "events": [
+        {
+            "timestamp": 1767958834668,
+            "message": "INIT_START Runtime Version: nodejs:20.v93\tRuntime Version ARN: arn:aws:lambda:us-east-1::runtime:a245a9f616c3bd5592157d3573155529391e9c7136cc9650a239d736763a026c\n",
+            "ingestionTime": 1767958842408
+        },
+        {
+            "timestamp": 1767958834841,
+            "message": "START RequestId: 09c564c2-f07e-41fa-8c52-19d9119b0c14 Version: $LATEST\n",
+            "ingestionTime": 1767958842408
+        },
+        {
+            "timestamp": 1767958834843,
+aws : 
+At line:1 char:1
++ aws logs get-log-events --log-group-name /aws/lambda/codecapsule-api- ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+'charmap' codec can't encode character '\U0001f4e1' in position 71: character maps 
+to <undefined>
+            "message": 

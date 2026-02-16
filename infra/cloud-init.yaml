@@ -1,0 +1,190 @@
+#cloud-config
+# ═══════════════════════════════════════════════════════════════════════════════
+# CodeCapsule — Azure VM Cloud-Init
+#
+# Bootstraps each VMSS instance with:
+#   1. Docker Engine (with compose plugin)
+#   2. Bridge API + Piston stack via Docker Compose
+#      - bridge-api:3000 — Express server (AI pipeline + Piston proxy)
+#      - piston:2000     — Code execution engine (Docker-internal only)
+#   3. Language runtimes: Python, JavaScript/Node, Java, C, C++ (via gcc)
+#   4. cloudflared tunnel daemon → routes to bridge-api:3000
+#
+# Placeholders replaced by the deploy script:
+#   __TUNNEL_ID__,  __ACCOUNT_TAG__,  __TUNNEL_SECRET__,  __TUNNEL_HOSTNAME__
+#   __WORKER_SHARED_SECRET__, __AZURE_OPENAI_API_KEY__, __AZURE_OPENAI_ENDPOINT__
+# ═══════════════════════════════════════════════════════════════════════════════
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - jq
+  - git
+
+write_files:
+  # ── Piston language runtime installer (calls through bridge-api proxy) ─────
+  - path: /opt/codecapsule/install-piston-packages.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -e
+
+      # Runtimes are installed through the bridge-api proxy at :3000
+      # which forwards /api/v2/* to the Piston container on the Docker network.
+      BRIDGE_API="http://localhost:3000"
+
+      echo "[CodeCapsule] Waiting for Bridge API on port 3000..."
+      for i in $(seq 1 120); do
+        if curl -sf "${BRIDGE_API}/health" > /dev/null 2>&1; then
+          echo "[CodeCapsule] Bridge API ready (attempt ${i})"
+          break
+        fi
+        if [ "$i" -eq 120 ]; then
+          echo "[CodeCapsule] ERROR: Bridge API did not start within 4 minutes"
+          exit 1
+        fi
+        sleep 2
+      done
+
+      # Languages to install — format: "package_name:version"
+      # These map to Piston package identifiers
+      # Note: gcc provides c, c++, d, and fortran runtimes
+      LANGS=(
+        "python:3.10.0"
+        "node:18.15.0"
+        "java:15.0.2"
+        "gcc:10.2.0"
+      )
+
+      for entry in "${LANGS[@]}"; do
+        IFS=":" read -r lang ver <<< "$entry"
+        echo "[CodeCapsule] Installing ${lang} ${ver}..."
+        curl -sf -X POST "${BRIDGE_API}/api/v2/packages" \
+          -H "Content-Type: application/json" \
+          -d "{\"language\":\"${lang}\",\"version\":\"${ver}\"}" \
+          | jq -r '"  → \(.language) \(.version) — \(.status // "installed")"' \
+          || echo "  → WARNING: Failed to install ${lang} (may need manual install)"
+      done
+
+      echo ""
+      echo "[CodeCapsule] ✓ Installed runtimes:"
+      curl -sf "${BRIDGE_API}/api/v2/runtimes" \
+        | jq -r '.[] | "  \(.language) \(.version) (aliases: \(.aliases | join(", ")))"'
+
+  # ── Health check script (used by Azure LB probes if needed) ─────────────────
+  - path: /opt/codecapsule/healthcheck.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      # Check Docker
+      docker ps > /dev/null 2>&1 || { echo "FAIL: Docker not running"; exit 1; }
+      # Check Piston container
+      docker inspect devcapsules_piston --format='{{.State.Running}}' 2>/dev/null | grep -q true \
+        || { echo "FAIL: Piston container not running"; exit 1; }
+      # Check Bridge API container
+      docker inspect devcapsules_bridge --format='{{.State.Running}}' 2>/dev/null | grep -q true \
+        || { echo "FAIL: Bridge API container not running"; exit 1; }
+      # Check Bridge API health endpoint
+      curl -sf http://localhost:3000/health > /dev/null \
+        || { echo "FAIL: Bridge API not responding"; exit 1; }
+      # Check cloudflared
+      systemctl is-active --quiet cloudflared \
+        || { echo "FAIL: cloudflared not running"; exit 1; }
+      echo "OK: All services healthy"
+
+  # -- Cloudflare Tunnel credentials (replaced by deploy script) -----------
+  - path: /root/.cloudflared/__TUNNEL_ID__.json
+    permissions: "0600"
+    content: |
+      {"AccountTag":"__ACCOUNT_TAG__","TunnelSecret":"__TUNNEL_SECRET__","TunnelID":"__TUNNEL_ID__","Endpoint":""}
+
+  - path: /etc/cloudflared/config.yml
+    permissions: "0644"
+    content: |
+      tunnel: __TUNNEL_ID__
+      credentials-file: /root/.cloudflared/__TUNNEL_ID__.json
+      protocol: http2
+      no-autoupdate: true
+      ingress:
+        - hostname: __TUNNEL_HOSTNAME__
+          service: http://localhost:3000
+        - service: http_status:404
+
+  - path: /etc/systemd/system/cloudflared.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=cloudflared
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      TimeoutStartSec=60
+      Type=notify
+      ExecStart=/usr/bin/cloudflared --config /etc/cloudflared/config.yml tunnel run
+      Restart=on-failure
+      RestartSec=5s
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - echo "[CodeCapsule] ═══ VM Bootstrap Starting ═══"
+
+  # ── 1. Install Docker Engine via official script ────────────────────────────
+  - curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+  - sh /tmp/get-docker.sh
+  - systemctl enable docker
+  - systemctl start docker
+  - echo "[CodeCapsule] ✓ Docker installed and running"
+
+  # ── 2. Clone CodeCapsule repo and start Bridge + Piston via Docker Compose ──
+  - git clone --depth 1 https://github.com/YOUR_ORG/codecapsule.git /opt/devcapsules-repo
+  - mkdir -p /opt/devcapsules-bridge
+  - cp /opt/devcapsules-repo/infra/bridge/docker-compose.yml /opt/devcapsules-bridge/
+  - |
+    # Create .env with secrets (placeholders replaced by deploy script)
+    cat > /opt/devcapsules-bridge/.env << 'ENVEOF'
+    WORKER_SHARED_SECRET=__WORKER_SHARED_SECRET__
+    AZURE_OPENAI_API_KEY=__AZURE_OPENAI_API_KEY__
+    AZURE_OPENAI_ENDPOINT=__AZURE_OPENAI_ENDPOINT__
+    AZURE_OPENAI_DEPLOYMENT=gpt-4o
+    AZURE_OPENAI_API_VERSION=2025-01-01-preview
+    ENVEOF
+    # Strip leading whitespace from heredoc
+    sed -i 's/^    //' /opt/devcapsules-bridge/.env
+  - |
+    cd /opt/devcapsules-bridge
+    docker compose up -d --build
+  - echo "[CodeCapsule] ✓ Bridge API + Piston containers started"
+
+  # ── 3. Install language runtimes ────────────────────────────────────────────
+  - /opt/codecapsule/install-piston-packages.sh
+  - echo "[CodeCapsule] ✓ Language runtimes installed"
+
+  # ── 4. Install cloudflared ──────────────────────────────────────────────────
+  - curl -L --output /tmp/cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+  - dpkg -i /tmp/cloudflared.deb
+  - echo "[CodeCapsule] ✓ cloudflared installed"
+
+  # ── 5. Start cloudflared tunnel service (config-file mode, HTTP/2) ────────
+  # Config and credentials were written via write_files above
+  - mkdir -p /root/.cloudflared /etc/cloudflared
+  - systemctl daemon-reload
+  - systemctl enable cloudflared
+  - systemctl start cloudflared
+  - echo "[CodeCapsule] ✓ cloudflared tunnel connected"
+
+  # ── 6. Setup health check cron ──────────────────────────────────────────────
+  - echo "*/5 * * * * root /opt/codecapsule/healthcheck.sh >> /var/log/codecapsule-health.log 2>&1" > /etc/cron.d/codecapsule-health
+
+  - echo "[CodeCapsule] ═══ VM Bootstrap Complete ═══"
+  - echo "[CodeCapsule] Bridge API: http://localhost:3000"
+  - echo "[CodeCapsule] Piston: http://piston:2000 (Docker-internal only)"
+  - echo "[CodeCapsule] cloudflared: connected to Cloudflare Tunnel → :3000"

@@ -13,16 +13,17 @@ export function Navigation() {
           {/* Logo */}
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mr-3">
-                <span className="text-white font-bold text-lg">C</span>
-              </div>
-              <span className="text-lg font-bold text-white">CodeCapsule</span>
+              <img src="/favicon.ico" alt="Devcapsules" className="w-8 h-8 mr-2" />
+              <span className="text-lg font-bold text-white">Devcapsules</span>
             </div>
           </div>
 
           {/* Desktop Menu */}
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-6">
+              <Link href="/blog" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
+                Blog
+              </Link>
               <a href="#features" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
                 Features
               </a>
@@ -53,7 +54,7 @@ export function Navigation() {
           <div className="hidden md:block">
             {user ? (
               <Link 
-                href="/create-capsule"
+                href="/dashboard"
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-4 py-2 rounded-lg font-semibold text-sm transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25"
               >
                 Create Capsule
@@ -90,6 +91,9 @@ export function Navigation() {
       {isMenuOpen && (
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 bg-gray-950 border-t border-gray-800">
+            <Link href="/blog" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium">
+              Blog
+            </Link>
             <a href="#features" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium">
               Features
             </a>
@@ -111,7 +115,7 @@ export function Navigation() {
             <div className="px-3 py-2">
               {user ? (
                 <Link 
-                  href="/create-capsule"
+                  href="/dashboard"
                   className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-4 py-2 rounded-lg font-semibold text-sm transition-all block text-center"
                 >
                   Create Capsule

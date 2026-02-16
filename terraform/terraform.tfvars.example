@@ -8,6 +8,30 @@ project_name = "codecapsule"
 
 # ===== LAMBDA CONFIGURATION =====
 lambda_timeout     = 30
+lambda_memory_size = 1024
+
+# ===== PISTON EXECUTION ENGINE CONFIGURATION =====
+# EC2 Configuration for Piston execution server
+piston_instance_type = "t3.medium"  # or t3.small for testing
+key_pair_name       = "your-aws-key-pair-name"
+
+# Security Configuration  
+allowed_ssh_cidr = "YOUR.IP.ADDRESS/32"  # Restrict to your IP for security
+
+# Auto Scaling Configuration
+enable_auto_scaling = true
+min_instances      = 1
+max_instances      = 3
+
+# Redis Configuration (from Upstash)
+upstash_redis_url   = "https://your-redis-url.upstash.io"
+upstash_redis_token = "your-redis-token"
+
+# Supabase Configuration  
+supabase_url         = "https://your-project.supabase.co"
+supabase_service_key = "your-supabase-service-key"
+
+# Note: Keep terraform.tfvars private and never commit to git
 lambda_memory_size = 512
 python_runtime     = "python3.11"
 nodejs_runtime     = "nodejs18.x"

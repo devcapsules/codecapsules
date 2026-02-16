@@ -13,7 +13,7 @@ module.exports = {
         mono: ['JetBrains Mono', 'Monaco', 'monospace'],
       },
       colors: {
-        codecapsule: {
+        devcapsules: {
           50: '#f0f9ff',
           500: '#3b82f6',
           600: '#2563eb',

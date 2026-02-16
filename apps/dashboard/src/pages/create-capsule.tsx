@@ -120,7 +120,7 @@ export default function CreateCapsulePage() {
       
       setGenerationState({
         isGenerating: false,
-        generatedContent: result.content,
+        generatedContent: result.capsule || result.content, // API returns 'capsule', fallback to 'content'
         qualityScore: result.qualityScore || 85,
         error: null
       });
@@ -331,7 +331,7 @@ export default function CreateCapsulePage() {
             >
               <Bars3Icon className="h-6 w-6" />
             </button>
-            <h1 className="text-lg font-semibold text-white">CodeCapsule</h1>
+            <h1 className="text-lg font-semibold text-white">Devcapsules</h1>
           </div>
           <div className="flex items-center space-x-2">
             {generationState.generatedContent && (
@@ -417,8 +417,9 @@ export default function CreateCapsulePage() {
                       <option value="JavaScript">JavaScript</option>
                       <option value="Python">Python</option>
                       <option value="Java">Java</option>
-                      <option value="TypeScript">TypeScript</option>
+                      <option value="csharp">C#</option>
                       <option value="Go">Go</option>
+                      <option value="TypeScript">TypeScript</option>
                       <option value="Rust">Rust</option>
                     </select>
                   </div>
@@ -582,8 +583,9 @@ export default function CreateCapsulePage() {
                         <option value="JavaScript">JavaScript</option>
                         <option value="Python">Python</option>
                         <option value="Java">Java</option>
-                        <option value="TypeScript">TypeScript</option>
+                        <option value="csharp">C#</option>
                         <option value="Go">Go</option>
+                        <option value="TypeScript">TypeScript</option>
                         <option value="Rust">Rust</option>
                       </select>
                     </div>
@@ -798,7 +800,7 @@ export default function CreateCapsulePage() {
               ) : (
                 <div className="flex flex-col items-center justify-center h-full">
                   <BeakerIcon className="h-16 w-16 text-gray-600 mb-4" />
-                  <h3 className="text-xl font-semibold text-white mb-2">Welcome to CodeCapsule</h3>
+                  <h3 className="text-xl font-semibold text-white mb-2">Welcome to Devcapsules</h3>
                   <p className="text-gray-400 text-center mb-6 max-w-md">
                     Configure your capsule settings in the panel on the left, then click Generate to create your interactive coding challenge.
                   </p>

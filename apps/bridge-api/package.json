@@ -1,0 +1,26 @@
+{
+  "name": "@devcapsules/bridge-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Internal API bridge — AI generation pipeline + Piston code execution proxy",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/apps/bridge-api/src/server.js",
+    "dev": "npx tsx watch src/server.ts"
+  },
+  "dependencies": {
+    "express": "^4.22.1",
+    "cors": "^2.8.5",
+    "helmet": "^8.1.0",
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/cors": "^2.8.19",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

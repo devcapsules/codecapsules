@@ -1,6 +1,6 @@
-# CodeCapsule Setup Guide
+# Devcapsules Setup Guide
 
-🎉 **Your CodeCapsule monorepo has been successfully scaffolded and is building!**
+🎉 **Your Devcapsules monorepo has been successfully scaffolded and is building!**
 
 ## � Quick Start
 

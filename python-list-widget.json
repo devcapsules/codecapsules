@@ -1,0 +1,21 @@
+{
+  "type": "code",
+  "title": "Python List Comprehensions Interactive Tutorial", 
+  "description": "Learn Python list comprehensions with hands-on examples. Transform loops into elegant one-liners.",
+  "content": {
+    "language": "python",
+    "startingCode": "# Traditional way with loops\nnumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n\n# Using a for loop\nsquares = []\nfor num in numbers:\n    if num % 2 == 0:\n        squares.append(num ** 2)\n\nprint('Squares of even numbers (loop):', squares)\n\n# List comprehension way - one line!\nsquares_lc = [num ** 2 for num in numbers if num % 2 == 0]\nprint('Squares of even numbers (comprehension):', squares_lc)\n\n# More examples\nwords = ['hello', 'world', 'python', 'is', 'awesome']\nuppercase = [word.upper() for word in words if len(word) > 4]\nprint('Long words in uppercase:', uppercase)\n\n# Nested comprehensions\nmatrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]\nflattened = [num for row in matrix for num in row]\nprint('Flattened matrix:', flattened)",
+    "testCases": [
+      {
+        "input": "",
+        "expectedOutput": "Squares of even numbers (loop): [4, 16, 36, 64, 100]\nSquares of even numbers (comprehension): [4, 16, 36, 64, 100]\nLong words in uppercase: ['HELLO', 'WORLD', 'PYTHON', 'AWESOME']\nFlattened matrix: [1, 2, 3, 4, 5, 6, 7, 8, 9]"
+      }
+    ]
+  },
+  "metadata": {
+    "difficulty": "beginner",
+    "estimatedTime": 5,
+    "tags": ["python", "list-comprehensions", "loops", "functional-programming"]
+  },
+  "save": true
+}

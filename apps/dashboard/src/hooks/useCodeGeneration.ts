@@ -1,7 +1,7 @@
 /**
  * Code Generation Hook
  * 
- * React hook for generating and executing code using the CodeCapsule API.
+ * React hook for generating and executing code using the Devcapsules API.
  * Provides state management and error handling for the generation process.
  */
 
@@ -131,13 +131,10 @@ export function useCodeGeneration(): UseCodeGenerationReturn {
       
       if (result.success) {
         setCombinedResult(result)
-        // Also set individual results for display
-        setGenerationResult(result.generation)
-        setExecutionResult(result.execution)
         console.log('✅ Generate + Execute successful:', {
-          generated: result.generation.success,
-          executed: result.execution.success,
-          combined: result.combined_success
+          generated: result.success,
+          capsule: !!result.capsule,
+          quality: result.qualityScore
         })
       } else {
         setCombinedError(result.error || 'Generate + Execute failed')
