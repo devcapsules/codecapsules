@@ -15,7 +15,7 @@ WORKDIR /build
 # Copy bridge-api package files and install deps
 COPY apps/bridge-api/package*.json ./apps/bridge-api/
 WORKDIR /build/apps/bridge-api
-RUN npm ci
+RUN npm install --ignore-scripts
 
 # Copy source: bridge-api + packages/core (AI pipeline) + packages/utils
 WORKDIR /build
@@ -40,7 +40,7 @@ COPY --from=builder /build/apps/bridge-api/dist ./dist
 
 # Install production dependencies only
 COPY --from=builder /build/apps/bridge-api/package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm install --omit=dev && npm cache clean --force
 
 # Security: run as non-root
 USER node
