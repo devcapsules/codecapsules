@@ -172,6 +172,33 @@ api.route('/auth', authRoutes);
 api.route('/analytics', analyticsRoutes);
 api.route('/mentor', mentorRoutes);
 
+// GET /my-capsules — List authenticated user's capsules (draft + published)
+api.get('/my-capsules', async (c) => {
+  const auth = c.get('auth');
+  if (!auth) {
+    return c.json({ success: false, error: 'Authentication required' }, 401);
+  }
+
+  const capsules = await c.env.DB.prepare(`
+    SELECT id, title, description, type, difficulty, language,
+           function_name, test_count, has_hints, tags, quality_score,
+           is_published, created_at, updated_at
+    FROM capsules
+    WHERE creator_id = ? AND is_deleted = 0
+    ORDER BY updated_at DESC
+  `).bind(auth.userId).all();
+
+  return c.json({
+    success: true,
+    capsules: capsules.results || [],
+    meta: {
+      requestId: c.get('requestId'),
+      timestamp: Date.now(),
+      version: c.env.API_VERSION,
+    },
+  });
+});
+
 // Mount API under /api/v1
 app.route('/api/v1', api);
 

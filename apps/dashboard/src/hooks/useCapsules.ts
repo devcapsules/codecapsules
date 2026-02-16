@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { apiClient } from '../lib/api/client';
 
 export interface Capsule {
   id: string;
@@ -22,20 +23,45 @@ export function useCapsules() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCapsules = async () => {
+  const fetchCapsules = useCallback(async () => {
     try {
       setLoading(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/my-capsules`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch capsules');
+      setError(null);
+
+      const apiUrl = apiClient.getApiUrl();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      };
+
+      // Get auth token from apiClient's stored auth
+      const storedAuth = typeof window !== 'undefined'
+        ? localStorage.getItem('devcapsules_auth')
+        : null;
+      if (storedAuth) {
+        try {
+          const auth = JSON.parse(storedAuth);
+          if (auth.accessToken && auth.expiresAt > Date.now()) {
+            headers['Authorization'] = `Bearer ${auth.accessToken}`;
+          }
+        } catch { /* ignore parse errors */ }
       }
-      
+
+      const response = await fetch(`${apiUrl}/api/v1/my-capsules`, { headers });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Not authenticated — return empty list instead of error
+          setCapsules([]);
+          return;
+        }
+        throw new Error(`Failed to fetch capsules (${response.status})`);
+      }
+
       const data = await response.json();
-      
+
       if (data.success) {
-        setCapsules(data.capsules);
+        setCapsules(data.capsules || []);
       } else {
         throw new Error(data.error || 'Failed to fetch capsules');
       }
@@ -45,11 +71,11 @@ export function useCapsules() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchCapsules();
-  }, []);
+  }, [fetchCapsules]);
 
   return {
     capsules,

@@ -42,6 +42,8 @@ interface Env {
   // ── Secrets ──
   AZURE_OPENAI_API_KEY: string;
   JWT_SECRET: string;
+  // Supabase JWT secret for verifying dashboard auth tokens
+  SUPABASE_JWT_SECRET: string;
   // HMAC shared secret for Workers ↔ Azure VM authentication
   WORKER_SHARED_SECRET: string;
 }

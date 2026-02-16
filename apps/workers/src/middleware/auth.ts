@@ -130,31 +130,103 @@ async function authenticateApiKey(env: Env, apiKey: string): Promise<Auth> {
 
 /**
  * Authenticate JWT Token
+ * 
+ * Supports two JWT types:
+ * 1. Workers-issued JWTs (signed with JWT_SECRET, issuer='devcapsules')
+ * 2. Supabase JWTs (signed with SUPABASE_JWT_SECRET, issuer contains 'supabase')
  */
 async function authenticateJWT(env: Env, token: string): Promise<Auth> {
-  try {
-    const secret = new TextEncoder().encode(env.JWT_SECRET);
-    
-    const { payload } = await jose.jwtVerify(token, secret, {
-      issuer: 'devcapsules',
-      audience: 'devcapsules-api',
-    });
-
-    // Check expiration
-    if (payload.exp && payload.exp < Date.now() / 1000) {
-      throw new ApiError(401, 'Token expired');
+  // Try Supabase JWT first (most common for dashboard users)
+  if (env.SUPABASE_JWT_SECRET) {
+    try {
+      const supabaseAuth = await authenticateSupabaseJWT(env, token);
+      return supabaseAuth;
+    } catch {
+      // Not a valid Supabase JWT, try Workers JWT
     }
-
-    return {
-      userId: payload.sub as string,
-      email: payload.email as string,
-      plan: (payload.plan as Auth['plan']) || 'free',
-      isApiKey: false,
-    };
-  } catch (error) {
-    if (error instanceof ApiError) throw error;
-    throw new ApiError(401, 'Invalid token');
   }
+
+  // Try Workers-issued JWT
+  if (env.JWT_SECRET) {
+    try {
+      const secret = new TextEncoder().encode(env.JWT_SECRET);
+      
+      const { payload } = await jose.jwtVerify(token, secret, {
+        issuer: 'devcapsules',
+        audience: 'devcapsules-api',
+      });
+
+      if (payload.exp && payload.exp < Date.now() / 1000) {
+        throw new ApiError(401, 'Token expired');
+      }
+
+      return {
+        userId: payload.sub as string,
+        email: payload.email as string,
+        plan: (payload.plan as Auth['plan']) || 'free',
+        isApiKey: false,
+      };
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      throw new ApiError(401, 'Invalid token');
+    }
+  }
+
+  throw new ApiError(401, 'No JWT verification keys configured');
+}
+
+/**
+ * Authenticate Supabase JWT Token
+ * Verifies tokens issued by Supabase Auth and auto-provisions users in D1
+ */
+async function authenticateSupabaseJWT(env: Env, token: string): Promise<Auth> {
+  const secret = new TextEncoder().encode(env.SUPABASE_JWT_SECRET);
+  
+  const { payload } = await jose.jwtVerify(token, secret, {
+    audience: 'authenticated',
+  });
+
+  if (payload.exp && payload.exp < Date.now() / 1000) {
+    throw new ApiError(401, 'Token expired');
+  }
+
+  const supabaseUserId = payload.sub as string;
+  const email = payload.email as string;
+
+  if (!supabaseUserId || !email) {
+    throw new ApiError(401, 'Invalid Supabase token claims');
+  }
+
+  // Auto-provision: ensure user exists in D1 (upsert by supabase_id or email)
+  let user = await env.DB.prepare(
+    'SELECT id, email, plan FROM users WHERE id = ? OR email = ?'
+  ).bind(supabaseUserId, email).first<{ id: string; email: string; plan: Auth['plan'] }>();
+
+  if (!user) {
+    // Auto-create user in D1 from Supabase claims
+    const name = (payload.user_metadata as any)?.full_name
+              || (payload.user_metadata as any)?.name
+              || email.split('@')[0];
+    
+    // Extract provider from Supabase app_metadata (email, github, google)
+    const provider = (payload.app_metadata as any)?.provider || 'email';
+    const validProviders = ['email', 'github', 'google'];
+    const authProvider = validProviders.includes(provider) ? provider : 'email';
+    
+    await env.DB.prepare(`
+      INSERT INTO users (id, email, name, auth_provider, plan)
+      VALUES (?, ?, ?, ?, 'free')
+    `).bind(supabaseUserId, email, name, authProvider).run();
+
+    user = { id: supabaseUserId, email, plan: 'free' };
+  }
+
+  return {
+    userId: user.id,
+    email: user.email,
+    plan: user.plan || 'free',
+    isApiKey: false,
+  };
 }
 
 /**

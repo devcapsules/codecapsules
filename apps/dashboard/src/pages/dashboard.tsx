@@ -229,11 +229,28 @@ export default function Dashboard() {
   // Delete capsule function
   const handleDeleteCapsule = async (capsuleId: string) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/capsules/${capsuleId}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_WORKERS_API_URL
+        || process.env.NEXT_PUBLIC_API_URL
+        || 'http://localhost:8787';
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Get auth token
+      const stored = localStorage.getItem('devcapsules_auth');
+      if (stored) {
+        try {
+          const auth = JSON.parse(stored);
+          if (auth.accessToken && auth.expiresAt > Date.now()) {
+            headers['Authorization'] = `Bearer ${auth.accessToken}`;
+          }
+        } catch { /* ignore */ }
+      }
+
+      const response = await fetch(`${apiUrl}/api/v1/capsules/${capsuleId}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {

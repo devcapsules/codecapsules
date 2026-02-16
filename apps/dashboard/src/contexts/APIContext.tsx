@@ -7,6 +7,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { apiClient, HealthStatus } from '../lib/api/client'
+import { useAuth } from './AuthContext'
 
 interface APIContextType {
   // Connection state
@@ -35,8 +36,22 @@ export function APIProvider({ children }: APIProviderProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [health, setHealth] = useState<HealthStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { session } = useAuth()
 
   const apiUrl = apiClient.getApiUrl()
+
+  // Bridge Supabase auth tokens to the API client
+  useEffect(() => {
+    if (session?.access_token) {
+      apiClient.setAuthToken({
+        accessToken: session.access_token,
+        refreshToken: session.refresh_token || '',
+        expiresAt: (session.expires_at || 0) * 1000, // Supabase uses seconds, we need ms
+      })
+    } else {
+      apiClient.clearAuth()
+    }
+  }, [session?.access_token])
 
   const checkConnection = async () => {
     setIsLoading(true)
