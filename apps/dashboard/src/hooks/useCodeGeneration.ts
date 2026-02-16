@@ -5,7 +5,7 @@
  * Provides state management and error handling for the generation process.
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useApiClient } from '../lib/api/client'
 import type { 
   GenerationRequest, 
@@ -69,7 +69,58 @@ export function useCodeGeneration(): UseCodeGenerationReturn {
   const [progress, setProgress] = useState(0)
   const [currentStep, setCurrentStep] = useState('')
   const [steps, setSteps] = useState<string[]>([])
+  const simulationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // Client-side simulated progress steps to fill gaps during long backend waits
+  const SIMULATED_STEPS = [
+    { time: 0,  message: 'Starting generation...', progress: 2 },
+    { time: 4,  message: 'Waiting in queue...', progress: 5 },
+    { time: 8,  message: 'Warming up AI agents...', progress: 12 },
+    { time: 13, message: 'AI agents analyzing your prompt...', progress: 22 },
+    { time: 19, message: 'Crafting your exercise...', progress: 35 },
+    { time: 26, message: 'Writing code solution...', progress: 48 },
+    { time: 34, message: 'Adding test cases...', progress: 60 },
+    { time: 42, message: 'Quality checking...', progress: 72 },
+    { time: 50, message: 'Almost there...', progress: 83 },
+    { time: 58, message: 'Finalizing your capsule...', progress: 90 },
+  ]
+
+  const startProgressSimulation = useCallback(() => {
+    const startTime = Date.now()
+    let lastStepIndex = -1
+
+    // Clear any existing timer
+    if (simulationTimerRef.current) {
+      clearInterval(simulationTimerRef.current)
+    }
+
+    simulationTimerRef.current = setInterval(() => {
+      const elapsed = (Date.now() - startTime) / 1000
+
+      // Find the latest simulated step we should show
+      let stepIndex = -1
+      for (let i = SIMULATED_STEPS.length - 1; i >= 0; i--) {
+        if (elapsed >= SIMULATED_STEPS[i].time) {
+          stepIndex = i
+          break
+        }
+      }
+
+      if (stepIndex > lastStepIndex && stepIndex < SIMULATED_STEPS.length) {
+        lastStepIndex = stepIndex
+        const step = SIMULATED_STEPS[stepIndex]
+        setCurrentStep(step.message)
+        setProgress(step.progress)
+      }
+    }, 1000) // Check every second for smooth transitions
+  }, [])
+
+  const stopProgressSimulation = useCallback(() => {
+    if (simulationTimerRef.current) {
+      clearInterval(simulationTimerRef.current)
+      simulationTimerRef.current = null
+    }
+  }, [])
   const generateCode = useCallback(async (request: GenerationRequest): Promise<GenerationResult | null> => {
     setIsGenerating(true)
     setGenerationError(null)
@@ -137,18 +188,31 @@ export function useCodeGeneration(): UseCodeGenerationReturn {
     setGenerationError(null)
     setExecutionError(null)
     
+    // Start client-side progress simulation for smooth UX
+    startProgressSimulation()
+    
     try {
       console.log('🔄 Generate + Execute workflow:', request)
       const result = await client.generateCapsule(request, {
         onProgress: (job) => {
-          setProgress(job.progress || 0)
-          setCurrentStep(job.currentStep || '')
+          // Only override simulation when backend reports high progress (real milestones)
+          const backendProgress = job.progress || 0
+          if (backendProgress >= 90) {
+            stopProgressSimulation()
+            setProgress(backendProgress)
+            setCurrentStep(job.currentStep || 'Finalizing...')
+          }
           if (job.steps) setSteps(job.steps)
         },
         pollInterval: 3000,
       })
       
+      // Stop simulation on completion
+      stopProgressSimulation()
+      
       if (result.success) {
+        setProgress(100)
+        setCurrentStep('Done!')
         setCombinedResult(result)
         console.log('✅ Generate + Execute successful:', {
           generated: result.success,
@@ -162,14 +226,16 @@ export function useCodeGeneration(): UseCodeGenerationReturn {
       
       return result
     } catch (error) {
+      stopProgressSimulation()
       const errorMessage = error instanceof Error ? error.message : 'Generate + Execute request failed'
       setCombinedError(errorMessage)
       console.error('❌ Generate + Execute request failed:', error)
       return null
     } finally {
+      stopProgressSimulation()
       setIsCombinedProcessing(false)
     }
-  }, [client])
+  }, [client, startProgressSimulation, stopProgressSimulation])
 
   const clearResults = useCallback(() => {
     setGenerationResult(null)

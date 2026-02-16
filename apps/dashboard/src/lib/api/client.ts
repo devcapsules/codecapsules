@@ -63,6 +63,8 @@ export interface GenerationJob {
   status: JobStatus
   progress: number
   stage: string
+  currentStep?: string
+  steps?: string[]
   eta?: number
   result?: any
   error?: string
