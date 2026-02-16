@@ -141,6 +141,7 @@ app.use('*', async (c, next) => {
 
 app.get('/health', (c) => {
   return c.json({
+    success: true,
     status: 'ok',
     timestamp: Date.now(),
     version: c.env.API_VERSION,
