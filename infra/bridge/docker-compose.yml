@@ -24,10 +24,12 @@ services:
     # NOT exposed to host — only bridge-api reaches it on the Docker network
     expose:
       - "2000"
+    privileged: true
     tmpfs:
       - /piston/jobs:exec,size=256M    # Ephemeral execution scratch
     volumes:
       - piston-packages:/piston/packages    # Persist installed runtimes
+      - /tmp/piston-isolate:/piston/isolate # Writable isolate directory
     networks:
       - devcapsules_net
     healthcheck:
