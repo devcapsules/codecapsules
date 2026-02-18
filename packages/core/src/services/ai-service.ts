@@ -44,10 +44,20 @@ function sanitizePythonLiterals(content: string): string {
   s = s.replace(/(?<=[:,\[\s])False(?=[\s,\]\}])/g, 'false');
   s = s.replace(/(?<=[:,\[\s])None(?=[\s,\]\}])/g, 'null');
 
-  // Fix Python string multiplication: "a" * 1000 → "aaa...aaa"
-  s = s.replace(/"([^"]{1,10})"\s*\*\s*(\d+)/g, (_match, char, count) => {
-    const n = Math.min(parseInt(count), 200); // cap at 200 chars
-    return `"${char.repeat(n).slice(0, 200)}"`;
+  // Fix Python string expressions: "A"*100 + "1!" or "a" * 1000 + "@" → single literal string
+  // Handles: "str" * N, "str" * N + "str2", "str" * N + "str2" + "str3", etc.
+  s = s.replace(/"([^"]{1,20})"\s*\*\s*(\d+)(\s*\+\s*"([^"]*)")*/g, (fullMatch, char, count) => {
+    const n = Math.min(parseInt(count), 200);
+    let result = char.repeat(n);
+    // Extract all concatenated string literals: + "..."
+    const concatParts = fullMatch.match(/\+\s*"([^"]*)"/g);
+    if (concatParts) {
+      for (const part of concatParts) {
+        const str = part.match(/"([^"]*)"/)?.[1] || '';
+        result += str;
+      }
+    }
+    return `"${result.slice(0, 200)}"`;
   });
 
   // Fix Python repeat patterns in escaped form: \"a\".repeat(1000)
@@ -56,15 +66,18 @@ function sanitizePythonLiterals(content: string): string {
     return `"${char.repeat(n).slice(0, 200)}"`;
   });
 
-  // Fix -Infinity (not valid JSON)
+  // Fix -Infinity / Infinity / NaN (not valid JSON)
   s = s.replace(/-Infinity/g, 'null');
   s = s.replace(/Infinity/g, 'null');
   s = s.replace(/NaN/g, 'null');
 
   // Fix Python set notation {a, b, c} used as list → [a, b, c]
-  // Only when it looks like a set of strings (not a JSON object with : keys)
   s = s.replace(/\{\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,?\s*\}/g, '["$1", "$2", "$3"]');
   s = s.replace(/\{\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,?\s*\}/g, '["$1", "$2"]');
+
+  // Fix Python list comprehension or f-string artifacts that break JSON
+  // e.g., [f"..." for x in ...] → replace with a simple placeholder
+  s = s.replace(/\[f?"[^"]*"\s+for\s+[^\]]+\]/g, '"<generated>"');
 
   return s;
 }

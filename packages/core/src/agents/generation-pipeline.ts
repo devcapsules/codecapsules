@@ -280,22 +280,28 @@ export class GenerationPipeline {
 
   /**
    * Stage 3: Run Debugger Agent (educational enhancement)
+   * 
+   * IMPORTANT: The Coder stage produces Golden 5 test cases (exactly 5, categorized).
+   * The Debugger must NOT overwrite them. We preserve the Coder's test_cases and only
+   * let the Debugger enhance hints, boilerplate, and reference solution.
    */
   private async runDebuggerStage(capsule: BaseCapsule, error: any): Promise<BaseCapsule> {
+    // Preserve Coder's Golden 5 test cases before debugger runs
+    const coderTestCases = (capsule.config_data as any)?.test_cases;
+    const coderRefSolution = (capsule.config_data as any)?.reference_solution;
+
     if (error) {
       console.log('🐛 Stage 3: Debugger - Fixing execution issues...')
     } else {
-      console.log('🔧 Stage 3: Debugger - Adding hints, test cases, and educational content...')
+      console.log('🔧 Stage 3: Debugger - Adding hints and educational content...')
     }
     
     try {
+      let enhanced: BaseCapsule;
       if (error) {
-        // Fix actual execution errors
-        const fixedCapsule = await this.debuggerAgent.fixCapsule(capsule, error)
+        enhanced = await this.debuggerAgent.fixCapsule(capsule, error)
         console.log('🔧 Successfully fixed capsule issues')
-        return fixedCapsule
       } else {
-        // For educational enhancement, create a mock error to trigger content improvements
         const mockError = {
           type: 'educational_enhancement',
           message: 'Capsule needs educational content enhancement (hints, test cases, etc.)',
@@ -304,10 +310,36 @@ export class GenerationPipeline {
           timestamp: Date.now()
         }
         
-        const enhancedCapsule = await this.debuggerAgent.fixCapsule(capsule, mockError as any)
+        enhanced = await this.debuggerAgent.fixCapsule(capsule, mockError as any)
         console.log('✨ Successfully enhanced capsule with educational content')
-        return enhancedCapsule
       }
+
+      // GOLDEN 5 ENFORCEMENT: Always restore Coder's test cases (debugger must not overwrite)
+      if (coderTestCases && Array.isArray(coderTestCases) && coderTestCases.length > 0) {
+        const configData = { ...(enhanced.config_data as any) };
+        configData.test_cases = coderTestCases;
+        enhanced = { ...enhanced, config_data: configData };
+        console.log(`🔒 Restored Coder's Golden 5 test cases (${coderTestCases.length} tests)`);
+      }
+
+      // Also restore reference solution if debugger clobbered it
+      if (coderRefSolution && coderRefSolution.length > 50) {
+        const configData = { ...(enhanced.config_data as any) };
+        if (!configData.reference_solution || configData.reference_solution.length < 20) {
+          configData.reference_solution = coderRefSolution;
+          enhanced = { ...enhanced, config_data: configData };
+        }
+      }
+
+      // Safety cap: never exceed 5 test cases
+      const finalConfig = enhanced.config_data as any;
+      if (finalConfig?.test_cases && Array.isArray(finalConfig.test_cases) && finalConfig.test_cases.length > 5) {
+        console.warn(`⚠️ Test cases exceeded 5 (${finalConfig.test_cases.length}), capping to 5`);
+        finalConfig.test_cases = finalConfig.test_cases.slice(0, 5);
+        enhanced = { ...enhanced, config_data: finalConfig };
+      }
+
+      return enhanced;
     } catch (debuggerError) {
       console.warn('⚠️ Debugger stage failed, returning original capsule:', debuggerError)
       return capsule // Return original capsule if debugger fails
