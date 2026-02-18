@@ -30,6 +30,45 @@ export interface AIServiceConfig {
   retries?: number;
 }
 
+/**
+ * Sanitize Python literals and expressions in AI-generated JSON.
+ * GPT often outputs Python booleans (True/False/None) and expressions
+ * like "a" * 1000 instead of valid JSON.
+ */
+function sanitizePythonLiterals(content: string): string {
+  let s = content;
+
+  // Replace Python booleans/None that appear as JSON values (not inside strings)
+  // Match True/False/None when preceded by : or , or [ and optional whitespace
+  s = s.replace(/(?<=[:,\[\s])True(?=[\s,\]\}])/g, 'true');
+  s = s.replace(/(?<=[:,\[\s])False(?=[\s,\]\}])/g, 'false');
+  s = s.replace(/(?<=[:,\[\s])None(?=[\s,\]\}])/g, 'null');
+
+  // Fix Python string multiplication: "a" * 1000 → "aaa...aaa"
+  s = s.replace(/"([^"]{1,10})"\s*\*\s*(\d+)/g, (_match, char, count) => {
+    const n = Math.min(parseInt(count), 200); // cap at 200 chars
+    return `"${char.repeat(n).slice(0, 200)}"`;
+  });
+
+  // Fix Python repeat patterns in escaped form: \"a\".repeat(1000)
+  s = s.replace(/"\\"([^"]*)\\"\.repeat\((\d+)\)"/g, (_match, char, count) => {
+    const n = Math.min(parseInt(count), 200);
+    return `"${char.repeat(n).slice(0, 200)}"`;
+  });
+
+  // Fix -Infinity (not valid JSON)
+  s = s.replace(/-Infinity/g, 'null');
+  s = s.replace(/Infinity/g, 'null');
+  s = s.replace(/NaN/g, 'null');
+
+  // Fix Python set notation {a, b, c} used as list → [a, b, c]
+  // Only when it looks like a set of strings (not a JSON object with : keys)
+  s = s.replace(/\{\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,?\s*\}/g, '["$1", "$2", "$3"]');
+  s = s.replace(/\{\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,?\s*\}/g, '["$1", "$2"]');
+
+  return s;
+}
+
 export class AIService {
   private config: AIServiceConfig;
   
@@ -81,7 +120,7 @@ export class AIService {
     // Add JSON formatting instruction to system message
     const enhancedMessages = [...messages];
     if (enhancedMessages[0]?.role === 'system') {
-      enhancedMessages[0].content += '\n\nIMPORTANT: Respond with valid JSON only. No additional text or formatting.';
+      enhancedMessages[0].content += '\n\nIMPORTANT: Respond with valid JSON only. No additional text or formatting. Use JSON booleans (true/false) NOT Python booleans (True/False). Use null NOT None. Use literal string values NOT expressions like "a" * 1000.';
     }
 
     const response = await this.generateContent(enhancedMessages, {
@@ -117,11 +156,7 @@ export class AIService {
       }
       
       // Try to fix common JSON issues
-      // Fix incorrectly escaped quotes in values like "\"a\".repeat(1000)"
-      cleanedContent = cleanedContent.replace(/"\\"([^"]*)\\"\.repeat\((\d+)\)"/g, (match, char, count) => {
-        const repeatedString = char.repeat(parseInt(count));
-        return `"${repeatedString.slice(0, 100)}..."`;  // Truncate very long strings
-      });
+      cleanedContent = sanitizePythonLiterals(cleanedContent);
       
       return JSON.parse(cleanedContent);
     } catch (error) {
@@ -150,15 +185,7 @@ export class AIService {
         }
         
         // Replace problematic patterns
-        fallbackContent = fallbackContent
-          .replace(/"\\"([^"]*)\\"\.repeat\(\d+\)"/g, '"$1$1$1..."')  // Simple fallback for repeat patterns
-          .replace(/\\"/g, '"')  // Fix escaped quotes
-          .replace(/\n\s*"/g, '"')  // Fix newlines in strings
-          .replace(/"\s*\n/g, '"')  // Fix newlines after strings
-          .replace(/\{\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,?\s*\}/g, '["$1", "$2", "$3"]')  // Fix Python set notation {a,b,c} -> [a,b,c]
-          .replace(/\{\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,?\s*\}/g, '["$1", "$2"]')  // Fix 2-element sets
-          .replace(/\{\s*"([^"]+)"\s*\}/g, '["$1"]')  // Fix 1-element sets
-          .replace(/-Infinity/g, 'null');  // Fix -Infinity which is not valid JSON
+        fallbackContent = sanitizePythonLiterals(fallbackContent);
           
         return JSON.parse(fallbackContent);
       } catch (fallbackError) {
