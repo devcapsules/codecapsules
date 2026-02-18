@@ -126,54 +126,75 @@ executeRoutes.post('/tests', async (c) => {
   }
 
   const lang = language.toLowerCase();
-  const results: TestResult[] = [];
-  let passedCount = 0;
+
+  // Cap at 5 test cases (Golden 5 strategy)
+  const cappedCases = testCases.slice(0, 5);
   const startTime = Date.now();
 
-  for (let i = 0; i < testCases.length; i++) {
-    const testCase = testCases[i];
-    const testResult = await runSingleTest(
-      c.env,
-      lang,
-      userCode,
-      functionName,
-      testCase
-    );
+  // ── SQL: edge-only execution (no Piston harness) ──
+  if (lang === 'sql') {
+    const results: TestResult[] = [];
+    let passedCount = 0;
 
-    results.push({
-      testCase: i + 1,
-      description: testCase.description || `Test ${i + 1}`,
-      passed: testResult.passed,
-      output: testResult.output,
-      expected: testCase.expected,
-      executionTime: testResult.executionTime,
-      error: testResult.error,
+    for (let i = 0; i < cappedCases.length; i++) {
+      const tc = cappedCases[i];
+      const sqlResult = await executeSQL(c.env, userCode);
+      const passed = sqlResult.success;
+      results.push({
+        testCase: i + 1,
+        description: tc.description || `Test ${i + 1}`,
+        type: tc.type || 'unknown',
+        passed,
+        output: sqlResult.stdout,
+        expected: tc.expected_output,
+        executionTime: 0,
+        error: sqlResult.stderr || undefined,
+      });
+      if (passed) passedCount++;
+    }
+
+    return c.json({
+      success: true,
+      summary: {
+        totalTests: cappedCases.length,
+        passedTests: passedCount,
+        failedTests: cappedCases.length - passedCount,
+        successRate: Math.round((passedCount / cappedCases.length) * 100),
+        allPassed: passedCount === cappedCases.length,
+        totalTime: Date.now() - startTime,
+      },
+      results,
+      meta: { requestId: c.get('requestId'), timestamp: Date.now(), version: c.env.API_VERSION },
     });
-
-    if (testResult.passed) passedCount++;
   }
+
+  // ── Code: SINGLE Piston execution for ALL tests ──
+  // Generate a batched harness that runs all tests in one container call
+  const harnessCode = generateBatchedTestHarness(lang, userCode, functionName, cappedCases);
+
+  const pistonResult = await executeOnPiston(c.env, lang, harnessCode, '', 3, 128);
 
   const totalTime = Date.now() - startTime;
 
-  // Increment daily quota (test runs count as executions)
+  // Parse the ---JSON_START--- delimited output
+  const results = parseBatchedResults(pistonResult, cappedCases);
+  const passedCount = results.filter(r => r.passed).length;
+
+  // Increment daily quota
   await incrementQuota(c.env, c.get('quotaKey'));
 
   return c.json({
     success: true,
     summary: {
-      totalTests: testCases.length,
+      totalTests: cappedCases.length,
       passedTests: passedCount,
-      failedTests: testCases.length - passedCount,
-      successRate: Math.round((passedCount / testCases.length) * 100),
-      allPassed: passedCount === testCases.length,
+      failedTests: cappedCases.length - passedCount,
+      successRate: Math.round((passedCount / cappedCases.length) * 100),
+      allPassed: passedCount === cappedCases.length,
       totalTime,
     },
     results,
-    meta: {
-      requestId: c.get('requestId'),
-      timestamp: Date.now(),
-      version: c.env.API_VERSION,
-    },
+    meta: { requestId: c.get('requestId'), timestamp: Date.now(), version: c.env.API_VERSION },
   });
 });
 
@@ -299,41 +320,8 @@ async function executeOnPiston(
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Helper: Run single test case
+// Batched Test Execution — Single Piston Call for All Tests
 // ══════════════════════════════════════════════════════════════════════════════
-
-async function runSingleTest(
-  env: Env,
-  language: string,
-  userCode: string,
-  functionName: string,
-  testCase: { input_args: unknown[]; expected_output: unknown; description?: string }
-): Promise<{ passed: boolean; output: unknown; executionTime: number; error?: string }> {
-  const startTime = Date.now();
-
-  // Generate test harness code
-  const harnessCode = generateTestHarness(language, userCode, functionName, testCase);
-
-  // Execute — SQL on edge, everything else on Piston
-  let result: ExecutionResult;
-  if (language === 'sql') {
-    result = await executeSQL(env, harnessCode);
-  } else {
-    result = await executeOnPiston(env, language, harnessCode, '', 10, 128);
-  }
-
-  const executionTime = Date.now() - startTime;
-
-  // Parse result
-  if (!result.success) {
-    return { passed: false, output: null, executionTime, error: result.stderr };
-  }
-
-  const stdout = result.stdout.trim();
-  const passed = stdout.includes('TEST_PASSED');
-
-  return { passed, output: stdout, executionTime };
-}
 
 /**
  * UTF-8 safe base64 encode (btoa only handles Latin1)
@@ -348,19 +336,25 @@ function utf8ToBase64(str: string): string {
 }
 
 /**
- * Generate test harness code
+ * Generate a batched test harness that runs ALL test cases in a single execution.
+ * Uses ---JSON_START--- delimiter to separate user output from test results.
  */
-function generateTestHarness(
+function generateBatchedTestHarness(
   language: string,
   userCode: string,
   functionName: string,
-  testCase: { input_args: unknown[]; expected_output: unknown }
+  testCases: Array<{ input_args: unknown[]; expected_output: unknown; description?: string; type?: string }>
 ): string {
-  // Base64 encode test data (UTF-8 safe)
-  const testDataB64 = utf8ToBase64(JSON.stringify({
-    input_args: testCase.input_args,
-    expected_output: testCase.expected_output,
-  }));
+  // Base64-encode the full test data array (UTF-8 safe)
+  const testDataB64 = utf8ToBase64(JSON.stringify(
+    testCases.map((tc, i) => ({
+      id: i + 1,
+      input_args: tc.input_args,
+      expected_output: tc.expected_output,
+      description: tc.description || `Test ${i + 1}`,
+      type: tc.type || 'unknown',
+    }))
+  ));
 
   if (language === 'python') {
     return `
@@ -376,26 +370,44 @@ except ImportError:
 # User code
 ${userCode}
 
-# Test harness
+# --- HIDDEN TEST HARNESS ---
 import json
 import base64
-import sys
 
-try:
-    test_data = json.loads(base64.b64decode("${testDataB64}").decode('utf-8'))
-    args = test_data['input_args']
-    expected = test_data['expected_output']
-    
-    actual = ${functionName}(*args)
-    
-    if actual == expected:
-        print('TEST_PASSED')
-    else:
-        print(f'FAILED: expected {expected}, got {actual}')
-        sys.exit(1)
-except Exception as e:
-    print(f'ERROR: {e}')
-    sys.exit(1)
+def _normalize(obj):
+    """Normalize for comparison: tuples->lists, sets->sorted lists, round floats."""
+    if isinstance(obj, tuple):
+        return [_normalize(x) for x in obj]
+    if isinstance(obj, set):
+        return sorted([_normalize(x) for x in obj], key=lambda x: json.dumps(x, default=str))
+    if isinstance(obj, dict):
+        return {k: _normalize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_normalize(x) for x in obj]
+    if isinstance(obj, float):
+        return round(obj, 6)
+    return obj
+
+_tests = json.loads(base64.b64decode("${testDataB64}").decode('utf-8'))
+_results = []
+
+for _t in _tests:
+    _res = {"id": _t["id"], "passed": False, "actual": None, "error": None, "type": _t.get("type", "unknown")}
+    try:
+        _val = ${functionName}(*_t["input_args"])
+        _norm_actual = _normalize(_val)
+        _norm_expected = _normalize(_t["expected_output"])
+        if _norm_actual == _norm_expected:
+            _res["passed"] = True
+        _res["actual"] = json.dumps(_norm_actual, default=str)
+        _res["expected"] = json.dumps(_norm_expected, default=str)
+    except Exception as _e:
+        import traceback
+        _res["error"] = str(_e)
+    _results.append(_res)
+
+print("---JSON_START---")
+print(json.dumps(_results))
 `;
   }
 
@@ -404,29 +416,129 @@ except Exception as e:
 // User code
 ${userCode}
 
-// Test harness
-const testDataB64 = "${testDataB64}";
-const testData = JSON.parse(atob(testDataB64));
-const args = testData.input_args;
-const expected = testData.expected_output;
-
-try {
-    const actual = ${functionName}(...args);
-    if (JSON.stringify(actual) === JSON.stringify(expected)) {
-        console.log('TEST_PASSED');
-    } else {
-        console.log(\`FAILED: expected \${JSON.stringify(expected)}, got \${JSON.stringify(actual)}\`);
-        process.exit(1);
+// --- HIDDEN TEST HARNESS ---
+function _normalize(obj) {
+    if (obj === null || obj === undefined) return obj;
+    if (typeof obj === 'number') return Math.round(obj * 1e6) / 1e6;
+    if (Array.isArray(obj)) return obj.map(_normalize);
+    if (typeof obj === 'object') {
+        const out = {};
+        for (const k of Object.keys(obj).sort()) out[k] = _normalize(obj[k]);
+        return out;
     }
-} catch (e) {
-    console.log(\`ERROR: \${e.message}\`);
-    process.exit(1);
+    return obj;
 }
+
+const _tests = JSON.parse(atob("${testDataB64}"));
+const _results = [];
+
+for (const _t of _tests) {
+    const _res = { id: _t.id, passed: false, actual: null, error: null, type: _t.type || "unknown" };
+    try {
+        const _val = ${functionName}(..._t.input_args);
+        const _normActual = _normalize(_val);
+        const _normExpected = _normalize(_t.expected_output);
+        if (JSON.stringify(_normActual) === JSON.stringify(_normExpected)) {
+            _res.passed = true;
+        }
+        _res.actual = JSON.stringify(_normActual);
+        _res.expected = JSON.stringify(_normExpected);
+    } catch (_e) {
+        _res.error = _e.message || String(_e);
+    }
+    _results.push(_res);
+}
+
+console.log("---JSON_START---");
+console.log(JSON.stringify(_results));
 `;
   }
 
-  // For other languages, return simple wrapper
+  // Fallback for unsupported languages
   return userCode;
+}
+
+/**
+ * Parse the ---JSON_START--- delimited output from a batched Piston execution.
+ * Separates user logs from structured test results.
+ */
+function parseBatchedResults(
+  pistonResult: ExecutionResult,
+  testCases: Array<{ description?: string; type?: string; expected_output?: unknown }>
+): TestResult[] {
+  const stdout = (pistonResult.stdout || '').trim();
+  const stderr = (pistonResult.stderr || '').trim();
+
+  // If Piston itself failed (non-zero exit, network error)
+  if (!pistonResult.success && !stdout.includes('---JSON_START---')) {
+    return testCases.map((tc, i) => ({
+      testCase: i + 1,
+      description: tc.description || `Test ${i + 1}`,
+      type: tc.type || 'unknown',
+      passed: false,
+      output: null,
+      expected: tc.expected_output,
+      executionTime: 0,
+      error: stderr || `Execution failed (exit code ${pistonResult.exit_code})`,
+    }));
+  }
+
+  // Split by delimiter
+  const parts = stdout.split('---JSON_START---');
+
+  if (parts.length < 2) {
+    // Code crashed before reaching the harness output
+    return testCases.map((tc, i) => ({
+      testCase: i + 1,
+      description: tc.description || `Test ${i + 1}`,
+      type: tc.type || 'unknown',
+      passed: false,
+      output: stdout || null,
+      expected: tc.expected_output,
+      executionTime: 0,
+      error: stderr || 'Code crashed before test harness could run. Check for syntax errors or import issues.',
+    }));
+  }
+
+  const _userLogs = parts[0].trim(); // eslint-disable-line @typescript-eslint/no-unused-vars
+  const jsonStr = parts[1].trim();
+
+  try {
+    const parsed = JSON.parse(jsonStr) as Array<{
+      id: number;
+      passed: boolean;
+      actual?: string;
+      expected?: string;
+      error?: string | null;
+      type?: string;
+    }>;
+
+    return parsed.map((r, i) => {
+      const tc = testCases[i] || {};
+      return {
+        testCase: r.id || i + 1,
+        description: tc.description || `Test ${r.id || i + 1}`,
+        type: r.type || tc.type || 'unknown',
+        passed: r.passed,
+        output: r.actual || null,
+        expected: r.expected || tc.expected_output,
+        executionTime: 0,
+        error: r.error || undefined,
+      };
+    });
+  } catch (parseError) {
+    // JSON parsing failed — return all tests as failed
+    return testCases.map((tc, i) => ({
+      testCase: i + 1,
+      description: tc.description || `Test ${i + 1}`,
+      type: tc.type || 'unknown',
+      passed: false,
+      output: jsonStr.substring(0, 200),
+      expected: tc.expected_output,
+      executionTime: 0,
+      error: `Failed to parse test results JSON: ${parseError instanceof Error ? parseError.message : 'unknown'}`,
+    }));
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -443,6 +555,7 @@ interface ExecutionResult {
 interface TestResult {
   testCase: number;
   description: string;
+  type: string;
   passed: boolean;
   output: unknown;
   expected: unknown;

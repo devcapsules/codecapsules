@@ -700,6 +700,21 @@ class DevcapsulesAPIClient {
         }),
       })
 
+      // Log detailed results for debugging
+      console.log('📊 Validation results summary:', {
+        allPassed: result.summary.allPassed,
+        passed: result.summary.passedTests,
+        failed: result.summary.failedTests,
+        total: result.summary.totalTests,
+      })
+
+      if (!result.summary.allPassed) {
+        console.log('📋 Detailed test results:')
+        result.results.forEach((r: any, i: number) => {
+          console.log(`  Test ${i + 1}: ${r.passed ? '✅' : '❌'} | output: ${JSON.stringify(r.output)?.substring(0, 200)} | error: ${r.error || 'none'}`)
+        })
+      }
+
       return {
         success: true,
         validation: {

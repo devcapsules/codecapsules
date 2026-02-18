@@ -102,7 +102,7 @@ Generate the complete BaseCapsule JSON for it. Include:
 - problem_statement (markdown format)
 - boilerplate_code (starter code for students)
 - reference_solution (complete working solution)
-- test_cases (format depends on language - see below)
+- test_cases (EXACTLY 5 test cases using the Golden 5 strategy - see below)
 - hints (2 helpful hints)
 
 === LAYER 3: MANDATORY CODE STRUCTURE (LeetCode Pattern) ===
@@ -181,25 +181,49 @@ Return JSON with this exact structure:
     "test_cases": [
       ${context.language === 'sql' ? `{
         "description": "Test SQL query",
+        "type": "smoke",
         "expected_output": [{"column": "value"}],
-        "requires_postgres": false
+        "requires_postgres": false,
+        "visible": true
       }` : `{
-        "description": "Basic test case",
-        "input_args": [arg1, arg2],
-        "expected_output": result_value,
-        "is_hidden": false
+        "description": "Smoke test - basic example from the problem",
+        "type": "smoke",
+        "input_args": [example_arg],
+        "expected_output": example_result,
+        "is_hidden": false,
+        "visible": true
       },
       {
-        "description": "Edge case test",
-        "input_args": [edge_arg],
-        "expected_output": edge_value,
-        "is_hidden": false
+        "description": "Basic logic - simple variation",
+        "type": "basic",
+        "input_args": [basic_arg],
+        "expected_output": basic_result,
+        "is_hidden": false,
+        "visible": true
       },
       {
-        "description": "Complex test case",
+        "description": "Complex logic - prevents hardcoding",
+        "type": "complex",
         "input_args": [complex_args],
-        "expected_output": complex_value,
-        "is_hidden": true
+        "expected_output": complex_result,
+        "is_hidden": true,
+        "visible": false
+      },
+      {
+        "description": "Edge case - boundary/empty/zero/null inputs",
+        "type": "edge",
+        "input_args": [edge_arg],
+        "expected_output": edge_result,
+        "is_hidden": true,
+        "visible": false
+      },
+      {
+        "description": "Scale test - larger input for performance",
+        "type": "scale",
+        "input_args": [large_arg],
+        "expected_output": large_result,
+        "is_hidden": true,
+        "visible": false
       }`}
     ]
   },
@@ -357,11 +381,15 @@ Generate a complete coding exercise with:
    - Add explanatory comments
    - Demonstrate good coding style
 
-3. TEST CASES: Comprehensive test suite
-   - Cover normal cases, edge cases, and error cases
-   - Include clear descriptions
-   - Provide expected outputs
-   - Balance visible and hidden tests
+3. TEST CASES: Generate EXACTLY 5 test cases using the "Golden 5" strategy:
+   - Test 1 (SMOKE, visible):  The basic example from the problem description. Verifies the code runs.
+   - Test 2 (BASIC, visible):  A simple variation of the smoke test. Helps debug basic logic.
+   - Test 3 (COMPLEX, hidden): A larger or more complex input. Prevents hardcoding answers.
+   - Test 4 (EDGE, hidden):    Boundary values: zero, negative, empty string, null, max int, single element.
+   - Test 5 (SCALE, hidden):   A large input (within reasonable limits). Tests efficiency.
+   Include "type" field: "smoke", "basic", "complex", "edge", or "scale".
+   Include "visible" field: true for tests 1-2, false for tests 3-5.
+   IMPORTANT: Keep scale test inputs small enough to run in under 3 seconds.
 
 4. HINTS: Progressive hints for learners
    - Start with conceptual hints
@@ -380,10 +408,44 @@ Return JSON with this exact structure:
   "reference_solution": "Complete working solution",
   "test_cases": [
     {
-      "description": "Test normal case",
-      "input_args": [arg1, arg2],
+      "description": "Smoke test - basic example",
+      "type": "smoke",
+      "input_args": [arg1],
       "expected_output": result_value,
-      "is_hidden": false
+      "is_hidden": false,
+      "visible": true
+    },
+    {
+      "description": "Basic logic - simple variation",
+      "type": "basic",
+      "input_args": [arg1],
+      "expected_output": result_value,
+      "is_hidden": false,
+      "visible": true
+    },
+    {
+      "description": "Complex case - prevents hardcoding",
+      "type": "complex",
+      "input_args": [complex_args],
+      "expected_output": complex_value,
+      "is_hidden": true,
+      "visible": false
+    },
+    {
+      "description": "Edge case - boundary inputs",
+      "type": "edge",
+      "input_args": [edge_arg],
+      "expected_output": edge_value,
+      "is_hidden": true,
+      "visible": false
+    },
+    {
+      "description": "Scale test - larger input",
+      "type": "scale",
+      "input_args": [large_arg],
+      "expected_output": large_value,
+      "is_hidden": true,
+      "visible": false
     }
   ],
   "hints": [
@@ -744,30 +806,50 @@ ADDITIONAL PREFERENCES:
    */
   private formatTestCases(testCases: any): Array<{
     description: string
+    type: 'smoke' | 'basic' | 'complex' | 'edge' | 'scale'
     input_args: any[]
     expected_output: any
     is_hidden: boolean
+    visible: boolean
   }> {
+    const GOLDEN_5_TYPES: Array<{ type: 'smoke' | 'basic' | 'complex' | 'edge' | 'scale'; visible: boolean; is_hidden: boolean }> = [
+      { type: 'smoke',   visible: true,  is_hidden: false },
+      { type: 'basic',   visible: true,  is_hidden: false },
+      { type: 'complex', visible: false, is_hidden: true },
+      { type: 'edge',    visible: false, is_hidden: true },
+      { type: 'scale',   visible: false, is_hidden: true },
+    ]
+
     // Handle different input formats
     if (!testCases) return []
     
-    // If it's already an array, process normally
+    // If it's already an array, normalize to Golden 5 format
     if (Array.isArray(testCases)) {
-      return testCases.map((testCase, index) => ({
-        description: testCase.description || `Test case ${index + 1}`,
-        input_args: testCase.input_args || [],
-        expected_output: testCase.expected_output,
-        is_hidden: testCase.is_hidden || false
-      }))
+      // Take first 5 (or pad to 5 by duplicating last)
+      const capped = testCases.slice(0, 5)
+      
+      return capped.map((testCase, index) => {
+        const golden = GOLDEN_5_TYPES[index] || GOLDEN_5_TYPES[GOLDEN_5_TYPES.length - 1]
+        return {
+          description: testCase.description || `Test case ${index + 1}`,
+          type: testCase.type || golden.type,
+          input_args: testCase.input_args || [],
+          expected_output: testCase.expected_output,
+          is_hidden: testCase.is_hidden ?? golden.is_hidden,
+          visible: testCase.visible ?? golden.visible,
+        }
+      })
     }
     
     // Fallback for unexpected formats
     console.warn('Unexpected test_cases format:', typeof testCases, testCases)
     return [{
       description: 'Default test case',
+      type: 'smoke' as const,
       input_args: [],
       expected_output: null,
-      is_hidden: false
+      is_hidden: false,
+      visible: true,
     }]
   }
 

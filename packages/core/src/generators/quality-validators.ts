@@ -80,18 +80,20 @@ export class CodeContentValidator {
   }
   
   private validateTestCases(testCases: any[]): ValidationResult {
-    const hasMinimumTests = testCases.length >= 2;
-    const hasBasicTest = testCases.some(tc => !tc.hidden);
-    const hasEdgeTest = testCases.some(tc => tc.description?.toLowerCase().includes('edge'));
+    const hasGolden5 = testCases.length >= 3 && testCases.length <= 5;
+    const hasVisibleTest = testCases.some(tc => tc.visible === true || !tc.is_hidden);
+    const hasEdgeTest = testCases.some(tc => 
+      tc.type === 'edge' || tc.description?.toLowerCase().includes('edge')
+    );
     
-    const passed = hasMinimumTests && hasBasicTest;
+    const passed = hasGolden5 && hasVisibleTest;
     
     return {
       rule: 'test_case_coverage',
       passed,
       message: passed 
-        ? `Good test coverage with ${testCases.length} test cases`
-        : 'Need at least 2 test cases including basic and edge cases',
+        ? `Golden 5 test coverage: ${testCases.length} test cases (${testCases.filter(tc => tc.visible !== false).length} visible, ${testCases.filter(tc => tc.visible === false).length} hidden)`
+        : `Need 3-5 test cases (Golden 5 strategy). Got ${testCases.length}.`,
       severity: passed ? 'info' : 'error'
     };
   }

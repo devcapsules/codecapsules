@@ -113,10 +113,44 @@ STRUCTURE YOUR RESPONSE AS:
   "solutionCode": "Complete working solution",
   "testCases": [
     {
-      "input": "test input",
-      "expectedOutput": "expected result",
-      "description": "what this test validates",
-      "hidden": false
+      "description": "Smoke test - basic example",
+      "type": "smoke",
+      "input_args": [arg1],
+      "expected_output": result,
+      "visible": true,
+      "is_hidden": false
+    },
+    {
+      "description": "Basic logic - simple variation",
+      "type": "basic",
+      "input_args": [arg1],
+      "expected_output": result,
+      "visible": true,
+      "is_hidden": false
+    },
+    {
+      "description": "Complex case - prevents hardcoding",
+      "type": "complex",
+      "input_args": [complex_args],
+      "expected_output": result,
+      "visible": false,
+      "is_hidden": true
+    },
+    {
+      "description": "Edge case - boundary inputs",
+      "type": "edge",
+      "input_args": [edge_arg],
+      "expected_output": result,
+      "visible": false,
+      "is_hidden": true
+    },
+    {
+      "description": "Scale test - larger input",
+      "type": "scale",
+      "input_args": [large_arg],
+      "expected_output": result,
+      "visible": false,
+      "is_hidden": true
     }
   ],
   "hints": [
@@ -141,13 +175,19 @@ STRUCTURE YOUR RESPONSE AS:
   "successCriteria": "All tests pass + code is readable"
 }
 
+GOLDEN 5 TEST CASE RULES:
+- Generate EXACTLY 5 test cases in this order: smoke, basic, complex, edge, scale
+- Tests 1-2 are visible to students, tests 3-5 are hidden (anti-cheat)
+- input_args MUST be a JSON array, even for single arguments
+- expected_output must be the raw value (not stringified)
+- Scale test must execute in under 3 seconds
+- Edge case should test zero, empty, negative, or null inputs
+
 QUALITY REQUIREMENTS:
 - Starter code should compile but be incomplete
-- Solution must pass all test cases
-- Include edge cases in tests
+- Solution must pass all 5 test cases
 - Hints should progressively reveal the solution
 - Code should follow best practices for the language
-- Include both happy path and error cases
 `;
     
     return {
@@ -156,8 +196,8 @@ QUALITY REQUIREMENTS:
       qualityChecks: [
         ...basePrompts.qualityChecks,
         'Starter code compiles but is incomplete',
-        'Solution code passes all test cases',
-        'Test cases include edge cases',
+        'Solution code passes all 5 test cases',
+        'Test cases follow Golden 5 strategy (smoke, basic, complex, edge, scale)',
         'Hints provide progressive guidance',
         'Code follows language best practices'
       ]
@@ -326,31 +366,49 @@ QUALITY REQUIREMENTS:
   }
   
   private generateTestCases(context: TypeSpecificContext): any[] {
-    const testCases = [
+    // Golden 5 strategy: always generate exactly 5 categorized test cases
+    return [
       {
-        input: "basic case",
-        expectedOutput: "expected result",
-        description: "handles basic functionality",
-        hidden: false
+        input_args: ["basic case"],
+        expected_output: "expected result",
+        description: "Smoke test - basic functionality",
+        type: "smoke",
+        visible: true,
+        is_hidden: false
       },
       {
-        input: "edge case",
-        expectedOutput: "edge result", 
-        description: "handles edge conditions",
-        hidden: false
+        input_args: ["simple variation"],
+        expected_output: "variation result",
+        description: "Basic logic - simple variation",
+        type: "basic",
+        visible: true,
+        is_hidden: false
+      },
+      {
+        input_args: ["complex case"],
+        expected_output: "complex result",
+        description: "Complex case - prevents hardcoding",
+        type: "complex",
+        visible: false,
+        is_hidden: true
+      },
+      {
+        input_args: [""],
+        expected_output: "edge result",
+        description: "Edge case - empty/boundary input",
+        type: "edge",
+        visible: false,
+        is_hidden: true
+      },
+      {
+        input_args: ["large input ".repeat(50)],
+        expected_output: "scale result",
+        description: "Scale test - larger input",
+        type: "scale",
+        visible: false,
+        is_hidden: true
       }
     ];
-    
-    if (context.difficulty === 'advanced') {
-      testCases.push({
-        input: "complex case",
-        expectedOutput: "complex result",
-        description: "handles complex scenarios",
-        hidden: true
-      });
-    }
-    
-    return testCases;
   }
   
   private generateHints(context: TypeSpecificContext): any[] {

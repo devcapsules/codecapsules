@@ -543,8 +543,14 @@ For CODING problems, respond with this JSON structure:
 CRITICAL CODING REQUIREMENTS:
 - starterCode MUST be different from solution - provide function signature with TODO comments
 - solution MUST be a complete, working implementation 
-- testCases MUST have input, expected, and description fields
-- Include 3-5 diverse test cases covering edge cases
+- Generate EXACTLY 5 test cases using the "Golden 5" strategy:
+  1. SMOKE (visible): Basic example from the problem. Verifies the code runs.
+  2. BASIC (visible): Simple variation. Helps debug logic.
+  3. COMPLEX (hidden): Larger input. Prevents hardcoding.
+  4. EDGE (hidden): Boundary: zero, empty, null, negative.
+  5. SCALE (hidden): Large input. Tests efficiency (must run in <3s).
+- testCases MUST have input_args (array), expected_output, description, type, and visible fields
+- Keep scale test inputs reasonable (no larger than 1000 elements)
 ` : `
 Respond with valid JSON matching this structure:
 {
@@ -938,29 +944,48 @@ PEDAGOGICAL FRAMEWORK:
   }
   
   /**
-   * Format test cases to ensure proper structure
+   * Format test cases to ensure proper structure (Golden 5 strategy)
    */
   private formatTestCases(testCases: any[]): any[] {
     if (!Array.isArray(testCases)) {
       return [];
     }
     
-    return testCases.map(test => {
+    const GOLDEN_5_DEFAULTS = [
+      { type: 'smoke',   visible: true },
+      { type: 'basic',   visible: true },
+      { type: 'complex', visible: false },
+      { type: 'edge',    visible: false },
+      { type: 'scale',   visible: false },
+    ];
+
+    // Cap at 5 test cases
+    const capped = testCases.slice(0, 5);
+    
+    return capped.map((test, index) => {
+      const golden = GOLDEN_5_DEFAULTS[index] || GOLDEN_5_DEFAULTS[GOLDEN_5_DEFAULTS.length - 1];
+      
       // Handle different test case formats
       if (typeof test === 'object' && test !== null) {
         return {
-          input: test.input || test.args || '',
-          expected: test.expected || test.output || test.result || '',
-          description: test.description || test.name || 'Test case'
+          input_args: test.input_args || (test.input ? [test.input] : (test.args ? [test.args] : [])),
+          expected_output: test.expected_output ?? test.expected ?? test.output ?? test.result ?? '',
+          description: test.description || test.name || `Test case ${index + 1}`,
+          type: test.type || golden.type,
+          visible: test.visible ?? golden.visible,
+          is_hidden: test.is_hidden ?? !golden.visible,
         };
       }
       
       // Handle string format
       if (typeof test === 'string') {
         return {
-          input: '',
-          expected: test,
-          description: 'Basic test'
+          input_args: [],
+          expected_output: test,
+          description: 'Basic test',
+          type: golden.type,
+          visible: golden.visible,
+          is_hidden: !golden.visible,
         };
       }
       
