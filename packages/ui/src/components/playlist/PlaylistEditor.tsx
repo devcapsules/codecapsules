@@ -13,11 +13,11 @@
  * - Course template system
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { 
   Plus, Save, Eye, Play, Trash2, GripVertical, Wand2, 
   Code, Database, Terminal, BookOpen, Clock, Users,
-  ArrowUp, ArrowDown, Copy, Settings, Lightbulb
+  ArrowUp, ArrowDown, Copy, Settings, Lightbulb, Search, X
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -40,6 +40,8 @@ interface PlaylistEditorProps {
   onCancel?: () => void
   onPreview?: (playlist: PlaylistWithCapsules) => void
   apiBaseUrl?: string
+  authToken?: string
+  onGenerateAI?: () => void
 }
 
 interface EditorState {
@@ -155,7 +157,7 @@ function CapsuleListItem({
             </h4>
             
             <p className="text-sm text-gray-300 line-clamp-2 mt-1">
-              {capsule.problem_statement_md.replace(/[#*`]/g, '').substring(0, 100)}...
+              {(capsule.problem_statement_md || capsule.title || 'No description').replace(/[#*`]/g, '').substring(0, 100)}
             </p>
           </div>
         </div>
@@ -365,8 +367,19 @@ export function PlaylistEditor({
   onSave,
   onCancel,
   onPreview,
-  apiBaseUrl = 'https://api.devcapsules.com'
+  apiBaseUrl = 'https://devcapsules-api.devleep-edu.workers.dev/api/v1',
+  authToken,
+  onGenerateAI
 }: PlaylistEditorProps): JSX.Element {
+
+  const getAuthToken = () => authToken || localStorage.getItem('auth_token') || '';
+  const handleGenerateAI = () => {
+    if (onGenerateAI) {
+      onGenerateAI()
+    } else {
+      setState(prev => ({ ...prev, showAIGenerator: true }))
+    }
+  };
   
   // ===== STATE MANAGEMENT =====
   
@@ -388,6 +401,24 @@ export function PlaylistEditor({
   })
 
   const [selectedCapsules, setSelectedCapsules] = useState<Set<string>>(new Set())
+  const [capsuleSearch, setCapsuleSearch] = useState('')
+  const [activeTab, setActiveTab] = useState<'content' | 'browse'>('browse') // Start on browse for new courses
+
+  // Filter available capsules that aren't already in the course
+  const filteredAvailableCapsules = useMemo(() => {
+    const addedIds = new Set(state.capsules.map(c => c.id))
+    return state.availableCapsules
+      .filter(c => !addedIds.has(c.id))
+      .filter(c => {
+        if (!capsuleSearch.trim()) return true
+        const q = capsuleSearch.toLowerCase()
+        return (
+          c.title?.toLowerCase().includes(q) ||
+          c.capsule_type?.toLowerCase().includes(q) ||
+          c.problem_statement_md?.toLowerCase().includes(q)
+        )
+      })
+  }, [state.availableCapsules, state.capsules, capsuleSearch])
 
   // ===== DATA LOADING =====
   
@@ -397,15 +428,16 @@ export function PlaylistEditor({
         setState(prev => ({ ...prev, isLoading: true }))
 
         // Load available capsules for the organization
-        const capsulesResponse = await fetch(`${apiBaseUrl}/api/organizations/${organizationId}/capsules`, {
+        const capsulesResponse = await fetch(`${apiBaseUrl}/organizations/${organizationId}/capsules`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+            'Authorization': `Bearer ${getAuthToken()}`,
             'Content-Type': 'application/json'
           }
         })
 
         if (capsulesResponse.ok) {
-          const availableCapsules: BaseCapsule[] = await capsulesResponse.json()
+          const capsulesJson = await capsulesResponse.json()
+          const availableCapsules: BaseCapsule[] = capsulesJson.data || capsulesJson
           
           setState(prev => ({
             ...prev,
@@ -480,10 +512,10 @@ export function PlaylistEditor({
     try {
       setState(prev => ({ ...prev, generationInProgress: true }))
 
-      const response = await fetch(`${apiBaseUrl}/api/ai/generate-capsule`, {
+      const response = await fetch(`${apiBaseUrl}/ai/generate-capsule`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -495,7 +527,8 @@ export function PlaylistEditor({
       })
 
       if (response.ok) {
-        const newCapsule: BaseCapsule = await response.json()
+        const aiJson = await response.json()
+        const newCapsule: BaseCapsule = aiJson.data || aiJson
         addCapsule(newCapsule)
       } else {
         throw new Error('Failed to generate capsule')
@@ -530,17 +563,18 @@ export function PlaylistEditor({
           items: capsuleItems
         }
 
-        const response = await fetch(`${apiBaseUrl}/api/playlists/${playlistId}`, {
+        const response = await fetch(`${apiBaseUrl}/playlists/${playlistId}`, {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+            'Authorization': `Bearer ${getAuthToken()}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(updateRequest)
         })
 
         if (response.ok) {
-          const updatedPlaylist = await response.json()
+          const updateJson = await response.json()
+          const updatedPlaylist = updateJson.data || updateJson
           onSave?.(updatedPlaylist)
           setState(prev => ({ ...prev, isDirty: false }))
         }
@@ -553,17 +587,18 @@ export function PlaylistEditor({
           items: capsuleItems
         }
 
-        const response = await fetch(`${apiBaseUrl}/api/organizations/${organizationId}/playlists`, {
+        const response = await fetch(`${apiBaseUrl}/playlists`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+            'Authorization': `Bearer ${getAuthToken()}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(createRequest)
         })
 
         if (response.ok) {
-          const newPlaylist = await response.json()
+          const createJson = await response.json()
+          const newPlaylist = createJson.data || createJson
           onSave?.(newPlaylist)
           setState(prev => ({ ...prev, isDirty: false }))
         }
@@ -718,8 +753,8 @@ export function PlaylistEditor({
                     <dd className="text-sm font-medium text-white">{state.capsules.length * 5} min</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-sm text-gray-600">Difficulty</dt>
-                    <dd className="text-sm font-medium text-gray-900">Mixed</dd>
+                    <dt className="text-sm text-gray-400">Difficulty</dt>
+                    <dd className="text-sm font-medium text-gray-100">Mixed</dd>
                   </div>
                 </dl>
               </div>
@@ -730,12 +765,41 @@ export function PlaylistEditor({
           <div className="lg:col-span-2">
             <div className="bg-slate-800 rounded-lg shadow-sm border border-slate-700">
               
-              {/* Builder Header */}
-              <div className="px-6 py-4 border-b border-slate-600">
+              {/* Tab Header */}
+              <div className="px-6 py-3 border-b border-slate-600">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-medium text-white">Course Content</h2>
+                  <div className="flex space-x-1 bg-slate-700 rounded-lg p-1">
+                    <button
+                      onClick={() => setActiveTab('content')}
+                      className={clsx(
+                        'px-4 py-2 text-sm font-medium rounded-md transition-colors',
+                        activeTab === 'content'
+                          ? 'bg-slate-600 text-white shadow-sm'
+                          : 'text-gray-400 hover:text-gray-200'
+                      )}
+                    >
+                      <span className="flex items-center">
+                        <BookOpen className="w-4 h-4 mr-2" />
+                        Course Content ({state.capsules.length})
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('browse')}
+                      className={clsx(
+                        'px-4 py-2 text-sm font-medium rounded-md transition-colors',
+                        activeTab === 'browse'
+                          ? 'bg-slate-600 text-white shadow-sm'
+                          : 'text-gray-400 hover:text-gray-200'
+                      )}
+                    >
+                      <span className="flex items-center">
+                        <Search className="w-4 h-4 mr-2" />
+                        Browse Capsules ({filteredAvailableCapsules.length})
+                      </span>
+                    </button>
+                  </div>
                   <button
-                    onClick={() => setState(prev => ({ ...prev, showAIGenerator: true }))}
+                    onClick={handleGenerateAI}
                     className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-200 bg-blue-900 rounded-md hover:bg-blue-800"
                   >
                     <Wand2 className="w-4 h-4 mr-2" />
@@ -744,55 +808,170 @@ export function PlaylistEditor({
                 </div>
               </div>
 
-              {/* Exercise List */}
+              {/* Tab Content */}
               <div className="p-6">
-                {state.capsules.length > 0 ? (
-                  <div className="space-y-4">
-                    {state.capsules.map((capsule, index) => (
-                      <CapsuleListItem
-                        key={capsule.id}
-                        capsule={capsule}
-                        index={index}
-                        isSelected={selectedCapsules.has(capsule.id)}
-                        onSelect={(selected) => {
-                          const newSelected = new Set(selectedCapsules)
-                          if (selected) {
-                            newSelected.add(capsule.id)
-                          } else {
-                            newSelected.delete(capsule.id)
-                          }
-                          setSelectedCapsules(newSelected)
-                        }}
-                        onEdit={() => {
-                          // Navigate to capsule editor
-                          console.log('Edit capsule:', capsule.id)
-                        }}
-                        onDelete={() => removeCapsule(index)}
-                        onMoveUp={() => index > 0 && moveCapsule(index, index - 1)}
-                        onMoveDown={() => index < state.capsules.length - 1 && moveCapsule(index, index + 1)}
-                        onDuplicate={() => duplicateCapsule(index)}
-                        canMoveUp={index > 0}
-                        canMoveDown={index < state.capsules.length - 1}
+
+                {/* ==== BROWSE CAPSULES TAB ==== */}
+                {activeTab === 'browse' && (
+                  <div>
+                    {/* Search Bar */}
+                    <div className="relative mb-4">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={capsuleSearch}
+                        onChange={(e) => setCapsuleSearch(e.target.value)}
+                        placeholder="Search your capsules by title, type..."
+                        className="w-full pl-10 pr-8 py-2 bg-slate-700 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
                       />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No exercises yet</h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Add exercises to your course to get started.
-                    </p>
-                    <div className="mt-6">
-                      <button
-                        onClick={() => setState(prev => ({ ...prev, showAIGenerator: true }))}
-                        className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                      >
-                        <Wand2 className="w-4 h-4 mr-2" />
-                        Generate First Exercise
-                      </button>
+                      {capsuleSearch && (
+                        <button
+                          onClick={() => setCapsuleSearch('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
+
+                    {filteredAvailableCapsules.length > 0 ? (
+                      <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                        {filteredAvailableCapsules.map((capsule) => {
+                          const typeIcon = capsule.capsule_type === 'CODE'
+                            ? <Code className="w-4 h-4 text-blue-400" />
+                            : capsule.capsule_type === 'DATABASE'
+                            ? <Database className="w-4 h-4 text-green-400" />
+                            : <Terminal className="w-4 h-4 text-purple-400" />
+
+                          const typeBadge = capsule.capsule_type === 'CODE'
+                            ? 'bg-blue-900 text-blue-200'
+                            : capsule.capsule_type === 'DATABASE'
+                            ? 'bg-green-900 text-green-200'
+                            : 'bg-purple-900 text-purple-200'
+
+                          return (
+                            <div
+                              key={capsule.id}
+                              className="flex items-center justify-between p-3 bg-slate-700 rounded-lg border border-slate-600 hover:border-slate-500 transition-colors"
+                            >
+                              <div className="flex items-center space-x-3 min-w-0 flex-1">
+                                {typeIcon}
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium text-white truncate">{capsule.title}</p>
+                                  <div className="flex items-center space-x-2 mt-0.5">
+                                    <span className={clsx('inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium', typeBadge)}>
+                                      {capsule.capsule_type}
+                                    </span>
+                                    {capsule.language && (
+                                      <span className="text-xs text-gray-400">{capsule.language}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => { addCapsule(capsule); setActiveTab('content') }}
+                                className="ml-3 inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-200 bg-green-900 rounded-md hover:bg-green-800 transition-colors flex-shrink-0"
+                              >
+                                <Plus className="w-4 h-4 mr-1" />
+                                Add
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : state.availableCapsules.length === 0 ? (
+                      <div className="text-center py-12">
+                        <BookOpen className="mx-auto h-12 w-12 text-gray-500" />
+                        <h3 className="mt-2 text-sm font-medium text-gray-300">No capsules found</h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                          Create capsules first, then add them to your course.
+                        </p>
+                        <div className="mt-4">
+                          <button
+                            onClick={handleGenerateAI}
+                            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                          >
+                            <Wand2 className="w-4 h-4 mr-2" />
+                            Generate with AI
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <Search className="mx-auto h-10 w-10 text-gray-500" />
+                        <h3 className="mt-2 text-sm font-medium text-gray-300">
+                          {capsuleSearch ? 'No matching capsules' : 'All capsules already added'}
+                        </h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {capsuleSearch
+                            ? 'Try a different search term.'
+                            : 'All your capsules are already in this course.'}
+                        </p>
+                      </div>
+                    )}
                   </div>
+                )}
+
+                {/* ==== COURSE CONTENT TAB ==== */}
+                {activeTab === 'content' && (
+                  <>
+                    {state.capsules.length > 0 ? (
+                      <div className="space-y-4">
+                        {state.capsules.map((capsule, index) => (
+                          <CapsuleListItem
+                            key={capsule.id}
+                            capsule={capsule}
+                            index={index}
+                            isSelected={selectedCapsules.has(capsule.id)}
+                            onSelect={(selected) => {
+                              const newSelected = new Set(selectedCapsules)
+                              if (selected) {
+                                newSelected.add(capsule.id)
+                              } else {
+                                newSelected.delete(capsule.id)
+                              }
+                              setSelectedCapsules(newSelected)
+                            }}
+                            onEdit={() => {
+                              console.log('Edit capsule:', capsule.id)
+                            }}
+                            onDelete={() => removeCapsule(index)}
+                            onMoveUp={() => index > 0 && moveCapsule(index, index - 1)}
+                            onMoveDown={() => index < state.capsules.length - 1 && moveCapsule(index, index + 1)}
+                            onDuplicate={() => duplicateCapsule(index)}
+                            canMoveUp={index > 0}
+                            canMoveDown={index < state.capsules.length - 1}
+                          />
+                        ))}
+
+                        {/* Add more button at bottom */}
+                        <button
+                          onClick={() => setActiveTab('browse')}
+                          className="w-full py-3 border-2 border-dashed border-slate-600 rounded-lg text-gray-400 hover:text-gray-200 hover:border-slate-500 transition-colors flex items-center justify-center space-x-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span className="text-sm font-medium">Add More Capsules</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <BookOpen className="mx-auto h-12 w-12 text-gray-500" />
+                        <h3 className="mt-2 text-sm font-medium text-gray-100">No exercises yet</h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                          Browse your capsules and add them to build your course.
+                        </p>
+                        <div className="mt-6">
+                          <button
+                            onClick={() => setActiveTab('browse')}
+                            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                          >
+                            <Search className="w-4 h-4 mr-2" />
+                            Browse Capsules
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

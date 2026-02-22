@@ -32,7 +32,8 @@ import {
   AIService,
   type AIServiceConfig,
 } from '../../../packages/core/src/services/ai-service';
-import type { GenerationContext } from '../../../packages/core/src/types/base-capsule';
+import type { GenerationContext, ExecutionError } from '../../../packages/core/src/types/base-capsule';
+import { DebuggerAgent, type ValidatorService, type SandboxValidationResult } from '../../../packages/core/src/agents/debugger-agent';
 
 const app = express();
 
@@ -418,6 +419,150 @@ app.post('/internal/validate-capsule', async (req, res) => {
   } catch (error: any) {
     console.error('❌ Validate capsule failed:', error.message);
     res.status(500).json({ success: false, error: error.message || 'Validation failed' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// POST /internal/heal — Auto-Fix Capsule Using DebuggerAgent
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let debuggerAgent: DebuggerAgent | null = null;
+
+/**
+ * Piston-based ValidatorService implementation
+ * This is the "Judge" that actually runs code - the AI can NEVER self-grade!
+ */
+function createPistonValidator(): ValidatorService {
+  return {
+    async run(capsule: any): Promise<SandboxValidationResult> {
+      try {
+        const language = capsule.runtime_config?.language || capsule.language || 'javascript';
+        const configData = capsule.config_data || capsule.content || {};
+        const solutionCode = configData.reference_solution || configData.primary?.code?.wasmVersion?.solution || '';
+        const testCases = configData.test_cases || configData.testCases || [];
+        const functionName = configData.function_name || 
+                            solutionCode.match(/def (\w+)/)?.[1] ||
+                            solutionCode.match(/function (\w+)/)?.[1] ||
+                            'solution';
+
+        if (!solutionCode) {
+          return { success: false, error: { type: 'syntax', message: 'No solution code found' } };
+        }
+        if (testCases.length === 0) {
+          // No tests = can't validate, assume success
+          return { success: true, passedTests: 0, totalTests: 0 };
+        }
+
+        let passedTests = 0;
+        let firstError: ExecutionError | undefined;
+
+        for (let i = 0; i < testCases.length; i++) {
+          const tc = testCases[i];
+          const harness = buildTestHarness(solutionCode, tc, language, functionName);
+          
+          try {
+            const exec = await callPiston(config.pistonUrl, language, harness);
+            const passed = (exec.stdout || '').includes('TEST_PASSED');
+            
+            if (passed) {
+              passedTests++;
+            } else if (!firstError) {
+              // Capture the first failure
+              const failMsg = exec.stderr || exec.stdout || `Test ${i + 1} failed`;
+              firstError = {
+                type: 'test_failure',
+                message: failMsg.slice(0, 500),
+                details: { testCase: String(i + 1) }
+              };
+            }
+          } catch (execErr: any) {
+            if (!firstError) {
+              firstError = {
+                type: 'runtime',
+                message: execErr.message || 'Execution failed',
+                details: { testCase: String(i + 1) }
+              };
+            }
+          }
+        }
+
+        const allPassed = passedTests === testCases.length;
+        return {
+          success: allPassed,
+          passedTests,
+          totalTests: testCases.length,
+          error: allPassed ? undefined : firstError,
+        };
+      } catch (err: any) {
+        return {
+          success: false,
+          error: { type: 'runtime', message: err.message || 'Validation failed' }
+        };
+      }
+    }
+  };
+}
+
+function getDebuggerAgent(): DebuggerAgent {
+  if (!debuggerAgent) {
+    debuggerAgent = new DebuggerAgent({
+      max_fix_attempts: 2,
+      conservative_fixes: true,
+      learn_from_patterns: false,
+      detailed_logging: true,
+      timeout_ms: 30000,
+    });
+    debuggerAgent.setAIService(getAIService());
+    
+    // CRITICAL: Inject the Piston validator so the AI can't grade its own homework!
+    debuggerAgent.setValidatorService(createPistonValidator());
+    
+    console.log('🐛 DebuggerAgent initialised with Piston validator');
+  }
+  return debuggerAgent;
+}
+
+app.post('/internal/heal', async (req, res) => {
+  const t0 = Date.now();
+  const { capsule, error } = req.body;
+
+  console.log(`🩹 Heal capsule | id=${capsule?.id} error=${error?.message?.slice(0, 80)}`);
+
+  if (!capsule) {
+    return res.status(400).json({ success: false, error: 'capsule is required' });
+  }
+  if (!error) {
+    return res.status(400).json({ success: false, error: 'error is required (what to fix)' });
+  }
+
+  try {
+    const executionError: ExecutionError = {
+      type: (error.type as ExecutionError['type']) || 'runtime',
+      message: error.message || 'Unknown error',
+      details: {
+        line: error.line,
+        column: error.column,
+        testCase: error.test_case_id?.toString(),
+      },
+    };
+
+    const healedCapsule = await getDebuggerAgent().fixCapsule(capsule, executionError);
+    const elapsed = Date.now() - t0;
+
+    console.log(`✅ Healed capsule in ${elapsed}ms`);
+
+    res.json({
+      success: true,
+      healedCapsule,
+      healingTimeMs: elapsed,
+    });
+  } catch (healError: any) {
+    console.error('❌ Heal failed:', healError.message);
+    res.status(500).json({
+      success: false,
+      error: healError.message || 'Healing failed',
+      healingTimeMs: Date.now() - t0,
+    });
   }
 });
 

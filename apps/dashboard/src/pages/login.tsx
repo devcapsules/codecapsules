@@ -50,41 +50,47 @@ export default function LoginPage() {
     <>
       <Head>
         <title>Sign In - Devcapsules</title>
-        <meta 
-          name="description" 
-          content="Log in to your Devcapsules creator dashboard. Manage your interactive coding widgets, track analytics, and create AI-powered coding environments." 
+        <meta
+          name="description"
+          content="Log in to your Devcapsules creator dashboard. Manage your interactive coding widgets, track analytics, and create AI-powered coding environments."
         />
         <meta name="robots" content="noindex, nofollow" />
         <meta property="og:title" content="Sign In - Devcapsules" />
         <meta property="og:description" content="Access your Devcapsules creator dashboard" />
       </Head>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+      {/* Page background */}
+      <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative" style={{ background: '#04040a' }}>
+        {/* Dot grid */}
+        <div className="fixed inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '64px 64px', zIndex: 0 }} />
+        {/* Green orb */}
+        <div className="absolute top-[-60px] left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(ellipse, rgba(0,255,135,0.10) 0%, transparent 70%)', filter: 'blur(80px)' }} />
+
+      <div className="relative z-10 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <img src="/favicon.ico" alt="Devcapsules" className="w-12 h-12" />
+          <img src="/favicon.svg" alt="Devcapsules" className="w-12 h-12" />
         </div>
         <h2 className="mt-6 text-center text-3xl font-bold text-white">
           Welcome Back, Creator.
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-400">
+        <p className="mt-2 text-center text-sm text-slate-400">
           New to Devcapsules?{' '}
-          <Link href="/signup" className="font-medium text-blue-400 hover:text-blue-300">
+          <Link href="/signup" className="font-medium text-[#00ff87] hover:text-[#00e87a]">
             Create account
           </Link>
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-gray-800/50 backdrop-blur-sm py-8 px-4 shadow-xl rounded-lg sm:px-10 border border-gray-700/50">
+      <div className="mt-8 relative z-10 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="backdrop-blur-sm py-8 px-4 shadow-xl rounded-2xl sm:px-10" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
           {error && (
-            <div className="mb-4 bg-red-900/20 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg text-sm">
+            <div className="mb-4 rounded-lg px-4 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
               {error}
             </div>
           )}
 
           <form className="space-y-6" onSubmit={handleEmailLogin}>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="email" className="block text-sm font-medium text-slate-300">
                 Email address
               </label>
               <div className="mt-1">
@@ -96,14 +102,17 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-900/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2.5 rounded-lg text-white placeholder-slate-500 outline-none transition-colors"
+                  style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,255,135,0.5)')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                   placeholder="Enter your email"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-300">
                 Password
               </label>
               <div className="mt-1 relative">
@@ -115,7 +124,10 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-900/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 pr-10"
+                  className="w-full px-3 py-2.5 rounded-lg text-white placeholder-slate-500 outline-none transition-colors pr-10"
+                  style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,255,135,0.5)')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                   placeholder="Enter your password"
                 />
                 <button
@@ -138,15 +150,16 @@ export default function LoginPage() {
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
-                  className="h-4 w-4 text-blue-600 bg-gray-800/50 border-gray-600/50 rounded focus:ring-blue-500"
+                  className="h-4 w-4 rounded"
+                  style={{ accentColor: '#00ff87' }}
                 />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-300">
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-300">
                   Remember me
                 </label>
               </div>
 
               <div className="text-sm">
-                <Link href="/forgot-password" className="font-medium text-blue-400 hover:text-blue-300">
+                <Link href="/forgot-password" className="font-medium text-[#00ff87] hover:text-[#00e87a]">
                   Forgot your password?
                 </Link>
               </div>
@@ -156,7 +169,10 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: '#00ff87', color: '#04040a' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#00e87a')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#00ff87')}
               >
                 {loading ? 'Signing in...' : 'Sign in'}
               </button>
@@ -166,10 +182,10 @@ export default function LoginPage() {
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-600/50" />
+                <div className="w-full" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }} />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-gray-800/50 text-gray-400">Or sign in with</span>
+                <span className="px-3 text-slate-500" style={{ background: 'transparent' }}>Or sign in with</span>
               </div>
             </div>
 
@@ -177,7 +193,10 @@ export default function LoginPage() {
               <button
                 onClick={() => handleProviderLogin('google')}
                 disabled={loading}
-                className="w-full inline-flex justify-center py-2 px-3 border border-gray-600/50 rounded-lg shadow-sm bg-gray-700/50 text-xs font-medium text-gray-300 hover:bg-gray-600/50 disabled:opacity-50 transition-colors"
+                className="w-full inline-flex justify-center items-center py-2.5 px-3 rounded-lg text-xs font-medium text-slate-300 transition-colors disabled:opacity-50"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.09)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24">
                   <path
@@ -203,7 +222,10 @@ export default function LoginPage() {
               <button
                 onClick={() => handleProviderLogin('github')}
                 disabled={loading}
-                className="w-full inline-flex justify-center py-2 px-3 border border-gray-600/50 rounded-lg shadow-sm bg-gray-700/50 text-xs font-medium text-gray-300 hover:bg-gray-600/50 disabled:opacity-50 transition-colors"
+                className="w-full inline-flex justify-center items-center py-2.5 px-3 rounded-lg text-xs font-medium text-slate-300 transition-colors disabled:opacity-50"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.09)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
               >
                 <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                   <path
@@ -218,7 +240,7 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
     </>
   )
 }

@@ -32,7 +32,7 @@ interface GenerationJob {
   userId: string;
   prompt: string;
   language: string;
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
   type?: string;
   timestamp: number;
 }
@@ -199,7 +199,7 @@ export async function processGenerationQueue(
           result: {
             capsule: { 
               ...cached.capsule, 
-              id: crypto.randomUUID().slice(0, 24), 
+              id: crypto.randomUUID().replace(/-/g, '').slice(0, 24), 
               fromCache: true 
             },
             qualityScore: cached.qualityScore || 0.8,

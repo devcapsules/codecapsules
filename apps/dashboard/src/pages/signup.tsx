@@ -63,74 +63,75 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex">
+    <div className="min-h-screen flex relative" style={{ background: '#04040a' }}>
+      {/* Dot grid */}
+      <div className="fixed inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '64px 64px', zIndex: 0 }} />
+
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-pink-600/20"></div>
+        {/* Green orb */}
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[400px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(ellipse, rgba(0,255,135,0.13) 0%, transparent 70%)', filter: 'blur(90px)' }} />
+        <div className="absolute bottom-0 right-0 w-[300px] h-[300px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(ellipse, rgba(59,130,246,0.08) 0%, transparent 70%)', filter: 'blur(70px)' }} />
         <div className="relative z-10 flex flex-col justify-center px-12 xl:px-16">
           <div className="flex items-center mb-8">
-            <img src="/favicon.ico" alt="Devcapsules" className="w-12 h-12 mr-4" />
+            <img src="/favicon.svg" alt="Devcapsules" className="w-12 h-12 mr-4" />
             <span className="text-2xl font-bold text-white">Devcapsules</span>
           </div>
           <h1 className="text-4xl xl:text-5xl font-bold text-white mb-6 leading-tight">
-            Start Creating Interactive Labs.
+            Start Creating<br /><span style={{ color: '#00ff87' }}>Interactive Labs.</span>
           </h1>
-          <p className="text-xl text-gray-300 mb-8 leading-relaxed">
+          <p className="text-lg text-slate-400 mb-8 leading-relaxed">
             Transform your ideas into engaging coding challenges with AI-powered generation and real-time execution.
           </p>
-          <div className="space-y-4 text-gray-300">
-            <div className="flex items-center">
-              <svg className="w-5 h-5 text-blue-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span>AI-powered challenge generation</span>
-            </div>
-            <div className="flex items-center">
-              <svg className="w-5 h-5 text-blue-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span>Interactive coding environments</span>
-            </div>
-            <div className="flex items-center">
-              <svg className="w-5 h-5 text-blue-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span>Instant feedback and execution</span>
-            </div>
+          <div className="space-y-4">
+            {[
+              'AI-powered challenge generation',
+              'Interactive coding environments',
+              'Instant feedback and execution',
+            ].map((item) => (
+              <div key={item} className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(0,255,135,0.15)', border: '1px solid rgba(0,255,135,0.3)' }}>
+                  <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none">
+                    <path d="M2 6l3 3 5-5" stroke="#00ff87" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <span className="text-slate-300 text-sm">{item}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
       {/* Right Side - Form */}
-      <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-8 xl:px-12">
+      <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-8 xl:px-12 relative z-10">
         <div className="w-full max-w-sm mx-auto">
           {/* Mobile Header */}
           <div className="lg:hidden text-center mb-8">
             <div className="flex justify-center mb-4">
-              <img src="/favicon.ico" alt="Devcapsules" className="w-12 h-12" />
+              <img src="/favicon.svg" alt="Devcapsules" className="w-12 h-12" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">
               Start Creating Interactive Labs.
             </h2>
           </div>
 
-          <div className="bg-gray-800/50 backdrop-blur-sm py-6 px-6 shadow-xl rounded-lg border border-gray-700/50">
+          <div className="backdrop-blur-sm py-6 px-6 shadow-xl rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
             <div className="text-center mb-6 lg:hidden">
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-slate-400">
                 Already have an account?{' '}
-                <Link href="/login" className="font-medium text-blue-400 hover:text-blue-300">
+                <Link href="/login" className="font-medium text-[#00ff87] hover:text-[#00e87a]">
                   Log In
                 </Link>
               </p>
             </div>
           {error && (
-            <div className="mb-4 bg-red-900/20 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg text-sm">
+            <div className="mb-4 rounded-lg px-4 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
               {error}
             </div>
           )}
 
           {message && (
-            <div className="mb-4 bg-green-900/20 border border-green-500/50 text-green-400 px-4 py-3 rounded-lg text-sm">
+            <div className="mb-4 rounded-lg px-4 py-3 text-sm" style={{ background: 'rgba(0,255,135,0.08)', border: '1px solid rgba(0,255,135,0.25)', color: '#00ff87' }}>
               {message}
             </div>
           )}
@@ -140,7 +141,10 @@ export default function SignupPage() {
             <button
               onClick={() => handleProviderSignup('google')}
               disabled={loading}
-              className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all duration-200"
+              className="w-full flex justify-center items-center py-3 px-4 rounded-lg text-sm font-semibold text-white transition-all duration-200 disabled:opacity-50"
+              style={{ background: '#00ff87', color: '#04040a' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#00e87a')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#00ff87')}
             >
               <svg className="h-5 w-5 mr-3" viewBox="0 0 24 24">
                 <path
@@ -166,7 +170,10 @@ export default function SignupPage() {
             <button
               onClick={() => handleProviderSignup('github')}
               disabled={loading}
-              className="w-full flex justify-center items-center py-3 px-4 border border-gray-600/50 rounded-lg shadow-sm text-sm font-medium text-gray-300 bg-gray-700/50 hover:bg-gray-600/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 transition-all duration-200"
+              className="w-full flex justify-center items-center py-3 px-4 rounded-lg text-sm font-medium text-slate-300 transition-all duration-200 disabled:opacity-50"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.10)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
             >
               <svg className="h-5 w-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
                 <path
@@ -182,18 +189,18 @@ export default function SignupPage() {
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-600/50" />
+                <div className="w-full" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }} />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-gray-800/50 text-gray-400">Or continue with email</span>
+                <span className="px-3 text-slate-500">Or continue with email</span>
               </div>
             </div>
           </div>
 
-          <form className="mt-6 space-y-6" onSubmit={handleSignup}>
+          <form className="mt-6 space-y-5" onSubmit={handleSignup}>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-300">
+                <label htmlFor="firstName" className="block text-sm font-medium text-slate-300">
                   First name
                 </label>
                 <div className="mt-1">
@@ -204,14 +211,17 @@ export default function SignupPage() {
                     required
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-900/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2.5 rounded-lg text-white placeholder-slate-500 outline-none transition-colors"
+                    style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,255,135,0.5)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                     placeholder="John"
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-gray-300">
+                <label htmlFor="lastName" className="block text-sm font-medium text-slate-300">
                   Last name
                 </label>
                 <div className="mt-1">
@@ -222,7 +232,10 @@ export default function SignupPage() {
                     required
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-900/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2.5 rounded-lg text-white placeholder-slate-500 outline-none transition-colors"
+                    style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,255,135,0.5)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                     placeholder="Doe"
                   />
                 </div>
@@ -230,7 +243,7 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="email" className="block text-sm font-medium text-slate-300">
                 Email address
               </label>
               <div className="mt-1">
@@ -242,14 +255,17 @@ export default function SignupPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-900/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2.5 rounded-lg text-white placeholder-slate-500 outline-none transition-colors"
+                  style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,255,135,0.5)')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                   placeholder="john@example.com"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-300">
                 Password
               </label>
               <div className="mt-1 relative">
@@ -261,13 +277,16 @@ export default function SignupPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-900/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 pr-10"
+                  className="w-full px-3 py-2.5 rounded-lg text-white placeholder-slate-500 outline-none transition-colors pr-10"
+                  style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,255,135,0.5)')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                   placeholder="Create a strong password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-300"
                 >
                   {showPassword ? (
                     <EyeSlashIcon className="h-5 w-5" />
@@ -279,7 +298,7 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300">
                 Confirm password
               </label>
               <div className="mt-1 relative">
@@ -291,13 +310,16 @@ export default function SignupPage() {
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-900/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 pr-10"
+                  className="w-full px-3 py-2.5 rounded-lg text-white placeholder-slate-500 outline-none transition-colors pr-10"
+                  style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,255,135,0.5)')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
                   placeholder="Confirm your password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-300"
                 >
                   {showConfirmPassword ? (
                     <EyeSlashIcon className="h-5 w-5" />
@@ -314,15 +336,16 @@ export default function SignupPage() {
                 name="terms"
                 type="checkbox"
                 required
-                className="h-4 w-4 text-blue-600 bg-gray-800/50 border-gray-600/50 rounded focus:ring-blue-500"
+                className="h-4 w-4 rounded"
+                style={{ accentColor: '#00ff87' }}
               />
-              <label htmlFor="terms" className="ml-2 block text-sm text-gray-300">
+              <label htmlFor="terms" className="ml-2 block text-sm text-slate-300">
                 I agree to the{' '}
-                <Link href="/terms" className="text-blue-400 hover:text-blue-300">
+                <Link href="/terms" className="text-[#00ff87] hover:text-[#00e87a]">
                   Terms of Service
                 </Link>{' '}
                 and{' '}
-                <Link href="/privacy" className="text-blue-400 hover:text-blue-300">
+                <Link href="/privacy" className="text-[#00ff87] hover:text-[#00e87a]">
                   Privacy Policy
                 </Link>
               </label>
@@ -332,7 +355,10 @@ export default function SignupPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: '#00ff87', color: '#04040a' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#00e87a')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#00ff87')}
               >
                 {loading ? 'Creating account...' : 'Create account'}
               </button>
@@ -341,9 +367,9 @@ export default function SignupPage() {
 
           {/* Desktop Login Link */}
           <div className="hidden lg:block text-center mt-6">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-slate-400">
               Already have an account?{' '}
-              <Link href="/login" className="font-medium text-blue-400 hover:text-blue-300">
+              <Link href="/login" className="font-medium text-[#00ff87] hover:text-[#00e87a]">
                 Log In
               </Link>
             </p>

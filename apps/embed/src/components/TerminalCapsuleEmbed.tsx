@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useDCAnimation } from './DCAnimations'
 
 interface TerminalCapsuleEmbedProps {
   widgetId: string
@@ -48,14 +49,35 @@ export default function TerminalCapsuleEmbed({ widgetId }: TerminalCapsuleEmbedP
     const fetchCapsule = async () => {
       try {
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-        const response = await fetch(`${apiUrl}/api/capsules/${widgetId}`)
-        if (!response.ok) {
-          throw new Error('Failed to load capsule')
+        
+        // Try CDN first, fallback to API
+        let capsuleData
+        try {
+          const cdnUrl = `https://cdn.devcapsules.com/capsules/${widgetId}.json`
+          const cdnResponse = await fetch(cdnUrl, { headers: { 'Accept': 'application/json' } })
+          if (cdnResponse.ok) {
+            capsuleData = await cdnResponse.json()
+            console.log('🚀 TerminalCapsuleEmbed: Loaded from CDN')
+          } else {
+            throw new Error(`CDN response: ${cdnResponse.status}`)
+          }
+        } catch (cdnError) {
+          console.log('⚠️ CDN failed, falling back to API:', (cdnError as Error).message)
+          const response = await fetch(`${apiUrl}/capsules/${widgetId}`)
+          if (!response.ok) {
+            throw new Error('Failed to load capsule')
+          }
+          const data = await response.json()
+          if (!data.success) {
+            throw new Error(data.error || 'Failed to load capsule')
+          }
+          capsuleData = data.data || data.capsule
+          if (!capsuleData) {
+            throw new Error('Failed to load capsule: no data in response')
+          }
         }
-        const data = await response.json()
-        if (data.success && data.capsule) {
-          const capsuleData = data.capsule
-          // Map to Terminal capsule format with proper data structure handling
+          
+        // Map to Terminal capsule format with proper data structure handling
           const terminalCapsule: TerminalCapsule = {
             id: capsuleData.id,
             title: capsuleData.title || 'Terminal Challenge',
@@ -111,9 +133,6 @@ export default function TerminalCapsuleEmbed({ widgetId }: TerminalCapsuleEmbedP
               timestamp: new Date()
             }
           ])
-        } else {
-          throw new Error(data.error || 'Failed to load capsule')
-        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
@@ -151,7 +170,7 @@ export default function TerminalCapsuleEmbed({ widgetId }: TerminalCapsuleEmbedP
     try {
       // Call the backend terminal execution API
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${apiUrl}/api/terminal/execute`, {
+      const response = await fetch(`${apiUrl}/terminal/execute`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -197,12 +216,14 @@ export default function TerminalCapsuleEmbed({ widgetId }: TerminalCapsuleEmbedP
     }
   }
 
+  const { toast, showTestPass, showPartialPass } = useDCAnimation()
+
   const checkWork = async () => {
     if (!capsule) return
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${apiUrl}/api/terminal/validate`, {
+      const response = await fetch(`${apiUrl}/terminal/validate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -230,15 +251,26 @@ export default function TerminalCapsuleEmbed({ widgetId }: TerminalCapsuleEmbedP
           timestamp: new Date()
         }
         setTerminalLines(prev => [...prev, validationLine])
+
+        // Trigger animations based on results
+        if (result.completedTasks === result.totalTasks) {
+          showTestPass(result.completedTasks, result.totalTasks)
+        } else if (result.completedTasks > 0) {
+          showPartialPass(result.completedTasks, result.totalTasks)
+        } else {
+          toast('error', 'No Tasks Completed', 'Keep working — review the task descriptions and try again.')
+        }
       }
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Could not validate tasks'
       const errorLine: TerminalLine = {
         id: Date.now().toString(),
         type: 'error',
-        content: `Validation Error: ${err instanceof Error ? err.message : 'Could not validate tasks'}`,
+        content: `Validation Error: ${errMsg}`,
         timestamp: new Date()
       }
       setTerminalLines(prev => [...prev, errorLine])
+      toast('error', 'Validation Error', errMsg)
     }
   }
 

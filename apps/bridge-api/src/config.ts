@@ -30,6 +30,5 @@ export const config = {
     'mentor-worker',
     'test-executor',
     'execute-worker',
-    'analytics-worker',
   ],
 };

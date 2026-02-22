@@ -1,20 +1,18 @@
 /**
- * Courses Page - B2B Course Management Dashboard
- * 
- * This page integrates the CourseCreatorDashboard component to provide
- * a complete course/playlist management interface for B2B customers.
+ * Courses Page - Course Management Dashboard
  */
 
 import React from 'react'
 import { useRouter } from 'next/router'
 import { useAuth } from '../contexts/AuthContext'
-import { CourseCreatorDashboard } from '../../../../packages/ui/src/components/playlist/CourseCreatorDashboard'
+import { CourseCreatorDashboard } from '@codecapsule/ui'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://devcapsules-api.devleep-edu.workers.dev/api/v1'
 
 export default function CoursesPage() {
-  const { user, loading } = useAuth()
+  const { user, session, loading } = useAuth()
   const router = useRouter()
 
-  // Handle loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -23,23 +21,9 @@ export default function CoursesPage() {
     )
   }
 
-  // Redirect to login if not authenticated
   if (!user) {
     router.push('/login')
     return null
-  }
-
-  const handleCreateNew = () => {
-    router.push('/courses/new')
-  }
-
-  const handleEditPlaylist = (playlistId: string) => {
-    router.push(`/courses/edit/${playlistId}`)
-  }
-
-  const handlePreview = (playlistId: string) => {
-    // Open preview in new tab or modal
-    window.open(`/preview/${playlistId}`, '_blank')
   }
 
   return (
@@ -47,10 +31,10 @@ export default function CoursesPage() {
       <CourseCreatorDashboard
         organizationId={user.id}
         userId={user.id}
-        apiBaseUrl={process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}
-        onCreateNew={handleCreateNew}
-        onEditPlaylist={handleEditPlaylist}
-        onPreview={handlePreview}
+        apiBaseUrl={API_URL}
+        authToken={session?.access_token}
+        onCreateNew={() => router.push('/courses/new')}
+        onPlaylistSelect={(playlist: any) => router.push(`/courses/edit/${playlist.id || playlist.playlist_id}`)}
       />
     </div>
   )

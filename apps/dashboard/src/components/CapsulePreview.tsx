@@ -90,11 +90,11 @@ export function CapsulePreview({
                       <div className="text-sm">
                         <div className="mb-1">
                           <span className="font-medium">Input:</span> 
-                          <code className="ml-2 bg-gray-100 px-1 rounded">{test.input}</code>
+                          <code className="ml-2 bg-gray-100 px-1 rounded">{typeof test.input === 'object' ? JSON.stringify(test.input) : test.input}</code>
                         </div>
                         <div>
                           <span className="font-medium">Expected:</span> 
-                          <code className="ml-2 bg-gray-100 px-1 rounded">{test.expectedOutput}</code>
+                          <code className="ml-2 bg-gray-100 px-1 rounded">{typeof test.expectedOutput === 'object' ? JSON.stringify(test.expectedOutput) : test.expectedOutput}</code>
                         </div>
                       </div>
                     </div>

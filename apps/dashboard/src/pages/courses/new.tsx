@@ -1,20 +1,20 @@
 /**
  * New Course Creation Page
- * 
- * This page provides a form for creating new courses/playlists
- * using the PlaylistEditor component in creation mode.
  */
 
-import React from 'react'
+import React, { useState } from 'react'
 import { useRouter } from 'next/router'
 import { useAuth } from '../../contexts/AuthContext'
-import { PlaylistEditor } from '../../../../../packages/ui/src/components/playlist/PlaylistEditor'
+import { PlaylistEditor } from '@codecapsule/ui'
+import CreateCapsuleModal from '../../components/CreateCapsuleModal'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://devcapsules-api.devleep-edu.workers.dev/api/v1'
 
 export default function NewCoursePage() {
-  const { user, loading } = useAuth()
+  const { user, session, loading } = useAuth()
   const router = useRouter()
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
-  // Handle loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -23,39 +23,26 @@ export default function NewCoursePage() {
     )
   }
 
-  // Redirect to login if not authenticated
   if (!user) {
     router.push('/login')
     return null
   }
 
-  const handleSave = (playlist: any) => {
-    console.log('Creating new playlist:', playlist)
-    // Navigate back to courses dashboard
-    router.push('/courses')
-  }
-
-  const handleCancel = () => {
-    // Navigate back to courses dashboard without saving
-    router.push('/courses')
-  }
-
-  const handlePreview = (playlist: any) => {
-    console.log('Previewing new playlist:', playlist)
-    // Show preview modal or temporary preview
-    alert('Preview functionality - playlist not saved yet')
-  }
-
   return (
     <div className="min-h-screen bg-slate-900">
       <PlaylistEditor
-        playlistId={undefined} // No ID = creation mode
+        playlistId={undefined}
         organizationId={user.id}
         userId={user.id}
-        apiBaseUrl={process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}
-        onSave={handleSave}
-        onCancel={handleCancel}
-        onPreview={handlePreview}
+        apiBaseUrl={API_URL}
+        authToken={session?.access_token}
+        onSave={() => router.push('/courses')}
+        onCancel={() => router.push('/courses')}
+        onGenerateAI={() => setShowCreateModal(true)}
+      />
+      <CreateCapsuleModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
       />
     </div>
   )

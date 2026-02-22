@@ -5,10 +5,8 @@ import { useRouter } from 'next/router';
 import { useEffect } from 'react';
 import { Navigation } from '../components/landing/Navigation';
 import { HeroSection } from '../components/landing/HeroSection';
-import { ProblemSection } from '../components/landing/ProblemSection';
+import { LanguageMarquee } from '../components/landing/LanguageMarquee';
 import { ValuePropsSection } from '../components/landing/ValuePropsSection';
-import { SolutionSection } from '../components/landing/SolutionSection';
-import { PlatformShowcaseSection } from '../components/landing/PlatformShowcaseSection';
 import { FeaturesSection } from '../components/landing/FeaturesSection';
 import { SocialProofSection } from '../components/landing/SocialProofSection';
 import { ComparisonSection } from '../components/landing/ComparisonSection';
@@ -16,6 +14,8 @@ import { PricingSection } from '../components/landing/PricingSection';
 import { FAQSection } from '../components/landing/FAQSection';
 import { CTASection } from '../components/landing/CTASection';
 import { Footer } from '../components/landing/Footer';
+import DemoVideoSection from '../components/landing/DemoVideoSection';
+import { CurriculumSection } from '../components/landing/CurriculumSection';
 
 export default function HomePage() {
   const { user, loading } = useAuth();
@@ -346,29 +346,31 @@ export default function HomePage() {
         />
       </Head>
       
-      <div className="min-h-screen bg-gray-950 text-white">
+      <div className="min-h-screen text-white relative" style={{ background: '#04040a' }}>
+        {/* Fixed page grid — shows through glassmorphism cards */}
+        <div className="fixed inset-0 pointer-events-none select-none" aria-hidden="true" style={{
+          backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+          backgroundSize: '64px 64px',
+          zIndex: 0,
+        }} />
+        <div className="relative" style={{ zIndex: 1 }}>
         <Navigation />
-        <div className="pt-16"> {/* Add padding for fixed navigation */}
+        <div className="pt-16">
         <HeroSection />
-        <ProblemSection />
-        <ValuePropsSection />
-        <SolutionSection />
-        <PlatformShowcaseSection />
-        <div id="features">
-          <FeaturesSection />
-        </div>
-        <SocialProofSection />
-        <ComparisonSection />
-        <div id="pricing">
-          <PricingSection />
-        </div>
-        <div id="faq">
-          <FAQSection />
-        </div>
-        <CTASection />
+        <div className="reveal"><DemoVideoSection /></div>
+        <div className="reveal mt-12"><LanguageMarquee /></div>
+        <div className="reveal"><SocialProofSection /></div>
+        <div className="reveal" id="features"><FeaturesSection /></div>
+        <div className="reveal"><ValuePropsSection /></div>
+        <div className="reveal"><CurriculumSection /></div>
+        <div className="reveal"><ComparisonSection /></div>
+        <div className="reveal" id="pricing"><PricingSection /></div>
+        <div className="reveal" id="faq"><FAQSection /></div>
+        <div className="reveal"><CTASection /></div>
       </div>
       <Footer />
-    </div>
+      </div>
+      </div>
     </>
   );
 }

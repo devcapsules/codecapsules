@@ -14,9 +14,6 @@ export function Footer() {
             <p className="text-gray-400 text-sm mb-4 leading-relaxed">
               Interactive Coding for Everyone
             </p>
-            <p className="text-gray-500 text-xs mb-4">
-              Trusted by 127+ instructors across 15 countries
-            </p>
             <div className="flex space-x-4">
               <a href="#" className="text-gray-400 hover:text-white transition-colors">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">

@@ -60,7 +60,7 @@ export default function Account() {
 
           {/* Subscription */}
           <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-white mb-4">💳 Subscription</h2>
+            <h2 className="text-lg font-semibold text-white mb-4">Subscription</h2>
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center space-x-3 mb-2">
@@ -79,7 +79,7 @@ export default function Account() {
 
           {/* Usage Stats */}
           <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-white mb-4">📊 Usage This Month</h2>
+            <h2 className="text-lg font-semibold text-white mb-4">Usage This Month</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center">
                 <div className="text-2xl font-bold text-white">12</div>
@@ -98,7 +98,7 @@ export default function Account() {
 
           {/* Danger Zone */}
           <div className="bg-red-600/10 border border-red-600/30 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-red-400 mb-4">⚠️ Danger Zone</h2>
+            <h2 className="text-lg font-semibold text-red-400 mb-4">Danger Zone</h2>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>

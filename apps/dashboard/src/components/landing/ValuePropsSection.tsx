@@ -1,121 +1,96 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React from 'react';
 import Link from 'next/link';
 
 export function ValuePropsSection() {
-  const [isVisible, setIsVisible] = useState(false);
-  const sectionRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, []);
-
   return (
-    <section ref={sectionRef} className="py-16 lg:py-24 bg-gray-950 relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 opacity-30">
-        <div className="absolute top-20 left-10 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl animate-float"></div>
-        <div className="absolute bottom-20 right-10 w-40 h-40 bg-purple-500/10 rounded-full blur-2xl animate-float delay-1000"></div>
-      </div>
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Section Header with animations */}
-        <div className={`text-center mb-12 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4">
-            Perfect for Every Type of <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent animate-gradient-x bg-[length:200%_auto]">Technical Creator</span>
+    <section className="py-14 lg:py-20" style={{ background: '#04040a' }}>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="text-center mb-10">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase mb-4"
+            style={{ background: 'rgba(0,255,135,0.07)', border: '1px solid rgba(0,255,135,0.18)', color: '#00ff87' }}>
+            Who It&apos;s For
+          </span>
+          <h2 className="text-2xl md:text-3xl font-black tracking-tight text-white" style={{ letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+            The engine behind<br/>
+            <span style={{
+              background: 'linear-gradient(90deg, #00ff87 0%, #86efac 30%, #00ff87 50%, #00b894 80%, #00ff87 100%)',
+              backgroundSize: '200% auto',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              animation: 'shimmerText 3s linear infinite',
+            }}>interactive tech education.</span>
           </h2>
-          <p className="text-lg text-gray-300 max-w-3xl mx-auto">
-            Whether you're teaching, documenting, or explaining — make your content interactive
-          </p>
         </div>
 
-        {/* 4-Column Value Props Grid with stagger animations */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {/* Course Creators */}
-          <div className={`bg-gray-800/50 border border-gray-700 rounded-xl p-6 text-center hover:border-blue-500/50 transition-all duration-500 hover:transform hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/20 group ${isVisible ? 'opacity-100 translate-y-0 animate-slide-up' : 'opacity-0 translate-y-8'}`} style={{ animationDelay: '200ms' }}>
-            <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-blue-500/30 transition-all duration-300 group-hover:animate-pulse">
-              <span className="text-3xl group-hover:scale-110 transition-transform duration-300">🎓</span>
+        {/* Two audience cards */}
+        <div className="grid md:grid-cols-2 gap-4 mb-10 reveal-stagger">
+          {/* Bootcamps & EdTech */}
+          <div className="relative rounded-2xl p-8 overflow-hidden transition-all duration-400 hover:-translate-y-1"
+            style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(10,10,20,0.5)', backdropFilter: 'blur(12px)' }}>
+            <div className="absolute top-[-40px] right-[-40px] w-48 h-48 rounded-full pointer-events-none"
+              style={{ background: '#3b82f6', filter: 'blur(60px)', opacity: 0.07 }} />
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.2)' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
             </div>
-            <h3 className="text-lg font-bold mb-3 text-blue-400 group-hover:text-blue-300 transition-colors">Course Creators</h3>
-            <p className="text-gray-300 text-sm leading-relaxed mb-4 group-hover:text-gray-200 transition-colors">
-              Boost completion rates by 2-3x with hands-on coding exercises embedded directly in your lessons.
+            <h3 className="text-xl font-black text-white mb-3">For Bootcamps &amp; EdTech</h3>
+            <p className="text-slate-500 text-sm leading-relaxed mb-5">
+              Eliminate the <strong className="text-slate-400">&ldquo;Week 1 Setup&rdquo;</strong> churn. Drastically reduce your TA payroll by automating the grading of foundational Python, Java, and JavaScript assignments.
             </p>
-            <div className="text-xs text-gray-400 space-y-1 group-hover:text-gray-300 transition-colors">
-              <div>✓ Udemy, Teachable, Thinkific</div>
-              <div>✓ Auto-graded exercises</div>
-              <div>✓ Progress analytics</div>
-            </div>
+            <ul className="space-y-2">
+              {[
+                'Students write code from Day 1, not Day 5',
+                'Grading happens automatically, at scale',
+                'High concurrency on the Business plan',
+              ].map(item => (
+                <li key={item} className="flex items-center gap-2 text-sm text-slate-500">
+                  <span className="flex-shrink-0 w-4 h-4 rounded flex items-center justify-center"
+                    style={{ background: 'rgba(0,255,135,0.12)', border: '1px solid rgba(0,255,135,0.2)' }}>
+                    <svg width="8" height="8" fill="none" viewBox="0 0 8 8"><path d="M1.5 4l2 2 3-3" stroke="#00ff87" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </span>
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {/* Documentation Writers */}
-          <div className={`bg-gray-800/50 border border-gray-700 rounded-xl p-6 text-center hover:border-green-500/50 transition-all duration-500 hover:transform hover:scale-105 hover:shadow-2xl hover:shadow-green-500/20 group ${isVisible ? 'opacity-100 translate-y-0 animate-slide-up' : 'opacity-0 translate-y-8'}`} style={{ animationDelay: '400ms' }}>
-            <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-green-500/30 transition-all duration-300 group-hover:animate-pulse">
-              <span className="text-3xl group-hover:scale-110 transition-transform duration-300">📚</span>
+          {/* Solo Creators & Instructors */}
+          <div className="relative rounded-2xl p-8 overflow-hidden transition-all duration-400 hover:-translate-y-1"
+            style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(10,10,20,0.5)', backdropFilter: 'blur(12px)' }}>
+            <div className="absolute bottom-[-40px] left-[-40px] w-48 h-48 rounded-full pointer-events-none"
+              style={{ background: '#8b5cf6', filter: 'blur(60px)', opacity: 0.07 }} />
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.2)' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
             </div>
-            <h3 className="text-lg font-bold mb-3 text-green-400 group-hover:text-green-300 transition-colors">Documentation Writers</h3>
-            <p className="text-gray-300 text-sm leading-relaxed mb-4 group-hover:text-gray-200 transition-colors">
-              Transform boring API docs into interactive playgrounds that developers actually want to use.
+            <h3 className="text-xl font-black text-white mb-3">For Solo Creators &amp; Instructors</h3>
+            <p className="text-slate-500 text-sm leading-relaxed mb-5">
+              Stand out from the crowd. Turn your passive Hashnode articles or Udemy video descriptions into <strong className="text-slate-400">interactive, runnable coding challenges</strong> that keep your audience engaged.
             </p>
-            <div className="text-xs text-gray-400 space-y-1 group-hover:text-gray-300 transition-colors">
-              <div>✓ GitBook, Notion, Confluence</div>
-              <div>✓ Live API testing</div>
-              <div>✓ Zero setup required</div>
-            </div>
-          </div>
-
-          {/* Corporate Training */}
-          <div className={`bg-gray-800/50 border border-gray-700 rounded-xl p-6 text-center hover:border-purple-500/50 transition-all duration-500 hover:transform hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20 group ${isVisible ? 'opacity-100 translate-y-0 animate-slide-up' : 'opacity-0 translate-y-8'}`} style={{ animationDelay: '600ms' }}>
-            <div className="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-purple-500/30 transition-all duration-300 group-hover:animate-pulse">
-              <span className="text-3xl group-hover:scale-110 transition-transform duration-300">🏢</span>
-            </div>
-            <h3 className="text-lg font-bold mb-3 text-purple-400 group-hover:text-purple-300 transition-colors">Corporate Training</h3>
-            <p className="text-gray-300 text-sm leading-relaxed mb-4 group-hover:text-gray-200 transition-colors">
-              Onboard developers faster with interactive coding environments for internal training programs.
-            </p>
-            <div className="text-xs text-gray-400 space-y-1 group-hover:text-gray-300 transition-colors">
-              <div>✓ LMS integration</div>
-              <div>✓ Team analytics</div>
-              <div>✓ SSO & compliance</div>
-            </div>
-          </div>
-
-          {/* Tech Bloggers */}
-          <div className={`bg-gray-800/50 border border-gray-700 rounded-xl p-6 text-center hover:border-orange-500/50 transition-all duration-500 hover:transform hover:scale-105 hover:shadow-2xl hover:shadow-orange-500/20 group ${isVisible ? 'opacity-100 translate-y-0 animate-slide-up' : 'opacity-0 translate-y-8'}`} style={{ animationDelay: '800ms' }}>
-            <div className="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-orange-500/30 transition-all duration-300 group-hover:animate-pulse">
-              <span className="text-3xl group-hover:scale-110 transition-transform duration-300">✍️</span>
-            </div>
-            <h3 className="text-lg font-bold mb-3 text-orange-400 group-hover:text-orange-300 transition-colors">Tech Bloggers</h3>
-            <p className="text-gray-300 text-sm leading-relaxed mb-4 group-hover:text-gray-200 transition-colors">
-              Stand out from the crowd with tutorials that readers can interact with instead of just reading.
-            </p>
-            <div className="text-xs text-gray-400 space-y-1 group-hover:text-gray-300 transition-colors">
-              <div>✓ Medium, Dev.to, Ghost</div>
-              <div>✓ Higher engagement</div>
-              <div>✓ Viral potential</div>
-            </div>
+            <ul className="space-y-2">
+              {[
+                'Embed challenges into any blog or course',
+                'AI generates test cases, you get the credit',
+                'Free tier to get started immediately',
+              ].map(item => (
+                <li key={item} className="flex items-center gap-2 text-sm text-slate-500">
+                  <span className="flex-shrink-0 w-4 h-4 rounded flex items-center justify-center"
+                    style={{ background: 'rgba(0,255,135,0.12)', border: '1px solid rgba(0,255,135,0.2)' }}>
+                    <svg width="8" height="8" fill="none" viewBox="0 0 8 8"><path d="M1.5 4l2 2 3-3" stroke="#00ff87" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </span>
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 
-        {/* Bottom CTA with animation */}
-        <div className={`text-center mt-12 transition-all duration-1000 delay-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <p className="text-gray-400 mb-6">
-            Ready to make your technical content interactive?
-          </p>
-          <Link href="/signup" className="group inline-block bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg shadow-blue-500/25 hover:shadow-2xl hover:shadow-blue-500/40 relative overflow-hidden">
-            <span className="relative z-10">Join Early Access</span>
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
+        <div className="text-center">
+          <Link href="/signup"
+            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-black text-base transition-all hover:scale-[1.03]"
+            style={{ background: '#00ff87', boxShadow: '0 0 24px rgba(0,255,135,0.3)' }}>
+            Get Started Free
+            <svg width="14" height="14" fill="none" viewBox="0 0 14 14"><path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </Link>
         </div>
       </div>

@@ -1,0 +1,1 @@
+This folder contains the built output assets for the worker "devcapsules-api" generated at 2026-02-21T16:18:26.035Z.

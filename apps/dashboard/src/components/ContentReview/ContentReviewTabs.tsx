@@ -458,13 +458,13 @@ function TestCasesSection({ content, isEditing, editContent, onEditChange, onSav
             <div>
               <span className="text-gray-400">Input:</span>
               <code className="ml-2 text-gray-300 bg-gray-900/50 px-2 py-1 rounded">
-                {testCase.input}
+                {typeof testCase.input === 'object' ? JSON.stringify(testCase.input) : testCase.input}
               </code>
             </div>
             <div>
               <span className="text-gray-400">Expected:</span>
               <code className="ml-2 text-gray-300 bg-gray-900/50 px-2 py-1 rounded">
-                {testCase.expectedOutput}
+                {typeof testCase.expectedOutput === 'object' ? JSON.stringify(testCase.expectedOutput) : testCase.expectedOutput}
               </code>
             </div>
             {testCase.description && (

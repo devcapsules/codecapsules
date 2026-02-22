@@ -34,12 +34,12 @@ export function Navigation() {
                 FAQ
               </a>
               {user ? (
-                <Link href="/dashboard" className="text-blue-400 hover:text-blue-300 px-3 py-2 text-sm font-medium transition-colors">
+                <Link href="/dashboard" className="text-[#00ff87] hover:text-green-300 px-3 py-2 text-sm font-medium transition-colors">
                   Dashboard
                 </Link>
               ) : (
                 <>
-                  <a href="/dashboard" className="text-blue-400 hover:text-blue-300 px-3 py-2 text-sm font-medium transition-colors">
+                  <a href="/dashboard" className="text-[#00ff87] hover:text-green-300 px-3 py-2 text-sm font-medium transition-colors">
                     Creator Studio
                   </a>
                   <Link href="/login" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
@@ -55,14 +55,14 @@ export function Navigation() {
             {user ? (
               <Link 
                 href="/dashboard"
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-4 py-2 rounded-lg font-semibold text-sm transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25"
+                className="bg-[#00ff87] hover:bg-[#00ef77] text-black px-4 py-2 rounded-lg font-semibold text-sm transition-all transform hover:scale-105 shadow-lg shadow-green-500/25"
               >
                 Create Capsule
               </Link>
             ) : (
               <Link 
                 href="/signup"
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-4 py-2 rounded-lg font-semibold text-sm transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25"
+                className="bg-[#00ff87] hover:bg-[#00ef77] text-black px-4 py-2 rounded-lg font-semibold text-sm transition-all transform hover:scale-105 shadow-lg shadow-green-500/25"
               >
                 Try Creator Studio
               </Link>
@@ -116,14 +116,14 @@ export function Navigation() {
               {user ? (
                 <Link 
                   href="/dashboard"
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-4 py-2 rounded-lg font-semibold text-sm transition-all block text-center"
+                  className="w-full bg-[#00ff87] hover:bg-[#00ef77] text-black px-4 py-2 rounded-lg font-semibold text-sm transition-all block text-center"
                 >
                   Create Capsule
                 </Link>
               ) : (
                 <Link 
                   href="/signup"
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-4 py-2 rounded-lg font-semibold text-sm transition-all block text-center"
+                  className="w-full bg-[#00ff87] hover:bg-[#00ef77] text-black px-4 py-2 rounded-lg font-semibold text-sm transition-all block text-center"
                 >
                   Start Free Trial
                 </Link>

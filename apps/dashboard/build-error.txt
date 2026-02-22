@@ -1,0 +1,67 @@
+﻿
+> @devcapsules/dashboard@0.1.0 build C:\Users\yashw\OneDrive\Desktop\codecapsule\apps\dashboard
+> next build
+
+   Γû▓ Next.js 15.1.12
+   - Environments: .env.local, .env.production
+
+   Skipping validation of types
+   Skipping linting
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Collecting page data ...
+   Generating static pages (0/30) ...
+   Generating static pages (7/30) 
+   Generating static pages (14/30) 
+   Generating static pages (22/30) 
+ Γ£ô Generating static pages (30/30)
+   Finalizing page optimization ...
+   Collecting build traces ...
+   Exporting (0/30) ...
+   Exporting (7/30) 
+   Exporting (14/30) 
+   Exporting (22/30) 
+ Γ£ô Exporting (30/30)
+
+Route (pages)                                  Size     First Load JS
+Γöî Γùï / (1270 ms)                                18.9 kB         219 kB
+Γö£   /_app                                      0 B             159 kB
+Γö£ Γùï /404                                       1.23 kB         160 kB
+Γö£ Γùï /about (458 ms)                            1.87 kB         163 kB
+Γö£ Γùï /account                                   1.33 kB         160 kB
+Γö£ Γùï /analytics (371 ms)                        10.3 kB         169 kB
+Γö£ Γùï /auth/callback (370 ms)                    762 B           160 kB
+Γö£ Γùï /blog (454 ms)                             4.62 kB         163 kB
+Γö£ Γùï /blog/git-commands-guide (456 ms)          4.97 kB         170 kB
+Γö£ Γùï /blog/javascript-array-methods (453 ms)    5.03 kB         170 kB
+Γö£ Γùï /blog/python-dictionary-methods (453 ms)   5.73 kB         171 kB
+Γö£ Γùï /blog/python-enumerate-tutorial (453 ms)   2.45 kB         167 kB
+Γö£ Γùï /blog/python-list-comprehensions (453 ms)  3.49 kB         168 kB
+Γö£ Γùï /blog/sql-join-types-explained             4.22 kB         169 kB
+Γö£ Γùï /blog/stop-copy-pasting (453 ms)           11.3 kB         170 kB
+Γö£ Γùï /contact                                   2.19 kB         164 kB
+Γö£ Γùï /cookies (452 ms)                          3.26 kB         165 kB
+Γö£ Γùï /courses (301 ms)                          8.4 kB          167 kB
+Γö£ ΓùÅ /courses/edit/[id]                         8.95 kB         168 kB
+Γö£ Γùï /courses/new (301 ms)                      9.18 kB         168 kB
+Γö£ Γùï /create-capsule (457 ms)                   4.86 kB         171 kB
+Γö£ Γùï /create-capsule-responsive (371 ms)        4.61 kB         171 kB
+Γö£ Γùï /dashboard (1270 ms)                       8.21 kB         209 kB
+Γö£ Γùï /editor (457 ms)                           10.1 kB         172 kB
+Γö£ Γùï /faq                                       3.01 kB         165 kB
+Γö£ Γùï /login                                     3.56 kB         162 kB
+Γö£ Γùï /my-capsules (457 ms)                      786 B           160 kB
+Γö£ Γùï /privacy (460 ms)                          3.05 kB         165 kB
+Γö£ Γùï /refund-policy (457 ms)                    2.19 kB         161 kB
+Γö£ Γùï /signup (458 ms)                           4.09 kB         163 kB
+Γöö Γùï /terms (457 ms)                            3.85 kB         165 kB
++ First Load JS shared by all                  172 kB
+  Γö£ chunks/framework-e3b5412c711d2a1c.js       59.6 kB
+  Γö£ chunks/main-ee56835a80a1e361.js            31.9 kB
+  Γö£ chunks/pages/_app-edf3a29e6d267fe3.js      65.6 kB
+  Γö£ css/f68f87a03a3e600a.css                   13.4 kB
+  Γöö other shared chunks (total)                1.77 kB
+
+Γùï  (Static)  prerendered as static content
+ΓùÅ  (SSG)     prerendered as static HTML (uses getStaticProps)
+

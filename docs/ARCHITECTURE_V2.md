@@ -336,9 +336,12 @@ Dashboard uses Supabase auth, Workers use JWT + KV sessions. These need to work 
 
 ### Phase 4: Cleanup (Priority: LOW)
 
-- [ ] Remove `apps/lambda-executor/` (AWS eliminated)
-- [ ] Remove `apps/workers-python-sandbox/` and `apps/workers-js-sandbox/` (Piston handles all)
-- [ ] Remove old `infrastructure/` CDK stack (AWS references)
+- [x] Remove `apps/lambda-executor/` (AWS eliminated — deleted)
+- [x] Remove `apps/workers-python-sandbox/` and `apps/workers-js-sandbox/` (Piston handles all — deleted)
+- [x] Remove old `infrastructure/` CDK stack (AWS references — deleted)
+- [x] Remove dead apps: `apps/api/`, `apps/analytics-processor/`, `apps/analytics-worker/`, `apps/faviconLatest/` — deleted
+- [x] Remove dead packages: `packages/integrations/`, `packages/runtime/serverless-execution.ts` — deleted
+- [x] Clean dangling references (`@codecapsule/integrations`, `analytics-worker` caller, etc.)
 - [ ] Set up git + CI/CD pipeline
 - [ ] Clean up unused service bindings (JS_SANDBOX, PYTHON_SANDBOX) from wrangler.toml
 

@@ -1,21 +1,21 @@
 /**
- * Course Editor Page - Individual Course/Playlist Editing
- * 
- * This page provides editing capabilities for individual courses/playlists
- * using the PlaylistEditor component.
+ * Course Editor Page
  */
 
-import React from 'react'
+import React, { useState } from 'react'
 import { useRouter } from 'next/router'
 import { useAuth } from '../../../contexts/AuthContext'
 import { PlaylistEditor } from '@codecapsule/ui'
+import CreateCapsuleModal from '../../../components/CreateCapsuleModal'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://devcapsules-api.devleep-edu.workers.dev/api/v1'
 
 export default function CourseEditPage() {
-  const { user, loading } = useAuth()
+  const { user, session, loading } = useAuth()
   const router = useRouter()
   const { id } = router.query
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
-  // Handle loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -24,27 +24,9 @@ export default function CourseEditPage() {
     )
   }
 
-  // Redirect to login if not authenticated
   if (!user) {
     router.push('/login')
     return null
-  }
-
-  const handleSave = (playlist: any) => {
-    console.log('Saving playlist:', playlist)
-    // Navigate back to courses dashboard
-    router.push('/courses')
-  }
-
-  const handleCancel = () => {
-    // Navigate back to courses dashboard without saving
-    router.push('/courses')
-  }
-
-  const handlePreview = (playlist: any) => {
-    console.log('Previewing playlist:', playlist)
-    // Open preview in new window or show preview modal
-    window.open(`/courses/preview/${id}`, '_blank')
   }
 
   return (
@@ -53,32 +35,24 @@ export default function CourseEditPage() {
         playlistId={id as string}
         organizationId={user.id}
         userId={user.id}
-        apiBaseUrl={process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}
-        onSave={handleSave}
-        onCancel={handleCancel}
-        onPreview={handlePreview}
+        apiBaseUrl={API_URL}
+        authToken={session?.access_token}
+        onSave={() => router.push('/courses')}
+        onCancel={() => router.push('/courses')}
+        onGenerateAI={() => setShowCreateModal(true)}
+      />
+      <CreateCapsuleModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
       />
     </div>
   )
 }
 
-// Required for dynamic routes in Next.js
 export async function getStaticPaths() {
-  // Return empty paths since we don't want to pre-generate any pages
-  // All pages will be generated on-demand (ISR)
-  return {
-    paths: [],
-    fallback: 'blocking'
-  }
+  return { paths: [], fallback: 'blocking' }
 }
 
 export async function getStaticProps({ params }: { params: { id: string } }) {
-  // Return props - we'll let the client handle the data fetching
-  return {
-    props: {
-      id: params.id
-    },
-    // Revalidate every hour
-    revalidate: 3600
-  }
+  return { props: { id: params.id }, revalidate: 3600 }
 }

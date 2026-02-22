@@ -148,7 +148,7 @@ class EmbedAnalytics {
     this.eventQueue = []
 
     try {
-      await fetch(`${this.apiUrl}/api/analytics/track`, {
+      await fetch(`${this.apiUrl}/analytics/track`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

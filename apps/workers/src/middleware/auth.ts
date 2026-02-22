@@ -18,17 +18,21 @@ const PUBLIC_ROUTES = new Set([
   '/api/v1/auth/register',
   '/api/v1/auth/callback',
   '/api/v1/execute',          // Execute (rate limited instead)
+  '/api/v1/execute/tests',    // Test execution (rate limited instead)
+  '/api/v1/analytics/track',  // Embed analytics tracking
 ]);
 
 // Prefix-based public routes (use trailing slash to prevent injection)
 const PUBLIC_PREFIXES = [
   '/api/v1/capsules/public/', // Only truly public capsule routes
+  '/api/v1/execute/runs/',    // Job status polling (embed clients, no auth)
 ];
 
 // Prefix-based optional auth routes
 const OPTIONAL_AUTH_PREFIXES = [
   '/api/v1/capsules/',        // GET individual capsule
   '/api/v1/analytics/public/',
+  '/api/v1/playlists/',       // GET playlist + embed + progress (auth optional)
 ];
 
 export const authMiddleware = createMiddleware<{ 

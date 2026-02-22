@@ -48,8 +48,8 @@ export default function AdaptiveCapsuleEmbed({ widgetId }: CapsuleEmbedProps) {
           }
         } catch (cdnError) {
           // Fallback to API (slower, hits database)
-          console.log('⚠️ CDN failed, falling back to API:', cdnError.message)
-          response = await fetch(`${apiUrl}/api/capsules/${widgetId}`)
+          console.log('⚠️ CDN failed, falling back to API:', cdnError instanceof Error ? cdnError.message : String(cdnError))
+          response = await fetch(`${apiUrl}/capsules/${widgetId}`)
           dataSource = 'api'
         }
         
@@ -65,11 +65,14 @@ export default function AdaptiveCapsuleEmbed({ widgetId }: CapsuleEmbedProps) {
           // CDN returns direct capsule JSON
           capsuleData = data
         } else {
-          // API returns { success: true, capsule: {...} }
-          if (!data.success || !data.capsule) {
+          // API returns { success: true, data: {...} } or { success: true, capsule: {...} }
+          if (!data.success) {
             throw new Error(data.error || 'Failed to load capsule')
           }
-          capsuleData = data.capsule
+          capsuleData = data.data || data.capsule
+          if (!capsuleData) {
+            throw new Error('Failed to load capsule: no data in response')
+          }
         }
         
         console.log(`🔍 AdaptiveCapsuleEmbed loaded from ${dataSource.toUpperCase()}:`, {

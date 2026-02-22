@@ -80,9 +80,30 @@ export interface DebuggerConfig {
 
 // ===== DEBUGGER AGENT IMPLEMENTATION =====
 
+/**
+ * Sandbox validation result from the Piston executor
+ * Named differently from base-capsule's ValidationResult to avoid conflicts
+ */
+export interface SandboxValidationResult {
+  success: boolean
+  error?: ExecutionError
+  stdout?: string
+  stderr?: string
+  passedTests?: number
+  totalTests?: number
+}
+
+/**
+ * Validator service interface - implemented by Piston executor
+ */
+export interface ValidatorService {
+  run(capsule: BaseCapsule): Promise<SandboxValidationResult>
+}
+
 export class DebuggerAgent {
   private config: DebuggerConfig
   private aiService: any // Will be injected
+  private validatorService: ValidatorService | null = null // Piston sandbox executor
   private errorPatterns: Map<string, string[]> = new Map() // Common error -> fixes mapping
 
   constructor(config: Partial<DebuggerConfig> = {}) {
@@ -138,6 +159,7 @@ export class DebuggerAgent {
           break
         }
 
+        // 1. Ask AI for a fix proposal
         const fixAttempt = await this.attemptFix(
           currentCapsule,
           currentError,
@@ -145,17 +167,58 @@ export class DebuggerAgent {
           attempt
         )
 
-        session.fix_attempts.push(fixAttempt)
+        // 2. Apply the AI's proposed fixes to a DRAFT capsule
+        const draftCapsule = this.applyFixes(currentCapsule, fixAttempt)
 
-        if (fixAttempt.success) {
-          // Apply the fixes to get updated capsule
-          currentCapsule = this.applyFixes(currentCapsule, fixAttempt)
-          session.final_result = 'fixed'
-          break
-        } else if (fixAttempt.remaining_errors.length > 0) {
-          // Use the first remaining error for next attempt
-          currentError = fixAttempt.remaining_errors[0]
-          currentCapsule = this.applyFixes(currentCapsule, fixAttempt) // Apply partial fixes
+        // 3. THE CRITICAL STEP: Actually test the fix through Piston sandbox!
+        //    We NEVER trust the AI's self-reported "success" - we verify with real execution.
+        if (this.validatorService) {
+          if (this.config.detailed_logging) {
+            console.log(`🏃 Running Attempt ${attempt} against Sandbox...`)
+          }
+
+          const validationResult = await this.validatorService.run(draftCapsule)
+
+          if (validationResult.success) {
+            // ACTUAL SUCCESS! The code compiled and passed all test cases.
+            fixAttempt.success = true
+            session.fix_attempts.push(fixAttempt)
+            currentCapsule = draftCapsule
+            session.final_result = 'fixed'
+
+            if (this.config.detailed_logging) {
+              console.log(`✅ Attempt ${attempt} PASSED validation (${validationResult.passedTests}/${validationResult.totalTests} tests)`)
+            }
+            break // Exit the loop - we're done!
+          } else {
+            // The fix failed. Feed the NEW error back into the next loop iteration.
+            fixAttempt.success = false
+            fixAttempt.remaining_errors = validationResult.error ? [validationResult.error] : []
+            session.fix_attempts.push(fixAttempt)
+
+            // Update the current error so the AI knows WHY its fix failed
+            if (validationResult.error) {
+              currentError = validationResult.error
+            }
+            currentCapsule = draftCapsule // Keep partial progress
+
+            if (this.config.detailed_logging) {
+              console.log(`❌ Attempt ${attempt} FAILED: ${validationResult.error?.message || validationResult.stderr || 'Unknown error'}`)
+            }
+          }
+        } else {
+          // No validator service - fall back to trusting AI (not recommended!)
+          console.warn('⚠️ No validatorService set - trusting AI self-reported success (DANGEROUS!)')
+          session.fix_attempts.push(fixAttempt)
+          
+          if (fixAttempt.success) {
+            currentCapsule = draftCapsule
+            session.final_result = 'fixed'
+            break
+          } else if (fixAttempt.remaining_errors.length > 0) {
+            currentError = fixAttempt.remaining_errors[0]
+            currentCapsule = draftCapsule
+          }
         }
       }
 
@@ -359,6 +422,7 @@ Rules:
 - Maintain code quality and best practices
 - Don't break other functionality
 - Keep learning objectives intact
+- CRITICAL: NEVER use blocking operations like time.sleep(), input(), infinite while loops, or any code that blocks for user input, as they will crash the validation sandbox
 
 Return VALID JSON with this structure:
 {
@@ -546,6 +610,17 @@ TERMINAL FIXING GUIDANCE:
    */
   setAIService(aiService: any): void {
     this.aiService = aiService
+  }
+
+  /**
+   * Set the validator service (Piston sandbox executor)
+   * This is CRITICAL for the self-healing loop - without it, the AI grades its own homework!
+   */
+  setValidatorService(validator: ValidatorService): void {
+    this.validatorService = validator
+    if (this.config.detailed_logging) {
+      console.log('🔌 ValidatorService injected into DebuggerAgent')
+    }
   }
 
   /**

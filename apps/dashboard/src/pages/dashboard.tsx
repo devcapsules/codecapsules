@@ -59,7 +59,8 @@ function DropdownMenu({
   return (
     <div 
       ref={dropdownRef}
-      className="absolute right-0 top-8 z-10 w-48 bg-slate-700 border border-slate-600 rounded-lg shadow-lg py-1"
+      className="absolute right-0 top-8 z-10 w-48 rounded-lg shadow-lg py-1"
+      style={{ background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.07)' }}
     >
       {children}
     </div>
@@ -92,7 +93,10 @@ function CapsuleCard({
   const isPublished = capsule.isPublished === true;
 
   return (
-    <div className="bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 hover:border-slate-600 rounded-lg p-6 transition-all group">
+    <div className="rounded-lg p-6 transition-all group cursor-pointer" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', transition: 'background 0.2s, border-color 0.2s' }}
+      onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.04)'; (e.currentTarget as HTMLElement).style.borderColor='rgba(0,255,135,0.25)'; }}
+      onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.02)'; (e.currentTarget as HTMLElement).style.borderColor='rgba(255,255,255,0.07)'; }}
+    >
       <div className="flex items-start justify-between mb-4">
         <div>
           <div className="flex items-center gap-2 mb-2">
@@ -106,7 +110,7 @@ function CapsuleCard({
               className={`w-2 h-2 rounded-full ${isPublished ? 'bg-green-500' : 'bg-yellow-500'}`}
               title={isPublished ? 'Published' : 'Draft'}
             />
-            <h3 className="font-semibold text-white group-hover:text-blue-400 transition-colors">
+            <h3 className="font-semibold text-white group-hover:text-[#00ff87] transition-colors">
               {capsule.title}
             </h3>
           </div>
@@ -127,7 +131,9 @@ function CapsuleCard({
                 router.push('/editor?id=' + capsule.id);
                 setIsDropdownOpen(false);
               }}
-              className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-600 hover:text-white"
+              className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:text-white transition-colors"
+              onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'}
+              onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}
             >
               Edit Capsule
             </button>
@@ -136,7 +142,9 @@ function CapsuleCard({
                 onGetEmbed(capsule);
                 setIsDropdownOpen(false);
               }}
-              className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-600 hover:text-white"
+              className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:text-white transition-colors"
+              onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'}
+              onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}
             >
               Get Embed Code
             </button>
@@ -145,7 +153,9 @@ function CapsuleCard({
                 // TODO: Add analytics view
                 setIsDropdownOpen(false);
               }}
-              className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-600 hover:text-white"
+              className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:text-white transition-colors"
+              onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'}
+              onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}
             >
               View Analytics
             </button>
@@ -185,20 +195,26 @@ function CapsuleCard({
       <div className="flex gap-2">
         <button 
           onClick={() => router.push('/editor?id=' + capsule.id)}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 px-3 rounded font-medium transition-colors"
+          className="flex-1 text-[#04040a] text-sm py-2 px-3 rounded font-bold transition-colors"
+            style={{ background: '#00ff87' }}
+            onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='#00e87a'}
+            onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background='#00ff87'}
         >
           Edit
         </button>
         <button 
           onClick={() => onGetEmbed(capsule)}
-          className="px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-600 rounded transition-colors"
+          className="px-3 py-2 text-slate-400 hover:text-white rounded transition-colors"
           title="Get Embed Code"
-        >
+          onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'}
+          onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
           </svg>
         </button>
-        <button className="px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-600 rounded transition-colors" title="Analytics">
+        <button className="px-3 py-2 text-slate-400 hover:text-white rounded transition-colors" title="Analytics"
+          onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'}
+          onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
@@ -282,8 +298,8 @@ export default function Dashboard() {
   // Show loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#04040a' }}>
+        <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: 'rgba(0,255,135,0.2)', borderTopColor: '#00ff87' }}></div>
       </div>
     );
   }
@@ -294,7 +310,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen" style={{ background: '#04040a' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header with Primary CTA */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
@@ -303,7 +319,10 @@ export default function Dashboard() {
           </h1>
           <button 
             onClick={() => setIsCreateModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors whitespace-nowrap"
+          className="text-[#04040a] px-6 py-3 rounded-lg font-bold transition-colors whitespace-nowrap"
+            style={{ background: '#00ff87' }}
+            onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='#00e87a'}
+            onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background='#00ff87'}
           >
             Create New Capsule
           </button>
@@ -311,12 +330,13 @@ export default function Dashboard() {
 
         {/* View Toggle and Search */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-6">
-          <div className="flex bg-slate-800 rounded-lg p-1">
+          <div className="flex rounded-lg p-1" style={{ background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.05)' }}>
             <button
               onClick={() => setViewMode('grid')}
               className={`flex items-center space-x-2 px-3 py-2 rounded text-sm font-medium transition-colors ${
-                viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                viewMode === 'grid' ? '' : 'text-slate-400 hover:text-white'
               }`}
+              style={viewMode === 'grid' ? { background: 'rgba(0,255,135,0.1)', color: '#00ff87' } : undefined}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -326,8 +346,9 @@ export default function Dashboard() {
             <button
               onClick={() => setViewMode('list')}
               className={`flex items-center space-x-2 px-3 py-2 rounded text-sm font-medium transition-colors ${
-                viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                viewMode === 'list' ? '' : 'text-slate-400 hover:text-white'
               }`}
+              style={viewMode === 'list' ? { background: 'rgba(0,255,135,0.1)', color: '#00ff87' } : undefined}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -347,7 +368,10 @@ export default function Dashboard() {
                 placeholder="Search capsules..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full sm:w-64 bg-slate-800 border border-slate-700 rounded-lg py-2 pl-10 pr-4 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="w-full sm:w-64 border rounded-lg py-2 pl-10 pr-4 text-sm text-white placeholder-slate-400 focus:outline-none transition-colors"
+                style={{ background: '#0d0d1a', borderColor: 'rgba(255,255,255,0.07)' }}
+                onFocus={e=>(e.currentTarget as HTMLElement).style.borderColor='rgba(0,255,135,0.5)'}
+                onBlur={e=>(e.currentTarget as HTMLElement).style.borderColor='rgba(255,255,255,0.07)'}
               />
             </div>
             <div className="text-sm text-slate-400 whitespace-nowrap">
@@ -358,19 +382,19 @@ export default function Dashboard() {
 
         {/* Analytics Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-slate-800/80 border border-slate-700 rounded-lg p-6">
+          <div className="rounded-lg p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
             <div className="text-2xl font-bold text-white">12.8k</div>
             <div className="text-sm text-slate-400">Total Views</div>
           </div>
-          <div className="bg-slate-800/80 border border-slate-700 rounded-lg p-6">
+          <div className="rounded-lg p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
             <div className="text-2xl font-bold text-white">8.2k</div>
             <div className="text-sm text-slate-400">Total Runs</div>
           </div>
-          <div className="bg-slate-800/80 border border-slate-700 rounded-lg p-6">
-            <div className="text-2xl font-bold text-green-400">68%</div>
+          <div className="rounded-lg p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div className="text-2xl font-bold" style={{ color: '#00ff87' }}>68%</div>
             <div className="text-sm text-slate-400">Success Rate</div>
           </div>
-          <div className="bg-slate-800/80 border border-slate-700 rounded-lg p-6">
+          <div className="rounded-lg p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
             <div className="text-2xl font-bold text-white">{capsules.length}</div>
             <div className="text-sm text-slate-400">Active Capsules</div>
           </div>
@@ -379,7 +403,7 @@ export default function Dashboard() {
         {/* Empty State for New Users */}
         {capsules.length === 0 && !capsulesLoading && (
           <div className="text-center py-16">
-            <div className="w-24 h-24 mx-auto mb-6 bg-slate-800 rounded-full flex items-center justify-center">
+            <div className="w-24 h-24 mx-auto mb-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <svg className="w-12 h-12 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
@@ -390,7 +414,10 @@ export default function Dashboard() {
             </p>
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-semibold transition-colors text-lg"
+              className="text-[#04040a] px-8 py-4 rounded-lg font-bold transition-colors text-lg"
+              style={{ background: '#00ff87' }}
+              onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='#00e87a'}
+              onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background='#00ff87'}
             >
               Create Your First Capsule
             </button>
@@ -424,11 +451,16 @@ export default function Dashboard() {
             
             {/* Add New Capsule Card */}
             <div 
-              onClick={() => setIsCreateModalOpen(true)}
-              className="bg-slate-800 border-2 border-dashed border-slate-600 hover:border-blue-500 rounded-lg p-8 flex flex-col items-center justify-center text-center transition-colors cursor-pointer group"
+            onClick={() => setIsCreateModalOpen(true)}
+              className="rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer group border-2 border-dashed transition-all"
+              style={{ background: 'rgba(255,255,255,0.01)', borderColor: 'rgba(255,255,255,0.08)' }}
+              onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.borderColor='rgba(0,255,135,0.4)'; (e.currentTarget as HTMLElement).style.background='rgba(0,255,135,0.02)'; }}
+              onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.borderColor='rgba(255,255,255,0.08)'; (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.01)'; }}
             >
-              <div className="w-12 h-12 bg-blue-500/20 group-hover:bg-blue-500/30 rounded-lg flex items-center justify-center mb-4 transition-colors">
-                <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 transition-colors" style={{ background: 'rgba(0,255,135,0.08)' }}
+                onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(0,255,135,0.15)'}
+                onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background='rgba(0,255,135,0.08)'}>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: '#00ff87' }}>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
               </div>
@@ -438,9 +470,9 @@ export default function Dashboard() {
           </div>
         ) : capsules.length > 0 ? (
           /* List/Table View */
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
+          <div className="rounded-lg overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
             {/* Table Header */}
-            <div className="bg-slate-700/30 px-6 py-4 border-b border-slate-700/50">
+            <div className="px-6 py-4" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
               <div className="grid grid-cols-12 gap-4 text-xs font-medium text-slate-400 uppercase tracking-wide">
                 <div className="col-span-4">Capsule</div>
                 <div className="col-span-2">Language</div>
@@ -451,18 +483,20 @@ export default function Dashboard() {
             </div>
             
             {/* Table Rows */}
-            <div className="divide-y divide-slate-700/30">
+            <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
               {filteredCapsules.map((capsule) => {
                 const analytics = formatAnalytics(capsule);
                 const isPublished = capsule.isPublished === true;
                 return (
-                  <div key={capsule.id} className="px-6 py-4 hover:bg-slate-700/20 transition-colors">
+                  <div key={capsule.id} className="px-6 py-4 transition-colors" style={{ }}
+                    onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.02)'}
+                    onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}>
                     <div className="grid grid-cols-12 gap-4 items-center">
                       {/* Capsule Info */}
                       <div className="col-span-4">
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                            <span className="text-white font-bold text-sm">{(capsule.language || 'JS').charAt(0).toUpperCase()}</span>
+                          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(0,255,135,0.1)', border: '1px solid rgba(0,255,135,0.2)' }}>
+                            <span className="font-bold text-sm" style={{ color: '#00ff87' }}>{(capsule.language || 'JS').charAt(0).toUpperCase()}</span>
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
@@ -519,7 +553,7 @@ export default function Dashboard() {
                             setSelectedCapsule(capsule);
                             setIsPublishModalOpen(true);
                           }}
-                          className="text-slate-400 hover:text-blue-400 p-1 rounded transition-colors"
+                        className="text-slate-400 hover:text-[#00ff87] p-1 rounded transition-colors"
                           title="Get Embed Code"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -548,10 +582,15 @@ export default function Dashboard() {
               
               {/* Add New Row */}
               <div 
-                onClick={() => setIsCreateModalOpen(true)}
-                className="px-6 py-8 hover:bg-slate-700/20 transition-colors cursor-pointer border-2 border-dashed border-slate-700/50 hover:border-blue-500/50 m-4 rounded-lg"
+              onClick={() => setIsCreateModalOpen(true)}
+                className="px-6 py-8 transition-colors cursor-pointer border-2 border-dashed m-4 rounded-lg"
+                style={{ borderColor: 'rgba(255,255,255,0.07)' }}
+                onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.borderColor='rgba(0,255,135,0.3)'; (e.currentTarget as HTMLElement).style.background='rgba(0,255,135,0.01)'; }}
+                onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.borderColor='rgba(255,255,255,0.07)'; (e.currentTarget as HTMLElement).style.background=''; }}
               >
-                <div className="flex items-center justify-center space-x-3 text-slate-400 hover:text-blue-400 transition-colors">
+                <div className="flex items-center justify-center space-x-3 text-slate-400 transition-colors"
+                  onMouseEnter={e=>(e.currentTarget as HTMLElement).style.color='#00ff87'}
+                  onMouseLeave={e=>(e.currentTarget as HTMLElement).style.color=''}>
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>

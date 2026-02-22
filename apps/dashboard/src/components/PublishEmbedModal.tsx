@@ -55,7 +55,10 @@ export default function PublishEmbedModal({ isOpen, onClose, capsuleId, capsuleT
     return (
       <button
         onClick={() => copyToClipboard(text, copyKey)}
-        className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        className="flex items-center space-x-2 text-[#04040a] px-4 py-2 rounded-lg text-sm font-bold transition-colors"
+        style={{ background: '#00ff87' }}
+        onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='#00e87a'}
+        onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background='#00ff87'}
       >
         {isCopied ? (
           <>
@@ -75,53 +78,64 @@ export default function PublishEmbedModal({ isOpen, onClose, capsuleId, capsuleT
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-800 rounded-xl border border-slate-700 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-center justify-center p-4" style={{ background: 'rgba(4,4,10,0.85)' }}>
+      <div className="rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden" style={{ background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.07)' }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-700 flex-shrink-0">
+        <div className="flex items-center justify-between p-6 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           <div>
             <h2 className="text-xl font-bold text-white">Publish & Embed</h2>
             <p className="text-slate-400 text-sm mt-1">{capsuleTitle}</p>
           </div>
           <button 
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-2 hover:bg-slate-700 rounded-lg transition-colors"
+            className="text-slate-400 hover:text-white p-2 rounded-lg transition-colors"
+            onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'}
+            onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}
           >
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-slate-700 flex-shrink-0">
+        <div className="flex flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           <button
             onClick={() => setActiveTab('iframe')}
             className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
               activeTab === 'iframe' 
-                ? 'text-blue-400 border-b-2 border-blue-400 bg-slate-700/50' 
-                : 'text-slate-400 hover:text-white hover:bg-slate-700/30'
+                ? ''
+                : 'text-slate-400 hover:text-white'
             }`}
+            style={activeTab === 'iframe' ? { color: '#00ff87', borderBottom: '2px solid #00ff87', background: 'rgba(0,255,135,0.03)' } : { }}
+            onMouseEnter={e=>{ if (activeTab !== 'iframe') (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.03)'; }}
+            onMouseLeave={e=>{ if (activeTab !== 'iframe') (e.currentTarget as HTMLElement).style.background=''; }}
           >
-            📄 &lt;iframe&gt; Embed
+            &lt;iframe&gt; Embed
           </button>
           <button
             onClick={() => setActiveTab('link')}
             className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
               activeTab === 'link' 
-                ? 'text-blue-400 border-b-2 border-blue-400 bg-slate-700/50' 
-                : 'text-slate-400 hover:text-white hover:bg-slate-700/30'
+                ? ''
+                : 'text-slate-400 hover:text-white'
             }`}
+            style={activeTab === 'link' ? { color: '#00ff87', borderBottom: '2px solid #00ff87', background: 'rgba(0,255,135,0.03)' } : { }}
+            onMouseEnter={e=>{ if (activeTab !== 'link') (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.03)'; }}
+            onMouseLeave={e=>{ if (activeTab !== 'link') (e.currentTarget as HTMLElement).style.background=''; }}
           >
-            🔗 Direct Link
+            Direct Link
           </button>
           <button
             onClick={() => setActiveTab('lti')}
             className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
               activeTab === 'lti' 
-                ? 'text-blue-400 border-b-2 border-blue-400 bg-slate-700/50' 
-                : 'text-slate-400 hover:text-white hover:bg-slate-700/30'
+                ? ''
+                : 'text-slate-400 hover:text-white'
             }`}
+            style={activeTab === 'lti' ? { color: '#00ff87', borderBottom: '2px solid #00ff87', background: 'rgba(0,255,135,0.03)' } : { }}
+            onMouseEnter={e=>{ if (activeTab !== 'lti') (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.03)'; }}
+            onMouseLeave={e=>{ if (activeTab !== 'lti') (e.currentTarget as HTMLElement).style.background=''; }}
           >
-            🎓 LMS (LTI)
+            LMS (LTI)
           </button>
         </div>
 
@@ -137,7 +151,7 @@ export default function PublishEmbedModal({ isOpen, onClose, capsuleId, capsuleT
               </div>
 
               {/* Branding Toggle */}
-              <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg border border-slate-600/50">
+              <div className="flex items-center justify-between p-4 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <div>
                   <h4 className="font-medium text-white">Show "Powered by Devcapsules"</h4>
                   <p className="text-sm text-slate-400">Help us grow by showing our branding (free plan requirement)</p>
@@ -149,13 +163,13 @@ export default function PublishEmbedModal({ isOpen, onClose, capsuleId, capsuleT
                     onChange={(e) => setShowPoweredBy(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" style={{ background: showPoweredBy ? '#00ff87' : 'rgba(255,255,255,0.1)' }}></div>
                 </label>
               </div>
 
               {/* Code Block */}
               <div className="relative">
-                <div className="bg-slate-900 border border-slate-600 rounded-lg p-4">
+                <div className="rounded-lg p-4" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.07)' }}>
                   <pre className="text-sm text-green-400 overflow-x-auto">
                     <code>{iframeCode}</code>
                   </pre>
@@ -178,8 +192,8 @@ export default function PublishEmbedModal({ isOpen, onClose, capsuleId, capsuleT
 
               {/* URL */}
               <div className="relative">
-                <div className="bg-slate-900 border border-slate-600 rounded-lg p-4 flex items-center justify-between">
-                  <code className="text-blue-400 text-sm flex-1 pr-4">{capsuleEmbedUrl}</code>
+                <div className="rounded-lg p-4 flex items-center justify-between" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <code className="text-sm flex-1 pr-4" style={{ color: '#00ff87' }}>{capsuleEmbedUrl}</code>
                   <CopyButton text={capsuleEmbedUrl} copyKey="link" label="Copy Link" />
                 </div>
               </div>
@@ -196,9 +210,8 @@ export default function PublishEmbedModal({ isOpen, onClose, capsuleId, capsuleT
               </div>
 
               {/* Coming Soon Message */}
-              <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-8 text-center">
-                <div className="text-6xl mb-4">🚧</div>
-                <h4 className="text-blue-400 font-medium text-lg mb-2">We are working on it</h4>
+              <div className="rounded-lg p-8 text-center" style={{ background: 'rgba(0,255,135,0.03)', border: '1px solid rgba(0,255,135,0.15)' }}>
+                <h4 className="font-medium text-lg mb-2" style={{ color: '#00ff87' }}>In Development</h4>
                 <p className="text-slate-400 text-sm mb-4">
                   LTI integration is currently in development. We're building seamless integration 
                   with popular Learning Management Systems.
@@ -213,14 +226,17 @@ export default function PublishEmbedModal({ isOpen, onClose, capsuleId, capsuleT
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-700 px-6 py-4 bg-slate-700/20">
+          <div className="px-6 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)' }}>
           <div className="flex items-center justify-between">
             <div className="text-sm text-slate-400">
-              🚀 Your capsule is ready to share! Track engagement in Analytics.
+              Your capsule is ready to share. Track engagement in Analytics.
             </div>
             <button 
               onClick={onClose}
-              className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              className="text-slate-300 hover:text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
+              onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.1)'}
+              onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.06)'}
             >
               Done
             </button>

@@ -1,3 +1,0 @@
-{
-  "body": "{\"source_code\":\"SELECT 1 + 1 as result;\", \"language\":\"sql\", \"input\":\"\"}"
-}

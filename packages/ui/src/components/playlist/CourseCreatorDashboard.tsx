@@ -74,6 +74,7 @@ interface CourseCreatorDashboardProps {
   organizationId: string
   userId: string
   apiBaseUrl?: string
+  authToken?: string
   onPlaylistSelect?: (playlist: PlaylistWithCapsules) => void
   onCreateNew?: () => void
 }
@@ -173,7 +174,7 @@ function PlaylistCard({
             
             {/* Title and Description */}
             <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-semibold text-gray-900 truncate">
+              <h3 className="text-lg font-semibold text-gray-100 truncate">
                 {playlist.title}
               </h3>
               {playlist.description && (
@@ -339,10 +340,13 @@ function PlaylistCard({
 export function CourseCreatorDashboard({
   organizationId,
   userId,
-  apiBaseUrl = 'https://api.devcapsules.com',
+  apiBaseUrl = 'https://devcapsules-api.devleep-edu.workers.dev/api/v1',
+  authToken,
   onPlaylistSelect,
   onCreateNew
 }: CourseCreatorDashboardProps): JSX.Element {
+
+  const getAuthToken = () => authToken || (typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null) || ''
   
   // ===== STATE MANAGEMENT =====
   
@@ -364,9 +368,9 @@ export function CourseCreatorDashboard({
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }))
       
-      const response = await fetch(`${apiBaseUrl}/api/organizations/${organizationId}/playlists`, {
+      const response = await fetch(`${apiBaseUrl}/playlists`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
           'Content-Type': 'application/json'
         }
       })
@@ -375,7 +379,8 @@ export function CourseCreatorDashboard({
         throw new Error(`Failed to fetch playlists: ${response.statusText}`)
       }
       
-      const corePlaylists: CorePlaylistWithCapsules[] = await response.json()
+      const json = await response.json()
+      const corePlaylists: CorePlaylistWithCapsules[] = json.data || json
       const playlists = corePlaylists.map(transformPlaylist)
       
       setState(prev => ({
@@ -400,15 +405,16 @@ export function CourseCreatorDashboard({
   const fetchAnalytics = useCallback(async (playlists: PlaylistWithCapsules[]) => {
     try {
       const analyticsPromises = playlists.map(async (playlist) => {
-        const response = await fetch(`${apiBaseUrl}/api/playlists/${playlist.id}/analytics`, {
+        const response = await fetch(`${apiBaseUrl}/playlists/${playlist.id}/analytics`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+            'Authorization': `Bearer ${getAuthToken()}`,
             'Content-Type': 'application/json'
           }
         })
         
         if (response.ok) {
-          const coreAnalytics: CorePlaylistAnalytics = await response.json()
+          const json = await response.json()
+          const coreAnalytics: CorePlaylistAnalytics = json.data || json
           const analytics = transformAnalytics(coreAnalytics)
           return { playlistId: playlist.id, analytics }
         }
@@ -521,10 +527,10 @@ export function CourseCreatorDashboard({
       case 'duplicate':
         // Duplicate playlist
         try {
-          const response = await fetch(`${apiBaseUrl}/api/playlists/${playlistId}/duplicate`, {
+          const response = await fetch(`${apiBaseUrl}/playlists/${playlistId}/duplicate`, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+              'Authorization': `Bearer ${getAuthToken()}`,
               'Content-Type': 'application/json'
             }
           })
@@ -539,10 +545,10 @@ export function CourseCreatorDashboard({
       case 'publish':
         // Toggle publish status
         try {
-          const response = await fetch(`${apiBaseUrl}/api/playlists/${playlistId}/publish`, {
+          const response = await fetch(`${apiBaseUrl}/playlists/${playlistId}/publish`, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+              'Authorization': `Bearer ${getAuthToken()}`,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({ published: !playlist.published_at })
@@ -558,10 +564,10 @@ export function CourseCreatorDashboard({
       case 'delete':
         if (confirm('Are you sure you want to delete this playlist?')) {
           try {
-            const response = await fetch(`${apiBaseUrl}/api/playlists/${playlistId}`, {
+            const response = await fetch(`${apiBaseUrl}/playlists/${playlistId}`, {
               method: 'DELETE',
               headers: {
-                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                'Authorization': `Bearer ${getAuthToken()}`
               }
             })
             if (response.ok) {

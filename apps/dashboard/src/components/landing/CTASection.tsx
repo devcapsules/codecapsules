@@ -1,87 +1,38 @@
-import React from 'react';
+﻿import React from 'react';
 import Link from 'next/link';
 
 export function CTASection() {
   return (
-    <section className="py-16 lg:py-24 bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        {/* Section Header */}
-        <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4">
-          Make Your Content <span className="text-blue-400">Interactive</span> Today
+    <section className="py-20 lg:py-24 relative overflow-hidden text-center" style={{ background: 'linear-gradient(180deg, #04040a 0%, #061a10 40%, #071f13 100%)' }}>
+      {/* CTA orb */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] pointer-events-none anim-orb-cta"
+        style={{ background: 'radial-gradient(ellipse, rgba(0,255,135,0.1) 0%, transparent 70%)', filter: 'blur(40px)' }} />
+
+      <div className="relative z-10 max-w-2xl mx-auto px-4">
+        <h2 className="text-3xl md:text-[2.5rem] lg:text-[3rem] font-black tracking-tight text-white mb-4" style={{ letterSpacing: '-0.025em', lineHeight: 1.1 }}>
+          Ready to stop manually<br/>
+          <span style={{
+            background: 'linear-gradient(90deg, #00ff87 0%, #86efac 30%, #00ff87 50%, #00b894 80%, #00ff87 100%)',
+            backgroundSize: '200% auto',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            animation: 'shimmerText 3s linear infinite',
+          }}>grading code?</span>
         </h2>
-        
-        <p className="text-lg text-gray-300 mb-8">
-          Join 1,200+ creators making technical content that people actually engage with.
+        <p className="text-slate-500 text-lg mb-10">
+          Join the creators and bootcamps building the next generation of interactive education.
         </p>
 
-        {/* Segment-Specific CTAs */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8 max-w-2xl mx-auto">
-          <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6">
-            <h3 className="font-semibold text-white mb-2">Course Creators & Bloggers</h3>
-            <p className="text-gray-300 text-sm mb-4">Turn static tutorials into interactive experiences</p>
-            <Link href="/signup" className="block w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg shadow-blue-500/25 text-center">
-              Start Free Trial
-            </Link>
-          </div>
-          
-          <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6">
-            <h3 className="font-semibold text-white mb-2">Teams & Enterprises</h3>
-            <p className="text-gray-300 text-sm mb-4">Scale interactive training across your organization</p>
-            <button className="w-full border border-gray-600 hover:border-gray-500 px-6 py-3 rounded-lg font-semibold transition-all hover:bg-gray-800/50">
-              Schedule Demo
-            </button>
-          </div>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
+          <Link href="/signup"
+            className="inline-flex items-center gap-2 px-9 py-4 rounded-2xl font-black text-black text-lg transition-all duration-200 hover:scale-[1.02]"
+            style={{ background: 'linear-gradient(135deg, #00ff87, #00b894)', boxShadow: '0 0 40px rgba(0,255,135,0.35)' }}>
+            Start Building Your Free Capsule
+            <svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path d="M3 9h12M10 5l5 4-5 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </Link>
         </div>
-
-        {/* Below CTA Features */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
-          <div className="flex items-center justify-center sm:justify-start">
-            <svg className="w-5 h-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            <span className="text-gray-300 text-sm">14-day free trial</span>
-          </div>
-          <div className="flex items-center justify-center sm:justify-start">
-            <svg className="w-5 h-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            <span className="text-gray-300 text-sm">No credit card required</span>
-          </div>
-          <div className="flex items-center justify-center sm:justify-start">
-            <svg className="w-5 h-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            <span className="text-gray-300 text-sm">Cancel anytime</span>
-          </div>
-        </div>
-
-        {/* Trust Badges */}
-        <div className="flex flex-wrap justify-center items-center gap-8 text-gray-400">
-          <div className="flex items-center">
-            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2L3 7l9 5 9-5-9-5zM3 17l9 5 9-5M3 12l9 5 9-5"/>
-            </svg>
-            <span className="text-sm">Stripe Verified</span>
-          </div>
-          <div className="flex items-center">
-            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 1L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 1M12 7C13.11 7 14 7.89 14 9C14 10.11 13.11 11 12 11C10.89 11 10 10.11 10 9C10 7.89 10.89 7 12 7M16 15C16 16.67 14.67 18 13 18H11C9.33 18 8 16.67 8 15V14H16V15Z"/>
-            </svg>
-            <span className="text-sm">GDPR Compliant</span>
-          </div>
-          <div className="flex items-center">
-            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M18,8A6,6 0 0,0 12,2A6,6 0 0,0 6,8H4A2,2 0 0,0 2,10V20A2,2 0 0,0 4,22H20A2,2 0 0,0 22,20V10A2,2 0 0,0 20,8H18M12,4A4,4 0 0,1 16,8H8A4,4 0 0,1 12,4Z"/>
-            </svg>
-            <span className="text-sm">SSL Secured</span>
-          </div>
-          <div className="flex items-center">
-            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/>
-            </svg>
-            <span className="text-sm">99.9% Uptime</span>
-          </div>
-        </div>
+        <p className="text-xs text-slate-700">No credit card <span aria-hidden="true"> &middot; </span> Free tier forever <span aria-hidden="true"> &middot; </span> 5-minute setup</p>
       </div>
     </section>
   );

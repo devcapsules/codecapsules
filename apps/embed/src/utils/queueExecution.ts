@@ -1,6 +1,13 @@
 /**
  * Queue-based Code Execution Client
- * Uses the new Phase 2 queue system for scalable code execution
+ *
+ * Supports two modes:
+ * - Sync (SQL): POST /execute returns result inline
+ * - Async (Piston): POST /execute returns jobId → poll GET /execute/runs/:jobId
+ *
+ * The client auto-detects which mode based on the response status code:
+ * - 200 → sync result (SQL on edge)
+ * - 202 → async job → poll until completed/failed
  */
 
 export interface ExecutionResult {
@@ -16,71 +23,150 @@ export interface QueueJobResponse {
   jobId: string;
   status: string;
   statusUrl: string;
-  websocketChannel: string;
 }
 
 export interface JobStatusResponse {
   success: boolean;
   jobId: string;
   status: 'queued' | 'running' | 'completed' | 'failed';
-  result?: ExecutionResult;
-  createdAt?: string;
-  startedAt?: string;
-  completedAt?: string;
+  type: 'run' | 'tests';
+  result?: {
+    success: boolean;
+    stdout: string;
+    stderr: string;
+    exit_code: number;
+    execution_time: number;
+    tier: string;
+  };
+  testResult?: {
+    success: boolean;
+    summary: {
+      totalTests: number;
+      passedTests: number;
+      failedTests: number;
+      successRate: number;
+      allPassed: boolean;
+      totalTime: number;
+    };
+    results: Array<{
+      testCase: number;
+      description: string;
+      type: string;
+      passed: boolean;
+      output: unknown;
+      expected: unknown;
+      executionTime: number;
+      error?: string;
+    }>;
+  };
+  error?: string;
+  createdAt?: number;
+  completedAt?: number;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+// ── Poll configuration ──
+const POLL_INTERVAL_MS = 300;   // Poll every 300ms
+const POLL_TIMEOUT_MS = 30_000; // Give up after 30s
+
 /**
- * Execute code using the queue system
- * This is the new scalable method that replaces direct Lambda calls
+ * Poll a job until it completes or fails
+ */
+async function pollJobResult(jobId: string): Promise<JobStatusResponse> {
+  const deadline = Date.now() + POLL_TIMEOUT_MS;
+
+  while (Date.now() < deadline) {
+    const res = await fetch(`${API_URL}/execute/runs/${jobId}`);
+
+    if (!res.ok) {
+      if (res.status === 404) {
+        // Job not found yet — might still be propagating to KV
+        await sleep(POLL_INTERVAL_MS);
+        continue;
+      }
+      throw new Error(`Poll failed: ${res.status}`);
+    }
+
+    const data = (await res.json()) as JobStatusResponse;
+
+    if (data.status === 'completed' || data.status === 'failed') {
+      return data;
+    }
+
+    // Still queued or running — wait and retry
+    await sleep(POLL_INTERVAL_MS);
+  }
+
+  throw new Error('Execution timed out — the server may be under heavy load. Please try again.');
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Execute code using the async queue pipeline.
+ * Auto-detects sync (SQL) vs async (Piston) based on HTTP status.
  */
 export async function executeCodeAsync(
   language: string,
   code: string,
   input: string = ''
 ): Promise<ExecutionResult> {
-  // 1. Submit job to queue
-  const submitResponse = await fetch(`${API_URL}/api/v2/execute/${language}`, {
+  const response = await fetch(`${API_URL}/execute`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code, input })
+    body: JSON.stringify({ 
+      source_code: code, 
+      language,
+      input,
+      time_limit: 10,
+      memory_limit: 128
+    })
   });
 
-  if (!submitResponse.ok) {
-    const error = await submitResponse.json();
-    throw new Error(error.message || 'Failed to submit job');
+  if (!response.ok && response.status !== 202) {
+    const error = await response.json().catch(() => ({ error: 'Execution failed' }));
+    throw new Error((error as any).error || (error as any).message || 'Failed to execute code');
   }
 
-  const { jobId, statusUrl }: QueueJobResponse = await submitResponse.json();
+  const result = await response.json() as any;
 
-  // 2. Poll for results (with timeout)
-  const maxAttempts = 60; // 60 seconds max
-  const pollInterval = 1000; // 1 second
-
-  for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(resolve => setTimeout(resolve, pollInterval));
-
-    const statusResponse = await fetch(`${API_URL}${statusUrl}`);
-    
-    if (!statusResponse.ok) {
-      continue; // Retry
-    }
-
-    const status: JobStatusResponse = await statusResponse.json();
-
-    if (status.status === 'completed' || status.status === 'failed') {
-      return status.result || {
-        success: false,
-        stdout: '',
-        stderr: 'No result returned',
-        exitCode: 1,
-        language
-      };
-    }
+  // ── Sync path (SQL — 200) ──
+  if (response.status === 200) {
+    return {
+      success: result.success,
+      stdout: result.stdout || '',
+      stderr: result.stderr || '',
+      exitCode: result.exit_code ?? (result.success ? 0 : 1),
+      language
+    };
   }
 
-  throw new Error('Execution timed out');
+  // ── Async path (Piston — 202) ──
+  const jobId = result.jobId as string;
+  if (!jobId) {
+    throw new Error('Server returned 202 but no jobId');
+  }
+
+  const jobResult = await pollJobResult(jobId);
+
+  if (jobResult.status === 'failed') {
+    throw new Error(jobResult.error || 'Execution failed on server');
+  }
+
+  if (jobResult.result) {
+    return {
+      success: jobResult.result.success,
+      stdout: jobResult.result.stdout || '',
+      stderr: jobResult.result.stderr || '',
+      exitCode: jobResult.result.exit_code ?? (jobResult.result.success ? 0 : 1),
+      language,
+    };
+  }
+
+  throw new Error('Job completed but no result returned');
 }
 
 /**

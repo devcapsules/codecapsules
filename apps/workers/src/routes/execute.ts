@@ -1,10 +1,15 @@
 /**
  * Code Execution Routes
  *
- * Two-tier execution:
- * - Tier 1 (Edge): SQL via D1 — zero-latency, runs directly on Cloudflare
- * - Tier 2 (Piston): Python, JavaScript, Java, C++, C — routed through
- *   Cloudflare Tunnel to auto-scaling Azure VMSS running Piston
+ * Two-tier execution with async queue pipeline:
+ * - Tier 1 (Edge): SQL via D1 — zero-latency, runs directly on Cloudflare (SYNC)
+ * - Tier 2 (Piston): Python, JavaScript, Java, C++, C — queued via Cloudflare Queue,
+ *   processed by consumer, routed through Cloudflare Tunnel to Azure VMSS Piston
+ *
+ * Endpoints:
+ *   POST /execute       — Submit code for execution (returns jobId for Piston, sync for SQL)
+ *   POST /execute/tests — Submit test run (returns jobId for Piston, sync for SQL)
+ *   GET  /execute/runs/:jobId — Poll job status + result
  */
 
 import { Hono } from 'hono';
@@ -26,12 +31,12 @@ executeRoutes.use('*', executeLimit);
 
 // ── Language tier mapping ────────────────────────────────────────────────────
 // SQL: edge (D1). Everything else: Piston on Azure VMSS via Cloudflare Tunnel.
-const EDGE_LANGUAGES = ['sql'];
-const PISTON_LANGUAGES = ['python', 'javascript', 'java', 'cpp', 'c'];
-const ALL_LANGUAGES = [...EDGE_LANGUAGES, ...PISTON_LANGUAGES];
+export const EDGE_LANGUAGES = ['sql'];
+export const PISTON_LANGUAGES = ['python', 'javascript', 'java', 'cpp', 'c'];
+export const ALL_LANGUAGES = [...EDGE_LANGUAGES, ...PISTON_LANGUAGES];
 
 // Map our language names → Piston runtime identifiers + file names
-const PISTON_LANGUAGE_MAP: Record<string, { runtime: string; fileName: string }> = {
+export const PISTON_LANGUAGE_MAP: Record<string, { runtime: string; fileName: string }> = {
   python:     { runtime: 'python',     fileName: 'main.py' },
   javascript: { runtime: 'javascript', fileName: 'main.js' },
   java:       { runtime: 'java',       fileName: 'Main.java' },
@@ -40,7 +45,7 @@ const PISTON_LANGUAGE_MAP: Record<string, { runtime: string; fileName: string }>
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-// POST /execute — Execute code
+// POST /execute — Execute code (async queue for Piston, sync for SQL)
 // ══════════════════════════════════════════════════════════════════════════════
 
 executeRoutes.post('/', async (c) => {
@@ -75,46 +80,90 @@ executeRoutes.post('/', async (c) => {
     throw new ApiError(400, 'time_limit must be between 1 and 30 seconds');
   }
 
-  const startTime = Date.now();
-
-  // Route to appropriate tier
-  let result: ExecutionResult;
-  let tier: 'edge' | 'piston' = lang === 'sql' ? 'edge' : 'piston';
-
+  // ── Tier 1: SQL stays synchronous on edge ──
   if (lang === 'sql') {
-    result = await executeSQL(c.env, source_code);
-  } else {
-    result = await executeOnPiston(c.env, lang, source_code, input, time_limit, memory_limit);
+    const startTime = Date.now();
+    const result = await executeSQL(c.env, source_code);
+    const executionTime = Date.now() - startTime;
+
+    const auth = c.get('auth');
+    trackExecution(c.env, auth?.userId, lang, result.success, executionTime, 'edge');
+
+    if (result.success) {
+      await incrementQuota(c.env, c.get('quotaKey'));
+    }
+
+    return c.json({
+      success: result.success,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exit_code: result.exit_code,
+      execution_time: executionTime,
+      tier: 'edge',
+      // No jobId for sync — result is inline
+      meta: {
+        requestId: c.get('requestId'),
+        timestamp: Date.now(),
+        version: c.env.API_VERSION,
+      },
+    });
   }
 
-  const executionTime = Date.now() - startTime;
-
-  // Track execution (buffered — no D1 write on hot path)
+  // ── Tier 2: Piston → Queue (async) ──
+  const jobId = crypto.randomUUID();
   const auth = c.get('auth');
-  trackExecution(c.env, auth?.userId, lang, result.success, executionTime, tier);
 
-  // Increment daily quota on successful execution only
-  if (result.success) {
-    await incrementQuota(c.env, c.get('quotaKey'));
-  }
+  const job: ExecutionJob = {
+    jobId,
+    type: 'run',
+    language: lang,
+    sourceCode: source_code,
+    input,
+    timeLimit: time_limit,
+    memoryLimit: memory_limit,
+    userId: auth?.userId,
+    orgId: auth?.userId,    // Per-org DO sharding (B2B orgId when available)
+    plan: auth?.plan,       // Determines per-org concurrency limit
+    quotaKey: c.get('quotaKey'),
+    requestId: c.get('requestId'),
+    timestamp: Date.now(),
+  };
+
+  // Write initial status to KV
+  const initialStatus: ExecutionJobResult = {
+    jobId,
+    status: 'queued',
+    type: 'run',
+    createdAt: Date.now(),
+  };
+  await c.env.JOB_PROGRESS.put(
+    `exec:${jobId}`,
+    JSON.stringify(initialStatus),
+    { expirationTtl: 300 } // 5 min TTL
+  );
+
+  // Push to execution queue
+  await c.env.EXECUTION_QUEUE.send(job);
 
   return c.json({
-    success: result.success,
-    stdout: result.stdout,
-    stderr: result.stderr,
-    exit_code: result.exit_code,
-    execution_time: executionTime,
-    tier,
+    success: true,
+    jobId,
+    status: 'queued',
+    statusUrl: `/api/v1/execute/runs/${jobId}`,
     meta: {
       requestId: c.get('requestId'),
       timestamp: Date.now(),
       version: c.env.API_VERSION,
     },
-  });
+  }, 202);
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
 // POST /execute-tests — Run user code against test cases
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════════════
+// POST /execute/tests — Run user code against test cases (async queue for Piston)
 // ══════════════════════════════════════════════════════════════════════════════
 
 executeRoutes.post('/tests', async (c) => {
@@ -129,10 +178,10 @@ executeRoutes.post('/tests', async (c) => {
 
   // Cap at 5 test cases (Golden 5 strategy)
   const cappedCases = testCases.slice(0, 5);
-  const startTime = Date.now();
 
-  // ── SQL: edge-only execution (no Piston harness) ──
+  // ── SQL: edge-only execution (no Piston harness) — stays SYNC ──
   if (lang === 'sql') {
+    const startTime = Date.now();
     const results: TestResult[] = [];
     let passedCount = 0;
 
@@ -168,33 +217,118 @@ executeRoutes.post('/tests', async (c) => {
     });
   }
 
-  // ── Code: SINGLE Piston execution for ALL tests ──
-  // Generate a batched harness that runs all tests in one container call
-  const harnessCode = generateBatchedTestHarness(lang, userCode, functionName, cappedCases);
+  // ── Piston test execution → Queue (async) ──
+  const jobId = crypto.randomUUID();
+  const auth = c.get('auth');
 
-  const pistonResult = await executeOnPiston(c.env, lang, harnessCode, '', 3, 128);
+  const job: ExecutionJob = {
+    jobId,
+    type: 'tests',
+    language: lang,
+    sourceCode: '', // not used for tests — userCode is used instead
+    input: '',
+    timeLimit: 3,
+    memoryLimit: 128,
+    userCode,
+    functionName,
+    testCases: cappedCases,
+    userId: auth?.userId,
+    orgId: auth?.userId,    // Per-org DO sharding (B2B orgId when available)
+    plan: auth?.plan,       // Determines per-org concurrency limit
+    quotaKey: c.get('quotaKey'),
+    requestId: c.get('requestId'),
+    timestamp: Date.now(),
+  };
 
-  const totalTime = Date.now() - startTime;
+  // Write initial status to KV
+  const initialStatus: ExecutionJobResult = {
+    jobId,
+    status: 'queued',
+    type: 'tests',
+    createdAt: Date.now(),
+  };
+  await c.env.JOB_PROGRESS.put(
+    `exec:${jobId}`,
+    JSON.stringify(initialStatus),
+    { expirationTtl: 300 }
+  );
 
-  // Parse the ---JSON_START--- delimited output
-  const results = parseBatchedResults(pistonResult, cappedCases);
-  const passedCount = results.filter(r => r.passed).length;
-
-  // Increment daily quota
-  await incrementQuota(c.env, c.get('quotaKey'));
+  // Push to execution queue
+  await c.env.EXECUTION_QUEUE.send(job);
 
   return c.json({
     success: true,
-    summary: {
-      totalTests: cappedCases.length,
-      passedTests: passedCount,
-      failedTests: cappedCases.length - passedCount,
-      successRate: Math.round((passedCount / cappedCases.length) * 100),
-      allPassed: passedCount === cappedCases.length,
-      totalTime,
-    },
-    results,
+    jobId,
+    status: 'queued',
+    statusUrl: `/api/v1/execute/runs/${jobId}`,
     meta: { requestId: c.get('requestId'), timestamp: Date.now(), version: c.env.API_VERSION },
+  }, 202);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GET /execute/runs/:jobId — Poll job status
+// ══════════════════════════════════════════════════════════════════════════════
+
+executeRoutes.get('/runs/:jobId', async (c) => {
+  const { jobId } = c.req.param();
+
+  if (!jobId || jobId.length > 50) {
+    throw new ApiError(400, 'Invalid jobId');
+  }
+
+  const raw = await c.env.JOB_PROGRESS.get(`exec:${jobId}`);
+
+  if (!raw) {
+    throw new ApiError(404, 'Job not found or expired');
+  }
+
+  const jobResult = JSON.parse(raw) as ExecutionJobResult;
+
+  return c.json({
+    success: true,
+    ...jobResult,
+    meta: {
+      requestId: c.get('requestId'),
+      timestamp: Date.now(),
+      version: c.env.API_VERSION,
+    },
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GET /execute/health — Bridge + Circuit Breaker Status (admin only)
+// ══════════════════════════════════════════════════════════════════════════════
+
+executeRoutes.get('/health', async (c) => {
+  const { PistonClient } = await import('../bridge/piston-client');
+  const client = PistonClient.getInstance();
+  const health = client.getHealth();
+
+  return c.json({
+    success: true,
+    bridge: {
+      circuit: health.state,
+      consecutiveFailures: health.consecutiveFailures,
+      totalRequests: health.totalRequests,
+      totalSuccesses: health.totalSuccesses,
+      totalFailures: health.totalFailures,
+      totalTimeouts: health.totalTimeouts,
+      totalCircuitBreaks: health.totalCircuitBreaks,
+      lastFailureTime: health.lastFailureTime || null,
+      lastSuccessTime: health.lastSuccessTime || null,
+      trippedAt: health.trippedAt || null,
+    },
+    config: {
+      requestTimeoutMs: health.config.requestTimeoutMs,
+      maxRetries: health.config.maxRetries,
+      failureThreshold: health.config.circuitBreaker.failureThreshold,
+      resetTimeoutMs: health.config.circuitBreaker.resetTimeoutMs,
+    },
+    meta: {
+      requestId: c.get('requestId'),
+      timestamp: Date.now(),
+      version: c.env.API_VERSION,
+    },
   });
 });
 
@@ -245,7 +379,7 @@ async function executeSQL(
 // Routed through Cloudflare Tunnel → Azure VMSS → Piston container
 // ══════════════════════════════════════════════════════════════════════════════
 
-async function executeOnPiston(
+export async function executeOnPiston(
   env: Env,
   language: string,
   code: string,
@@ -278,8 +412,8 @@ async function executeOnPiston(
         files: [{ name: mapping.fileName, content: code }],
         stdin: input,
         args: [],
-        compile_timeout: timeLimit * 1000,
-        run_timeout: timeLimit * 1000,
+        compile_timeout: Math.min(timeLimit, 3) * 1000, // Piston max: 3s
+        run_timeout: Math.min(timeLimit, 3) * 1000,     // Piston max: 3s
         run_memory_limit: memoryLimit * 1024 * 1024, // MB → bytes
       }),
     });
@@ -339,7 +473,7 @@ function utf8ToBase64(str: string): string {
  * Generate a batched test harness that runs ALL test cases in a single execution.
  * Uses ---JSON_START--- delimiter to separate user output from test results.
  */
-function generateBatchedTestHarness(
+export function generateBatchedTestHarness(
   language: string,
   userCode: string,
   functionName: string,
@@ -462,7 +596,7 @@ console.log(JSON.stringify(_results));
  * Parse the ---JSON_START--- delimited output from a batched Piston execution.
  * Separates user logs from structured test results.
  */
-function parseBatchedResults(
+export function parseBatchedResults(
   pistonResult: ExecutionResult,
   testCases: Array<{ description?: string; type?: string; expected_output?: unknown }>
 ): TestResult[] {
@@ -545,14 +679,14 @@ function parseBatchedResults(
 // Types
 // ══════════════════════════════════════════════════════════════════════════════
 
-interface ExecutionResult {
+export interface ExecutionResult {
   success: boolean;
   stdout: string;
   stderr: string;
   exit_code: number;
 }
 
-interface TestResult {
+export interface TestResult {
   testCase: number;
   description: string;
   type: string;

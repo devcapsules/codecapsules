@@ -98,7 +98,7 @@ export async function flushEventBuffer(env: Env): Promise<{ flushed: number; err
 
         const statements = events.map(e =>
           stmt.bind(
-            crypto.randomUUID().slice(0, 24),
+            crypto.randomUUID().replace(/-/g, '').slice(0, 24),
             e.capsule_id,
             e.user_id || null,
             e.event_type,

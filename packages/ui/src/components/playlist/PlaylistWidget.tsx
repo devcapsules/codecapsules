@@ -90,7 +90,7 @@ export function PlaylistWidget({
   onProgress,
   onError,
   customStyles = {},
-  apiBaseUrl = 'https://api.devcapsules.com'
+  apiBaseUrl = 'https://devcapsules-api.devleep-edu.workers.dev/api/v1'
 }: PlaylistWidgetProps): JSX.Element {
   
   // ===== STATE MANAGEMENT =====
@@ -119,7 +119,7 @@ export function PlaylistWidget({
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }))
       
-      const response = await fetch(`${apiBaseUrl}/api/playlists/${playlistId}/embed`, {
+      const response = await fetch(`${apiBaseUrl}/playlists/${playlistId}/embed`, {
         headers: {
           'Authorization': `Bearer ${embedToken}`,
           'Content-Type': 'application/json'
@@ -130,7 +130,8 @@ export function PlaylistWidget({
         throw new Error(`Failed to load playlist: ${response.statusText}`)
       }
       
-      const corePlaylist: CorePlaylistWithCapsules = await response.json()
+      const embedJson = await response.json()
+      const corePlaylist: CorePlaylistWithCapsules = embedJson.data || embedJson
       const playlist = transformPlaylistForUI(corePlaylist)
       
       if (!playlist.capsules || playlist.capsules.length === 0) {
@@ -478,24 +479,15 @@ export function PlaylistWidget({
               theme === 'dark' ? 'border-gray-600 bg-gray-800' : 'border-gray-300 bg-gray-50'
             )}>
               <div className="text-center space-y-2">
-                <div className="text-4xl">
-                  {state.currentCapsule.capsule_type === 'CODE' ? '💻' : 
-                   state.currentCapsule.capsule_type === 'DATABASE' ? '🗄️' : '⌨️'}
-                </div>
-                <p className={clsx(
-                  'text-sm font-medium',
-                  theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                )}>
-                  {state.currentCapsule.capsule_type} Exercise
-                </p>
-                <p className={clsx(
-                  'text-xs',
-                  theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                )}>
-                  Runtime component will be embedded here
-                </p>
+                <iframe
+                  src={`https://codecapsule-embed.pages.dev/?id=${state.currentCapsule.id}&playlist=${playlistId}`}
+                  className="w-full rounded border-0"
+                  style={{ height: '400px' }}
+                  title={state.currentCapsule.title || 'Capsule Exercise'}
+                  sandbox="allow-scripts allow-same-origin allow-forms"
+                />
                 
-                {/* Temporary Complete Button for Testing */}
+                {/* Complete Button */}
                 {!state.completedCapsules.has(state.currentCapsule.id) && (
                   <button
                     onClick={() => handleCapsuleComplete(state.currentCapsule!.id)}

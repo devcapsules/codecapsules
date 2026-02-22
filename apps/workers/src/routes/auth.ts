@@ -40,7 +40,7 @@ authRoutes.post('/register', async (c) => {
   const passwordHash = await hashPassword(password);
 
   // Create user
-  const userId = crypto.randomUUID().slice(0, 24);
+  const userId = crypto.randomUUID().replace(/-/g, '').slice(0, 24);
   await c.env.DB.prepare(`
     INSERT INTO users (id, email, name, password_hash, auth_provider)
     VALUES (?, ?, ?, ?, 'email')
@@ -175,7 +175,7 @@ authRoutes.post('/api-keys', async (c) => {
   const keyPrefix = apiKey.slice(0, 11); // dk_xxxxxxxx
 
   // Store key metadata
-  const keyId = crypto.randomUUID().slice(0, 24);
+  const keyId = crypto.randomUUID().replace(/-/g, '').slice(0, 24);
   await c.env.DB.prepare(`
     INSERT INTO api_keys (id, user_id, name, key_hash, key_prefix)
     VALUES (?, ?, ?, ?, ?)

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react'
 import Editor from '@monaco-editor/react'
 import { embedAnalytics } from '../utils/EmbedAnalytics'
 import { executeCodeAsync } from '../utils/queueExecution'
+import { useDCAnimation } from './DCAnimations'
 
 // Feature flag: Use queue-based execution (Phase 2)
 const USE_QUEUE_EXECUTION = true
@@ -53,20 +54,42 @@ export default function DevcapsulesEmbed({ widgetId }: CapsuleEmbedProps) {
   const [showRawError, setShowRawError] = useState(false)
   const [showHints, setShowHints] = useState(false)
   const [showSolution, setShowSolution] = useState(false)
+  const { toast, showTestPass, showPartialPass } = useDCAnimation()
 
   useEffect(() => {
     const fetchWidget = async () => {
       try {
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-        const response = await fetch(`${apiUrl}/api/capsules/${widgetId}`)
-        if (!response.ok) {
-          throw new Error('Failed to load capsule')
+        
+        // Try CDN first, fallback to API
+        let capsule
+        try {
+          const cdnUrl = `https://cdn.devcapsules.com/capsules/${widgetId}.json`
+          const cdnResponse = await fetch(cdnUrl, { headers: { 'Accept': 'application/json' } })
+          if (cdnResponse.ok) {
+            capsule = await cdnResponse.json()
+            console.log('🚀 CodeCapsuleEmbed: Loaded from CDN')
+          } else {
+            throw new Error(`CDN response: ${cdnResponse.status}`)
+          }
+        } catch (cdnError) {
+          console.log('⚠️ CDN failed, falling back to API:', (cdnError as Error).message)
+          const response = await fetch(`${apiUrl}/capsules/${widgetId}`)
+          if (!response.ok) {
+            throw new Error('Failed to load capsule')
+          }
+          const data = await response.json()
+          if (!data.success) {
+            throw new Error(data.error || 'Failed to load capsule')
+          }
+          capsule = data.data || data.capsule
+          if (!capsule) {
+            throw new Error('Failed to load capsule: no data in response')
+          }
         }
-        const data = await response.json()
-        if (data.success && data.capsule) {
-          const capsule = data.capsule
-          // Map the capsule data to widget format
-          const mappedWidget: Widget = {
+        
+        // Map the capsule data to widget format
+        const mappedWidget: Widget = {
             id: capsule.id,
             title: capsule.title || 'Untitled Capsule',
             description: capsule.description || '',
@@ -86,7 +109,7 @@ export default function DevcapsulesEmbed({ widgetId }: CapsuleEmbedProps) {
               return solution ? [solution] : [];
             })(),
             // Fix: Extract tags from pedagogy or fallback to empty array
-            tags: capsule.pedagogy?.concepts?.map((concept: any) => concept.concept) || capsule.tags || [],
+            tags: capsule.pedagogy?.concepts?.map((concept: any) => concept.concept) || (Array.isArray(capsule.tags) ? capsule.tags : []),
             isPublished: capsule.isPublished || false,
             createdAt: capsule.createdAt || new Date().toISOString(),
             content: capsule.content
@@ -101,9 +124,6 @@ export default function DevcapsulesEmbed({ widgetId }: CapsuleEmbedProps) {
             mappedWidget.language,
             mappedWidget.difficulty
           )
-        } else {
-          throw new Error(data.error || 'Failed to load capsule')
-        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
@@ -145,35 +165,50 @@ export default function DevcapsulesEmbed({ widgetId }: CapsuleEmbedProps) {
         const functionName = extractFunctionName(userCode)
         const results: any[] = []
         
+        // Helper to normalize output for comparison (handles Python True/False vs JSON true/false)
+        const normalizeOutput = (output: any): string => {
+          const str = String(output).trim().toLowerCase()
+          // Normalize Python None to null, True/False to true/false
+          if (str === 'none') return 'null'
+          return str
+        }
+        
         for (let i = 0; i < testCases.length; i++) {
           const testCase = testCases[i]
+          
+          // Use input_args if available (array), otherwise parse input JSON string
+          const inputValues = testCase.input_args || (
+            typeof testCase.input === 'string' 
+              ? JSON.parse(testCase.input) 
+              : testCase.input
+          )
           
           // Generate test code
           let testCode = userCode
           if (widget.language === 'python') {
-            const inputArgs = Array.isArray(testCase.input) 
-              ? testCase.input.map((i: any) => JSON.stringify(i)).join(', ')
-              : JSON.stringify(testCase.input)
+            const inputArgs = Array.isArray(inputValues) 
+              ? inputValues.map((i: any) => JSON.stringify(i)).join(', ')
+              : JSON.stringify(inputValues)
             testCode = `${userCode}\n\n# Test execution\nresult = ${functionName}(${inputArgs})\nprint(result)`
           } else if (widget.language === 'javascript') {
-            const inputArgs = Array.isArray(testCase.input)
-              ? testCase.input.map((i: any) => JSON.stringify(i)).join(', ')
-              : JSON.stringify(testCase.input)
+            const inputArgs = Array.isArray(inputValues)
+              ? inputValues.map((i: any) => JSON.stringify(i)).join(', ')
+              : JSON.stringify(inputValues)
             testCode = `${userCode}\n\n// Test execution\nconst result = ${functionName}(${inputArgs});\nconsole.log(result);`
           }
           
           try {
             const result = await executeCodeAsync(widget.language, testCode)
-            const actualOutput = result.stdout.trim()
-            const expectedOutput = String(testCase.expected_output).trim()
+            const actualOutput = normalizeOutput(result.stdout)
+            const expectedOutput = normalizeOutput(testCase.expected_output ?? testCase.expected)
             const passed = actualOutput === expectedOutput
             
             results.push({
               id: i,
               passed,
               description: testCase.description || `Test case ${i + 1}`,
-              expected: testCase.expected_output,
-              actual: actualOutput || result.stderr,
+              expected: testCase.expected_output ?? testCase.expected,
+              actual: result.stdout.trim() || result.stderr,
               error: result.success ? undefined : result.stderr
             })
           } catch (error: any) {
@@ -206,8 +241,13 @@ export default function DevcapsulesEmbed({ widgetId }: CapsuleEmbedProps) {
         
         if (allPassed) {
           embedAnalytics.trackTestPassed(widget.id, widgetId, widget.language, executionTime, totalCount)
+          showTestPass(passedCount, totalCount, `${(executionTime / 1000).toFixed(2)}s`)
+        } else if (passedCount > 0) {
+          embedAnalytics.trackTestFailed(widget.id, widgetId, results.filter((r: any) => !r.passed), passedCount, totalCount, widget.language, executionTime)
+          showPartialPass(passedCount, totalCount)
         } else {
           embedAnalytics.trackTestFailed(widget.id, widgetId, results.filter((r: any) => !r.passed), passedCount, totalCount, widget.language, executionTime)
+          toast('error', 'Tests Failed', `0/${totalCount} tests passed. Check your solution.`)
         }
         
         setActiveTab('tests')
@@ -215,7 +255,7 @@ export default function DevcapsulesEmbed({ widgetId }: CapsuleEmbedProps) {
       }
       
       // Fallback: Use execute-tests endpoint for other languages
-      const response = await fetch(`${apiUrl}/api/execute-tests`, {
+      const response = await fetch(`${apiUrl}/execute/tests`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -228,7 +268,49 @@ export default function DevcapsulesEmbed({ widgetId }: CapsuleEmbedProps) {
         }),
       })
       
-      const data = await response.json()
+      let data: any;
+      
+      // Handle async (202) vs sync (200) responses
+      if (response.status === 202) {
+        // Async path — poll for result
+        const queueResult = await response.json()
+        const jobId = queueResult.jobId
+        if (!jobId) throw new Error('Server returned 202 but no jobId')
+        
+        const POLL_INTERVAL = 300
+        const POLL_TIMEOUT = 30_000
+        const deadline = Date.now() + POLL_TIMEOUT
+        
+        while (Date.now() < deadline) {
+          const pollRes = await fetch(`${apiUrl}/execute/runs/${jobId}`)
+          if (pollRes.ok) {
+            const pollData = await pollRes.json() as any
+            if (pollData.status === 'completed' && pollData.testResult) {
+              data = {
+                success: true,
+                results: pollData.testResult.results,
+                summary: pollData.testResult.summary,
+                output: '',
+                stderr: '',
+              }
+              break
+            } else if (pollData.status === 'failed') {
+              data = { success: false, error: pollData.error || 'Execution failed' }
+              break
+            }
+          }
+          await new Promise(r => setTimeout(r, POLL_INTERVAL))
+        }
+        
+        if (!data) {
+          throw new Error('Execution timed out — server may be under heavy load')
+        }
+      } else if (response.ok) {
+        data = await response.json()
+      } else {
+        const err = await response.json().catch(() => ({ error: 'Execution failed' }))
+        throw new Error((err as any).error || 'Execution failed')
+      }
       const executionTime = Date.now() - startTime
       
       if (data.success && data.results) {
@@ -260,7 +342,7 @@ export default function DevcapsulesEmbed({ widgetId }: CapsuleEmbedProps) {
           totalTests: totalCount
         })
         
-        // Track analytics based on results
+        // Track analytics and trigger animations based on results
         if (testResults.allPassed) {
           embedAnalytics.trackTestPassed(
             widget.id,
@@ -269,6 +351,19 @@ export default function DevcapsulesEmbed({ widgetId }: CapsuleEmbedProps) {
             executionTime,
             testResults.total
           )
+          showTestPass(passedCount, totalCount, `${(executionTime / 1000).toFixed(2)}s`)
+        } else if (passedCount > 0) {
+          const failedTests = testResults.results.filter((r: any) => !r.passed)
+          embedAnalytics.trackTestFailed(
+            widget.id,
+            widgetId,
+            failedTests,
+            testResults.passed,
+            testResults.total,
+            widget.language,
+            executionTime
+          )
+          showPartialPass(passedCount, totalCount)
         } else {
           const failedTests = testResults.results.filter((r: any) => !r.passed)
           embedAnalytics.trackTestFailed(
@@ -280,6 +375,7 @@ export default function DevcapsulesEmbed({ widgetId }: CapsuleEmbedProps) {
             widget.language,
             executionTime
           )
+          toast('error', 'Tests Failed', `0/${totalCount} tests passed. Check your solution.`)
         }
         
         setActiveTab('tests')
@@ -308,6 +404,7 @@ export default function DevcapsulesEmbed({ widgetId }: CapsuleEmbedProps) {
           widget.language,
           executionTime
         )
+        toast('error', 'Execution Failed', data.error || 'Code execution failed. Check for syntax errors.')
         
         setActiveTab('tests')
       }
@@ -336,6 +433,7 @@ export default function DevcapsulesEmbed({ widgetId }: CapsuleEmbedProps) {
         widget.language,
         executionTime
       )
+      toast('error', 'Runtime Error', err instanceof Error ? err.message : 'Execution failed. Check your code.')
       
       setActiveTab('tests')
     } finally {

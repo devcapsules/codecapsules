@@ -43,7 +43,7 @@ generateRoutes.post('/', async (c) => {
   }
 
   const body = await c.req.json();
-  const { prompt, language, difficulty = 'medium' } = body;
+  const { prompt, language, difficulty = 'MEDIUM' } = body;
 
   // Validate inputs
   if (!prompt || typeof prompt !== 'string') {
@@ -56,6 +56,13 @@ generateRoutes.post('/', async (c) => {
   const supportedLanguages = ['python', 'javascript', 'java', 'cpp', 'c', 'sql'];
   if (!supportedLanguages.includes(language.toLowerCase())) {
     throw new ApiError(400, `Unsupported language. Supported: ${supportedLanguages.join(', ')}`);
+  }
+
+  // Validate and normalize difficulty
+  const normalizedDifficulty = difficulty.toUpperCase();
+  const supportedDifficulties = ['EASY', 'MEDIUM', 'HARD'];
+  if (!supportedDifficulties.includes(normalizedDifficulty)) {
+    throw new ApiError(400, `Invalid difficulty. Supported: ${supportedDifficulties.join(', ')}`);
   }
 
   // Quota is pre-checked by rateLimiter middleware (sets quotaKey in context)
@@ -121,7 +128,7 @@ generateRoutes.post('/', async (c) => {
     userId: auth.userId,
     prompt: prompt.slice(0, 200), // Truncate for display
     language,
-    difficulty,
+    difficulty: normalizedDifficulty,
     createdAt: Date.now(),
   }), { expirationTtl: 600 }); // 10 minute TTL
 
@@ -131,7 +138,7 @@ generateRoutes.post('/', async (c) => {
     userId: auth.userId,
     prompt,
     language: language.toLowerCase(),
-    difficulty: difficulty.toLowerCase() as 'easy' | 'medium' | 'hard',
+    difficulty: normalizedDifficulty as 'EASY' | 'MEDIUM' | 'HARD',
     timestamp: Date.now(),
   });
 

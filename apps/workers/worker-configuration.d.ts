@@ -20,9 +20,14 @@ interface Env {
 
   // ── Queues ──
   GENERATION_QUEUE: Queue<GenerationJob>;
+  EXECUTION_QUEUE: Queue<ExecutionJob>;
+
+  // ── Durable Objects ──
+  CONCURRENCY_CONTROLLER: DurableObjectNamespace;
 
   // ── R2 Storage ──
   ASSETS: R2Bucket;
+  CDN: R2Bucket;  // cdn.devcapsules.com bucket
 
   // ── Environment Variables ──
   ENVIRONMENT: 'development' | 'staging' | 'production';
@@ -54,9 +59,70 @@ interface GenerationJob {
   userId: string;
   prompt: string;
   language: string;
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
   type?: string; // Capsule type (code, database, quiz, etc.)
   timestamp: number;
+}
+
+interface ExecutionJob {
+  jobId: string;
+  type: 'run' | 'tests';
+  language: string;
+  sourceCode: string;
+  input: string;
+  timeLimit: number;
+  memoryLimit: number;
+  // Only for type === 'tests'
+  userCode?: string;
+  functionName?: string;
+  testCases?: Array<{ input_args: unknown[]; expected_output: unknown; description?: string; type?: string }>;
+  // Metadata
+  userId?: string;
+  orgId?: string;   // Per-org DO sharding key (B2B org or userId fallback)
+  plan?: string;    // User plan for per-org slot limits
+  quotaKey?: string;
+  requestId: string;
+  timestamp: number;
+}
+
+interface ExecutionJobResult {
+  jobId: string;
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  type: 'run' | 'tests';
+  // For type === 'run'
+  result?: {
+    success: boolean;
+    stdout: string;
+    stderr: string;
+    exit_code: number;
+    execution_time: number;
+    tier: 'edge' | 'piston';
+  };
+  // For type === 'tests'
+  testResult?: {
+    success: boolean;
+    summary: {
+      totalTests: number;
+      passedTests: number;
+      failedTests: number;
+      successRate: number;
+      allPassed: boolean;
+      totalTime: number;
+    };
+    results: Array<{
+      testCase: number;
+      description: string;
+      type: string;
+      passed: boolean;
+      output: unknown;
+      expected: unknown;
+      executionTime: number;
+      error?: string;
+    }>;
+  };
+  error?: string;
+  createdAt: number;
+  completedAt?: number;
 }
 
 // ── Auth Types ──

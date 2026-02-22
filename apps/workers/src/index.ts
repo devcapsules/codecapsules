@@ -19,6 +19,7 @@ import { executeRoutes } from './routes/execute';
 import { authRoutes } from './routes/auth';
 import { analyticsRoutes } from './routes/analytics';
 import mentorRoutes from './routes/mentor';
+import { playlistRoutes } from './routes/playlists';
 
 // Middleware
 import { requestId } from './middleware/request-id';
@@ -26,6 +27,9 @@ import { rateLimiter } from './middleware/rate-limit';
 import { authMiddleware } from './middleware/auth';
 import { ApiError } from './middleware/error-handler';
 import { defaultBodyLimit } from './middleware/body-limit';
+
+// Durable Objects
+export { ConcurrencyController } from './durable-objects/concurrency-controller';
 
 // Types
 type Variables = {
@@ -114,8 +118,11 @@ app.use('*', secureHeaders({
 app.use('*', async (c, next) => {
   const allowedOrigins = c.env.CORS_ORIGINS.split(',');
   
-  // Allow any origin for embed widget on specific routes
+  // Allow any origin for embed widget routes (capsule reads, execution, playlists, etc.)
   const isEmbedRoute = c.req.path.includes('/embed/') || 
+                       c.req.path.includes('/capsules/') ||
+                       c.req.path.includes('/playlists/') ||
+                       c.req.path.includes('/execute/runs/') ||
                        (c.req.path.includes('/execute') && c.req.method === 'POST');
   
   return cors({
@@ -172,6 +179,14 @@ api.route('/execute', executeRoutes);
 api.route('/auth', authRoutes);
 api.route('/analytics', analyticsRoutes);
 api.route('/mentor', mentorRoutes);
+api.route('/playlists', playlistRoutes);
+
+// ── Organization-scoped aliases (UI components call these paths) ──
+// GET/POST /organizations/:orgId/playlists → /playlists
+api.get('/organizations/:orgId/playlists', (c) => playlistRoutes.fetch(new Request(new URL('/?' + new URL(c.req.url).searchParams.toString(), c.req.url), c.req.raw), c.env, c.executionCtx));
+api.post('/organizations/:orgId/playlists', (c) => playlistRoutes.fetch(new Request(new URL('/', c.req.url), { method: 'POST', headers: c.req.raw.headers, body: c.req.raw.body }), c.env, c.executionCtx));
+// GET /organizations/:orgId/capsules → /capsules (for capsule search in editor)
+api.get('/organizations/:orgId/capsules', (c) => capsuleRoutes.fetch(new Request(new URL('/?' + new URL(c.req.url).searchParams.toString(), c.req.url), c.req.raw), c.env, c.executionCtx));
 
 // GET /my-capsules — List authenticated user's capsules (draft + published)
 api.get('/my-capsules', async (c) => {
@@ -252,10 +267,17 @@ export default {
     }
   },
 
-  // Handle queue messages (async generation)
-  async queue(batch: MessageBatch<GenerationJob>, env: Env) {
-    const { processGenerationQueue } = await import('./queues/generation-consumer');
-    await processGenerationQueue(batch, env);
+  // Handle queue messages (async generation + execution)
+  async queue(batch: MessageBatch<unknown>, env: Env) {
+    // Route to the correct consumer based on queue name
+    if (batch.queue === 'execution-queue') {
+      const { processExecutionQueue } = await import('./queues/execution-consumer');
+      await processExecutionQueue(batch as MessageBatch<ExecutionJob>, env);
+    } else {
+      // Default: generation queue
+      const { processGenerationQueue } = await import('./queues/generation-consumer');
+      await processGenerationQueue(batch as MessageBatch<GenerationJob>, env);
+    }
   },
 };
 

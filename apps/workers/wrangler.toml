@@ -54,8 +54,23 @@ database_name = "devcapsules-db"
 database_id = "4d303cb4-9dee-41ec-b0e0-228691ecd151"
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Queues — Async Generation Jobs
+# Durable Objects — Concurrency Controller (Phase 2)
 # ══════════════════════════════════════════════════════════════════════════════
+
+[durable_objects]
+bindings = [
+  { name = "CONCURRENCY_CONTROLLER", class_name = "ConcurrencyController" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ConcurrencyController"]
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Queues — Async Jobs
+# ══════════════════════════════════════════════════════════════════════════════
+
+# --- AI Generation Queue ---
 [[queues.producers]]
 binding = "GENERATION_QUEUE"
 queue = "generation-queue"
@@ -66,12 +81,29 @@ max_batch_size = 1
 max_retries = 3
 dead_letter_queue = "generation-dlq"
 
+# --- Code Execution Queue (Phase 1) ---
+[[queues.producers]]
+binding = "EXECUTION_QUEUE"
+queue = "execution-queue"
+
+[[queues.consumers]]
+queue = "execution-queue"
+max_batch_size = 10
+max_batch_timeout = 1
+max_retries = 2
+retry_delay = 2
+dead_letter_queue = "execution-dlq"
+
 # ══════════════════════════════════════════════════════════════════════════════
-# R2 Storage — Assets + Exports
+# R2 Storage — Assets + CDN
 # ══════════════════════════════════════════════════════════════════════════════
 [[r2_buckets]]
 binding = "ASSETS"
 bucket_name = "devcapsules-assets"
+
+[[r2_buckets]]
+binding = "CDN"
+bucket_name = "devcapsules-cdn"
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Environment Variables (Non-Secret)
@@ -80,7 +112,7 @@ bucket_name = "devcapsules-assets"
 ENVIRONMENT = "development"
 API_VERSION = "v1"
 LOG_LEVEL = "info"
-CORS_ORIGINS = "http://localhost:3000,http://localhost:3001,https://devcapsules.com,https://www.devcapsules.com,https://dashboard.devcapsules.com,https://codecapsule-dashboard.pages.dev"
+CORS_ORIGINS = "http://localhost:3000,http://localhost:3001,http://localhost:5173,https://devcapsules.com,https://www.devcapsules.com,https://dashboard.devcapsules.com,https://embed.devcapsules.com,https://codecapsule-dashboard.pages.dev,https://codecapsule-embed.pages.dev"
 
 # ══════════════════════════════════════════════════════════════════════════════
 # AZURE TUNNEL — Cloudflare Tunnel → Azure VMSS
@@ -171,6 +203,18 @@ max_batch_size = 1
 max_retries = 3
 dead_letter_queue = "generation-dlq"
 
+[[env.staging.queues.producers]]
+binding = "EXECUTION_QUEUE"
+queue = "execution-queue"
+
+[[env.staging.queues.consumers]]
+queue = "execution-queue"
+max_batch_size = 10
+max_batch_timeout = 1
+max_retries = 2
+retry_delay = 2
+dead_letter_queue = "execution-dlq"
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Production Environment
 # ══════════════════════════════════════════════════════════════════════════════
@@ -180,7 +224,7 @@ name = "devcapsules-api-production"
 [env.production.vars]
 ENVIRONMENT = "production"
 LOG_LEVEL = "warn"
-CORS_ORIGINS = "https://devcapsules.com,https://www.devcapsules.com,https://dashboard.devcapsules.com"
+CORS_ORIGINS = "https://devcapsules.com,https://www.devcapsules.com,https://dashboard.devcapsules.com,https://embed.devcapsules.com,https://codecapsule-dashboard.pages.dev,https://codecapsule-embed.pages.dev"
 # Azure VM tunnel URLs
 TUNNEL_URL = "https://tunnel.devcapsules.com"
 PISTON_URL = "https://tunnel.devcapsules.com"
@@ -231,3 +275,15 @@ queue = "generation-queue"
 max_batch_size = 1
 max_retries = 3
 dead_letter_queue = "generation-dlq"
+
+[[env.production.queues.producers]]
+binding = "EXECUTION_QUEUE"
+queue = "execution-queue"
+
+[[env.production.queues.consumers]]
+queue = "execution-queue"
+max_batch_size = 10
+max_batch_timeout = 1
+max_retries = 2
+retry_delay = 2
+dead_letter_queue = "execution-dlq"

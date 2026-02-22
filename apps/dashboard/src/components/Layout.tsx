@@ -81,8 +81,8 @@ export default function Layout({ children }: LayoutProps) {
       <Head>
         {/* Global Meta Tags */}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#1e293b" />
-        <meta name="msapplication-TileColor" content="#1e293b" />
+        <meta name="theme-color" content="#04040a" />
+        <meta name="msapplication-TileColor" content="#04040a" />
         
         {/* Default Open Graph tags (can be overridden by pages) */}
         <meta property="og:type" content="website" />
@@ -167,9 +167,9 @@ export default function Layout({ children }: LayoutProps) {
         />
       </Head>
       
-      <div className="min-h-screen bg-slate-900">
+      <div className="min-h-screen" style={{ background: '#04040a' }}>
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-30 bg-slate-800 border-b border-slate-700">
+      <header className="sticky top-0 z-30 border-b" style={{ background: '#08080f', borderColor: 'rgba(255,255,255,0.07)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Left side - Logo and Navigation */}
@@ -179,7 +179,6 @@ export default function Layout({ children }: LayoutProps) {
                 <img src="/favicon.ico" alt="Devcapsules" className="w-8 h-8" />
                 <div>
                   <div className="text-lg font-bold text-white">Devcapsules</div>
-                  <div className="hidden md:block text-xs text-slate-400">Interactive Learning Platform</div>
                 </div>
               </Link>
 
@@ -191,9 +190,12 @@ export default function Layout({ children }: LayoutProps) {
                     href={item.href}
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
                       isActivePage(item.href)
-                        ? 'bg-blue-600 text-white'
-                        : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                        ? 'border'
+                        : 'text-slate-400 hover:text-white'
                     }`}
+                    style={isActivePage(item.href) ? { background: 'rgba(0,255,135,0.08)', color: '#00ff87', borderColor: 'rgba(0,255,135,0.2)' } : undefined}
+                    onMouseEnter={e => { if (!isActivePage(item.href)) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
+                    onMouseLeave={e => { if (!isActivePage(item.href)) (e.currentTarget as HTMLElement).style.background = ''; }}
                   >
                     {getIcon(item.icon)}
                     <span>{item.label}</span>
@@ -211,7 +213,10 @@ export default function Layout({ children }: LayoutProps) {
                     const event = new CustomEvent('openCreateModal');
                     window.dispatchEvent(event);
                   }}
-                  className="bg-blue-600 text-white py-2 px-3 md:px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-xs md:text-sm min-h-[40px]"
+                  className="text-[#04040a] py-2 px-3 md:px-4 rounded-lg transition-colors font-bold text-xs md:text-sm min-h-[40px]"
+                style={{ background: '#00ff87' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#00e87a'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = '#00ff87'}
                 >
                   <span className="hidden sm:inline">Create Capsule</span>
                   <span className="sm:hidden">Create</span>
@@ -224,9 +229,9 @@ export default function Layout({ children }: LayoutProps) {
                   <div className="w-8 h-8 animate-pulse bg-slate-600 rounded-full"></div>
                 ) : user ? (
                   <div className="relative group">
-                    <button className="flex items-center space-x-2 md:space-x-3 text-slate-300 hover:text-white px-2 md:px-3 py-2 rounded-lg hover:bg-slate-700 transition-colors min-h-[40px]">
-                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                        <span className="text-white text-sm font-medium">{getUserInitials(user)}</span>
+                    <button className="flex items-center space-x-2 md:space-x-3 text-slate-300 hover:text-white px-2 md:px-3 py-2 rounded-lg transition-colors min-h-[40px]" style={{ }} onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'} onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center border" style={{ background: 'rgba(0,255,135,0.15)', borderColor: 'rgba(0,255,135,0.3)' }}>
+                        <span className="text-sm font-bold" style={{ color: '#00ff87' }}>{getUserInitials(user)}</span>
                       </div>
                       <span className="text-sm font-medium hidden lg:block">{getUserDisplayName(user)}</span>
                       <svg className="w-4 h-4 md:hidden" fill="currentColor" viewBox="0 0 20 20">
@@ -235,15 +240,17 @@ export default function Layout({ children }: LayoutProps) {
                     </button>
                     
                     {/* User Dropdown Menu */}
-                    <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200 z-50">
+                    <div className="absolute right-0 mt-2 w-48 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200 z-50" style={{ background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.07)' }}>
                       <div className="py-1">
-                        <Link href="/account" className="flex items-center px-4 py-3 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+                        <Link href="/account" className="flex items-center px-4 py-3 text-sm text-slate-300 hover:text-white transition-colors" onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'} onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}>
                           <span>Account Settings</span>
                         </Link>
-                        <div className="border-t border-slate-700 my-1"></div>
+                        <div className="my-1" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}></div>
                         <button 
                           onClick={handleSignOut}
-                          className="flex items-center px-4 py-3 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors w-full text-left"
+                          className="flex items-center px-4 py-3 text-sm text-slate-300 hover:text-white transition-colors w-full text-left"
+                          onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'}
+                          onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}
                         >
                           <span>Sign Out</span>
                         </button>
@@ -262,12 +269,12 @@ export default function Layout({ children }: LayoutProps) {
       </header>
 
       {/* Page Content */}
-      <main className="flex-1 bg-slate-900 pb-20 md:pb-0">
+      <main className="flex-1 pb-20 md:pb-0" style={{ background: '#04040a' }}>
         {children}
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-800 border-t border-slate-700">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40" style={{ background: '#08080f', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
         <nav className="flex items-center justify-around px-2 py-3 safe-area-pb">
           {sidebarNavItems.filter(item => item.href !== '/blog').slice(0, 2).map((item) => (
             <Link
@@ -275,9 +282,10 @@ export default function Layout({ children }: LayoutProps) {
               href={item.href}
               className={`flex flex-col items-center justify-center py-1 px-2 transition-colors text-xs font-medium ${
                 isActivePage(item.href)
-                  ? 'text-blue-400'
+                  ? ''
                   : 'text-slate-400'
               }`}
+              style={isActivePage(item.href) ? { color: '#00ff87' } : undefined}
             >
               <div className="w-6 h-6 mb-1">
                 {getIcon(item.icon)}
@@ -294,9 +302,9 @@ export default function Layout({ children }: LayoutProps) {
             }}
             className="flex flex-col items-center justify-center py-1 px-2 text-xs font-medium text-white"
           >
-            <div className="w-8 h-8 mb-1 bg-blue-600 rounded-full flex items-center justify-center">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            <div className="w-8 h-8 mb-1 rounded-full flex items-center justify-center" style={{ background: '#00ff87' }}>
+              <svg className="w-5 h-5" fill="none" stroke="#04040a" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
               </svg>
             </div>
             <span>Create</span>
@@ -308,9 +316,10 @@ export default function Layout({ children }: LayoutProps) {
               href={item.href}
               className={`flex flex-col items-center justify-center py-1 px-2 transition-colors text-xs font-medium ${
                 isActivePage(item.href)
-                  ? 'text-blue-400'
+                  ? ''
                   : 'text-slate-400'
               }`}
+              style={isActivePage(item.href) ? { color: '#00ff87' } : undefined}
             >
               <div className="w-6 h-6 mb-1">
                 {getIcon(item.icon)}

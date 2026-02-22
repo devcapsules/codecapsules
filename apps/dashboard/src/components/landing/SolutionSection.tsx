@@ -2,12 +2,12 @@ import React from 'react';
 
 export function SolutionSection() {
   return (
-    <section className="py-16 lg:py-24 bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950/30">
+    <section className="py-16 lg:py-24 bg-[#04040a]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-12">
           <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4">
-            Devcapsules = <span className="text-blue-400">Interactive Code</span>, Everywhere
+            Devcapsules = <span className="text-[#00ff87]">Interactive Code</span>, Everywhere
           </h2>
         </div>
 
@@ -15,11 +15,11 @@ export function SolutionSection() {
         <div className="grid md:grid-cols-3 gap-8 mb-16">
           {/* Step 1 */}
           <div className="text-center">
-            <div className="w-20 h-20 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="w-20 h-20 bg-[#00ff87]/20 rounded-full flex items-center justify-center mx-auto mb-6">
               <span className="text-4xl">🤖</span>
             </div>
-            <div className="bg-blue-500/10 rounded-lg px-4 py-2 mb-4 inline-block">
-              <span className="text-blue-400 font-semibold text-sm">Step 1: Generate</span>
+            <div className="bg-[#00ff87]/10 rounded-lg px-4 py-2 mb-4 inline-block">
+              <span className="text-[#00ff87] font-semibold text-sm">Step 1: Generate</span>
             </div>
             <h3 className="text-lg font-bold mb-3">Paste Your Code</h3>
             <p className="text-gray-300 text-sm leading-relaxed">

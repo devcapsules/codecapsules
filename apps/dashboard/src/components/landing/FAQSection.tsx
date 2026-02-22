@@ -18,8 +18,8 @@ export function FAQSection() {
       answer: "25+ languages including Python, JavaScript, Java, C++, Go, Rust, TypeScript, PHP, Ruby, SQL, and more. Need something else? Just ask."
     },
     {
-      question: "Is this secure for enterprise use?",
-      answer: "Yes! We're SOC 2 compliant with sandboxed code execution, SSO support, and enterprise-grade security. Perfect for corporate training."
+      question: "Is this secure?",
+      answer: "Yes! All code runs in isolated sandbox containers with strict resource limits and timeouts. Your website and users are protected."
     },
     {
       question: "Can I customize the look and feel?",
@@ -32,12 +32,12 @@ export function FAQSection() {
   ];
 
   return (
-    <section id="faq" className="py-16 lg:py-24 bg-gray-900">
+    <section id="faq" className="py-16 lg:py-24 bg-[#04040a]">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-12">
           <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4">
-            Common <span className="text-blue-400">Questions</span>
+            Common <span className="text-[#00ff87]">Questions</span>
           </h2>
         </div>
 
@@ -69,7 +69,7 @@ export function FAQSection() {
             Still have questions? We're here to help.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/signup" className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-6 py-3 rounded-lg font-semibold text-sm transition-all transform hover:scale-105">
+            <Link href="/signup" className="inline-block bg-[#00ff87] hover:bg-[#00ef77] text-black px-6 py-3 rounded-lg font-semibold text-sm transition-all transform hover:scale-105">
               Start Free Trial
             </Link>
             <button className="border border-gray-600 hover:border-gray-500 px-6 py-3 rounded-lg font-semibold text-sm transition-all hover:bg-gray-800/50">

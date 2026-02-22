@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Editor } from '@monaco-editor/react'
+import { useDCAnimation } from './DCAnimations'
 
 interface SQLCapsuleEmbedProps {
   widgetId: string
@@ -170,20 +171,41 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
   const [instructionsCollapsed, setInstructionsCollapsed] = useState(false)
   const [showSolution, setShowSolution] = useState(false)
   const [showHints, setShowHints] = useState(false)
+  const { toast } = useDCAnimation()
 
   useEffect(() => {
     const fetchCapsule = async () => {
       try {
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-        const response = await fetch(`${apiUrl}/api/capsules/${widgetId}`)
-        if (!response.ok) {
-          throw new Error('Failed to load capsule')
+        
+        // Try CDN first, fallback to API
+        let capsuleData
+        try {
+          const cdnUrl = `https://cdn.devcapsules.com/capsules/${widgetId}.json`
+          const cdnResponse = await fetch(cdnUrl, { headers: { 'Accept': 'application/json' } })
+          if (cdnResponse.ok) {
+            capsuleData = await cdnResponse.json()
+            console.log('🚀 SQLCapsuleEmbed: Loaded from CDN')
+          } else {
+            throw new Error(`CDN response: ${cdnResponse.status}`)
+          }
+        } catch (cdnError) {
+          console.log('⚠️ CDN failed, falling back to API:', (cdnError as Error).message)
+          const response = await fetch(`${apiUrl}/capsules/${widgetId}`)
+          if (!response.ok) {
+            throw new Error('Failed to load capsule')
+          }
+          const data = await response.json()
+          if (!data.success) {
+            throw new Error(data.error || 'Failed to load capsule')
+          }
+          capsuleData = data.data || data.capsule
+          if (!capsuleData) {
+            throw new Error('Failed to load capsule: no data in response')
+          }
         }
-        const data = await response.json()
-        if (data.success && data.capsule) {
-          const capsuleData = data.capsule
           
-          // Debug: Log the capsule data to see the structure
+        // Debug: Log the capsule data to see the structure
           console.log('📊 SQL Capsule Data:', {
             id: capsuleData.id,
             title: capsuleData.title,
@@ -316,9 +338,6 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
           setCapsule(sqlCapsule)
           setRawCapsuleData(capsuleData) // Store raw data for schema access
           setUserQuery(sqlCapsule.boilerplateCode)
-        } else {
-          throw new Error(data.error || 'Failed to load capsule')
-        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
@@ -547,7 +566,7 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
       })
       
       // Execute tests using validation endpoint
-      const response = await fetch(`${apiUrl}/api/execute-tests`, {
+      const response = await fetch(`${apiUrl}/execute/tests`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -608,17 +627,21 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
       
       if (!result.success) {
         setActiveTab('errors')
+        toast('error', 'Query Failed', formattedResult.diff || formattedResult.error || 'Your query did not produce the expected results.')
       } else {
         setActiveTab('results')
+        toast('success', 'Query Passed!', 'Your SQL query returned the expected results.')
       }
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Network error - could not connect to server'
       setQueryResult({
         success: false,
-        error: err instanceof Error ? err.message : 'Network error - could not connect to server',
+        error: errMsg,
         results: [],
         columns: []
       })
       setActiveTab('errors')
+      toast('error', 'Execution Error', errMsg)
     } finally {
       setExecuting(false)
     }

@@ -2,12 +2,14 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import AdaptiveCapsuleEmbed from './components/AdaptiveCapsuleEmbed'
+import { DCAnimationProvider } from './components/DCAnimations'
 import './index.css'
 
 // Get widget ID from URL params or data attributes
 const getWidgetId = () => {
   const urlParams = new URLSearchParams(window.location.search)
   const widgetId = urlParams.get('widgetId') || 
+                   urlParams.get('id') ||
                    document.currentScript?.getAttribute('data-widget-id')
   
   if (!widgetId) {
@@ -18,7 +20,13 @@ const getWidgetId = () => {
   return widgetId
 }
 
+const getPlaylistId = () => {
+  const urlParams = new URLSearchParams(window.location.search)
+  return urlParams.get('playlist') || null
+}
+
 const widgetId = getWidgetId()
+const playlistId = getPlaylistId()
 
 if (widgetId) {
   const container = document.getElementById('devcapsules-root') || document.body
@@ -26,7 +34,9 @@ if (widgetId) {
   
   root.render(
     <React.StrictMode>
-      <AdaptiveCapsuleEmbed widgetId={widgetId} />
+      <DCAnimationProvider>
+        <AdaptiveCapsuleEmbed widgetId={widgetId} />
+      </DCAnimationProvider>
     </React.StrictMode>,
   )
 } else {
