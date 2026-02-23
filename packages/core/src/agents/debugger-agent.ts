@@ -667,8 +667,9 @@ TERMINAL FIXING GUIDANCE:
       const enhancementPrompt = this.buildEducationalEnhancementPrompt(capsule)
       
       // Call AI to generate educational enhancements
-      const response = await this.aiService.generateJSON(enhancementPrompt, {
-        model: 'gpt-4o-mini',
+      // FIXED: Wrap prompt string in proper AIMessage[] array (was passing raw string)
+      const messages = [{ role: 'user' as const, content: enhancementPrompt }]
+      const response = await this.aiService.generateJSON(messages, {
         temperature: 0.3,
         max_tokens: 2000
       })
@@ -743,38 +744,29 @@ Make hints progressive (easy to hard). Create diverse test cases including edge 
   }
 
   /**
-   * Apply educational enhancements to capsule
+   * Apply educational enhancements to capsule.
+   * MERGE with existing config_data — do NOT replace, which loses type-specific fields
+   * like schema_setup, test_data_setup (DATABASE) or environment_config (TERMINAL).
    */
   private applyEducationalEnhancements(capsule: BaseCapsule, enhancements: any): BaseCapsule {
-    // Create enhanced config_data based on capsule type
-    let enhancedConfigData: any
+    const existingConfig = { ...(capsule.config_data as any) }
 
-    if (capsule.capsule_type === 'CODE') {
-      enhancedConfigData = {
-        boilerplate_code: enhancements.boilerplate_code || '// Add your solution here',
-        reference_solution: enhancements.reference_solution || '// Solution not available',
-        hints: enhancements.hints || ['Try breaking down the problem step by step'],
-        test_cases: enhancements.test_cases || []
-      }
-    } else if (capsule.capsule_type === 'DATABASE') {
-      enhancedConfigData = {
-        boilerplate_code: enhancements.boilerplate_code || 'SELECT -- Add your query here',
-        reference_solution: enhancements.reference_solution || '-- Solution not available',
-        hints: enhancements.hints || ['Think about which tables and columns you need'],
-        schema_definition: (capsule.config_data as any)?.schema_definition || '',
-        seed_data: (capsule.config_data as any)?.seed_data || []
-      }
-    } else { // TERMINAL
-      enhancedConfigData = {
-        boilerplate_commands: enhancements.boilerplate_commands || ['# Add your commands here'],
-        expected_outputs: enhancements.expected_outputs || [],
-        hints: enhancements.hints || ['Think about what command you need to run']
-      }
+    // Only override fields that the enhancement actually improved
+    if (enhancements.boilerplate_code && enhancements.boilerplate_code.length > 20) {
+      existingConfig.boilerplate_code = enhancements.boilerplate_code
     }
+    if (enhancements.reference_solution && enhancements.reference_solution.length > 30) {
+      existingConfig.reference_solution = enhancements.reference_solution
+    }
+    if (Array.isArray(enhancements.hints) && enhancements.hints.length > 0) {
+      existingConfig.hints = enhancements.hints
+    }
+    // Do NOT override test_cases — Coder's Golden N tests are authoritative
+    // Do NOT override schema_setup, test_data_setup, environment_config, etc.
 
     return {
       ...capsule,
-      config_data: enhancedConfigData
+      config_data: existingConfig
     }
   }
 }

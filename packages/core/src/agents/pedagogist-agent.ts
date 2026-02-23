@@ -80,10 +80,15 @@ export class PedagogistAgent {
    * Job: Focus ONLY on educational idea generation, nothing else
    */
   async generateIdea(context: GenerationContext): Promise<CapsuleIdea> {
-    // Simple, focused prompt - no giant complex instructions
-    const prompt = `You are an expert curriculum designer. A user wants a '${context.difficulty}' '${context.language}' problem about '${context.userPrompt}'. 
+    const difficultySpec = this.getDifficultySpec(context.difficulty)
 
-Brainstorm ONE single, unique, high-quality problem idea. Focus only on the educational concept, not implementation.
+    const prompt = `You are an expert curriculum designer. A user wants a '${context.difficulty}' '${context.language}' problem about '${context.userPrompt}'.
+
+=== DIFFICULTY SPECIFICATION: ${context.difficulty.toUpperCase()} ===
+${difficultySpec}
+=== END DIFFICULTY SPECIFICATION ===
+
+Brainstorm ONE single, unique, high-quality problem idea that STRICTLY follows the difficulty specification above.
 
 Return JSON with this exact structure:
 {
@@ -91,30 +96,71 @@ Return JSON with this exact structure:
   "description": "2-3 sentence problem description",
   "learning_objectives": ["What will students learn?", "What skills will they practice?"],
   "prerequisites": ["What should they know first?"],
-  "difficulty_rationale": "Why is this the right difficulty level?",
+  "difficulty_rationale": "Explain how this problem fits the ${context.difficulty} difficulty spec above",
   "educational_value": 0.85,
-  "estimated_time_minutes": 15,
+  "estimated_time_minutes": ${context.difficulty === 'easy' ? 10 : context.difficulty === 'medium' ? 25 : 45},
   "target_audience": "${context.difficulty === 'easy' ? 'beginner' : context.difficulty === 'medium' ? 'intermediate' : 'advanced'} ${context.language} learners",
-  "key_concepts": ["main concept 1", "main concept 2"]
+  "key_concepts": ["main concept 1"${context.difficulty !== 'easy' ? ', "main concept 2"' : ''}${context.difficulty === 'hard' ? ', "main concept 3"' : ''}]
 }`
-    
+
     try {
       const messages = [{ role: 'user' as const, content: prompt }]
       const response = await this.aiService.generateJSON(messages, {
-        temperature: 0.5,  // Balanced creativity
-        max_tokens: 400   // Reduced - idea generation is concise
+        temperature: 0.5,
+        max_tokens: 500
       }) as CapsuleIdea
-      
+
       // Basic validation only
       if (!response.title || !response.description || !response.learning_objectives?.length) {
         throw new Error('Generated idea is incomplete')
       }
-      
+
       return response
-      
+
     } catch (error) {
       console.error('Pedagogist Agent failed:', error)
       throw new Error(`Failed to generate educational idea: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  /**
+   * Get structured difficulty specification for the 5-axis framework.
+   * This is the single source of truth for what EASY/MEDIUM/HARD means.
+   */
+  private getDifficultySpec(difficulty: string): string {
+    switch (difficulty) {
+      case 'easy':
+        return `CONCEPTUAL LOAD: ONE core concept only. No concept mixing.
+BOILERPLATE: Full function signature with clear comments and variable names provided.
+TEST STRUCTURE: 2 visible tests + 1 simple hidden test = 3 total.
+EDGE CASES: Only normal inputs. No null, no empty, no extreme values.
+PERFORMANCE: Small input size. No optimization requirement.
+TIME: 5-15 minutes to solve.
+EXAMPLE PROBLEM SHAPE: "Write a function that returns the sum of numbers in a list."
+DO NOT make this problem require combining multiple concepts. Keep it to ONE idea.`
+
+      case 'medium':
+        return `CONCEPTUAL LOAD: 2 related concepts that must be combined (e.g., filtering + aggregation).
+BOILERPLATE: Function signature given with minimal comments. Some thinking required.
+TEST STRUCTURE: 2 visible tests + 2 hidden tests + 1 edge case test = 5 total.
+EDGE CASES: Include empty input, negative numbers, null values.
+PERFORMANCE: Moderate dataset size. Inefficient solution may pass but is suboptimal.
+TIME: 20-30 minutes to solve.
+EXAMPLE PROBLEM SHAPE: "Given sales data, return total revenue per region excluding refunded orders."
+The student must combine filtering and grouping to solve this.`
+
+      case 'hard':
+        return `CONCEPTUAL LOAD: 3+ concepts. May require designing an approach or algorithm.
+BOILERPLATE: Only minimal function stub. No hints. No explanation scaffolding.
+TEST STRUCTURE: 1 visible test + 4 hidden tests (including edge + performance) = 5 total.
+EDGE CASES: Null values, empty inputs, extreme numbers, duplicate logic traps, tie-breaking.
+PERFORMANCE: Large input size. O(n²) solution MUST fail the hidden performance test.
+TIME: 40-60 minutes to solve.
+EXAMPLE PROBLEM SHAPE: "Find the top 3 customers by lifetime value, excluding churned accounts, with rank."
+The student must design the approach, handle edge cases, and optimize.`
+
+      default:
+        return 'Use medium difficulty specification.'
     }
   }
 

@@ -90,19 +90,30 @@ export class CoderAgent {
     idea: CapsuleIdea,
     context: GenerationContext
   ): Promise<BaseCapsule> {
-    // Simple, focused prompt - take idea and make complete JSON
+    const difficultySpec = this.getImplementationDifficultySpec(context.difficulty)
+    const testSpec = this.getTestDistributionSpec(context.difficulty)
+
     const prompt = `You are a senior software engineer. Take this exact problem idea:
 
 IDEA: "${idea.title}"
 DESCRIPTION: "${idea.description}"
 LANGUAGE: ${context.language}
 TYPE: ${context.type}
+DIFFICULTY: ${context.difficulty}
+
+=== DIFFICULTY ENFORCEMENT ===
+${difficultySpec}
+=== END DIFFICULTY ENFORCEMENT ===
+
+=== TEST CASE DISTRIBUTION (MANDATORY) ===
+${testSpec}
+=== END TEST CASE DISTRIBUTION ===
 
 Generate the complete BaseCapsule JSON for it. Include:
 - problem_statement (markdown format)
-- boilerplate_code (starter code for students)
+- boilerplate_code (starter code for students — follow boilerplate depth above)
 - reference_solution (complete working solution)
-- test_cases (EXACTLY 5 test cases using the Golden 5 strategy - see below)
+- test_cases (follow the EXACT test distribution above — count and visibility MUST match)
 - hints (2 helpful hints)
 
 === LAYER 3: MANDATORY CODE STRUCTURE (LeetCode Pattern) ===
@@ -132,6 +143,13 @@ If the problem naturally involves randomness (games, simulations):
 - Accept a 'seed' parameter OR use fixed values for deterministic behavior
 - Example: def game(target_number) instead of using random.randint()
 === END MANDATORY STRUCTURE ===
+
+=== LANGUAGE KEYWORD CORRECTNESS ===
+CRITICAL: Use the CORRECT keywords for the target language. NEVER mix JavaScript and Python keywords.
+- Python: None (NOT null), True (NOT true), False (NOT false), and/or/not, elif, is None
+- JavaScript: null (NOT None), true (NOT True), false (NOT False), &&/||/!, else if, === null
+If the target language is Python, you MUST use None/True/False. Using JS keywords like null/true/false will cause NameError at runtime.
+=== END LANGUAGE KEYWORD CORRECTNESS ===
 
 CRITICAL TEST CASE RULES FOR CODE (Python/JavaScript):
 1. "input_args" MUST be a JSON Array, even if there is only one argument
@@ -178,54 +196,7 @@ Return JSON with this exact structure:
       "CREATE TABLE tablename (id INTEGER PRIMARY KEY, name TEXT);",
       "INSERT INTO tablename VALUES (1, 'value1'), (2, 'value2');"
     ],` : ''}
-    "test_cases": [
-      ${context.language === 'sql' ? `{
-        "description": "Test SQL query",
-        "type": "smoke",
-        "expected_output": [{"column": "value"}],
-        "requires_postgres": false,
-        "visible": true
-      }` : `{
-        "description": "Smoke test - basic example from the problem",
-        "type": "smoke",
-        "input_args": [example_arg],
-        "expected_output": example_result,
-        "is_hidden": false,
-        "visible": true
-      },
-      {
-        "description": "Basic logic - simple variation",
-        "type": "basic",
-        "input_args": [basic_arg],
-        "expected_output": basic_result,
-        "is_hidden": false,
-        "visible": true
-      },
-      {
-        "description": "Complex logic - prevents hardcoding",
-        "type": "complex",
-        "input_args": [complex_args],
-        "expected_output": complex_result,
-        "is_hidden": true,
-        "visible": false
-      },
-      {
-        "description": "Edge case - boundary/empty/zero/null inputs",
-        "type": "edge",
-        "input_args": [edge_arg],
-        "expected_output": edge_result,
-        "is_hidden": true,
-        "visible": false
-      },
-      {
-        "description": "Scale test - larger input for performance",
-        "type": "scale",
-        "input_args": [large_arg],
-        "expected_output": large_result,
-        "is_hidden": true,
-        "visible": false
-      }`}
-    ]
+    "test_cases": ${this.getTestCaseTemplate(context.difficulty, context.language)}
   },
   "creator_id": "ai-system",
   "created_at": "${new Date().toISOString()}"
@@ -670,7 +641,14 @@ PYTHON GUIDANCE:
 - Use type hints when appropriate
 - Prefer list comprehensions when clear
 - Handle exceptions appropriately
-- Use snake_case for variables and functions`,
+- Use snake_case for variables and functions
+- CRITICAL: Use Python keywords, NOT JavaScript keywords:
+  * Use None (NOT null)
+  * Use True (NOT true)
+  * Use False (NOT false)
+  * Use and/or/not (NOT &&/||/!)
+  * Use is None (NOT === null or == null)
+  * Use elif (NOT else if)`,
 
       javascript: `
 JAVASCRIPT GUIDANCE:
@@ -737,7 +715,7 @@ C# GUIDANCE:
   }
 
   /**
-   * Get difficulty-specific code guidance
+   * Get difficulty-specific code guidance (used by dead-code path)
    */
   private getDifficultyCodeGuidance(difficulty: string): string {
     switch (difficulty) {
@@ -777,6 +755,202 @@ HARD DIFFICULTY:
   }
 
   /**
+   * 5-Axis difficulty spec for the active implementCapsule() prompt.
+   * This is the single source of truth for implementation difficulty enforcement.
+   */
+  private getImplementationDifficultySpec(difficulty: string): string {
+    switch (difficulty) {
+      case 'easy':
+        return `BOILERPLATE DEPTH: FULL — provide complete function signature with descriptive parameter names, return type hints, step-by-step TODO comments, and example usage in comments.
+EDGE CASES: NONE — only normal, happy-path inputs. No null, no empty, no negative, no extreme values.
+PERFORMANCE: No optimization required. Input sizes are small (< 100 elements).
+CONCEPTS: ONE core concept. Do NOT combine concepts.
+HINTS: 2 detailed hints that clearly guide toward the solution approach.`
+
+      case 'medium':
+        return `BOILERPLATE DEPTH: PARTIAL — provide function signature with parameter names but minimal comments. Include imports but no step-by-step guidance.
+EDGE CASES: BASIC — include empty input, negative numbers, and one null/boundary case.
+PERFORMANCE: Moderate input sizes. Inefficient O(n²) solutions should still pass but are suboptimal.
+CONCEPTS: 2 related concepts that must be combined (e.g., filtering + aggregation, recursion + memoization).
+HINTS: 2 hints — first conceptual, second more specific but not revealing.`
+
+      case 'hard':
+        return `BOILERPLATE DEPTH: MINIMAL — only a bare function stub with parameter names. No comments, no guidance, no examples.
+EDGE CASES: ADVANCED — null values, empty inputs, extreme numbers, duplicate logic traps, tie-breaking scenarios.
+PERFORMANCE: Large input sizes. O(n²) solutions MUST be too slow. Performance test has 10,000+ elements.
+CONCEPTS: 3+ concepts. Student must design the approach and algorithm themselves.
+HINTS: 2 minimal hints — vague conceptual nudges only. Do NOT reveal the approach.`
+
+      default:
+        return 'Use medium difficulty specification.'
+    }
+  }
+
+  /**
+   * Get test distribution spec based on difficulty.
+   * Enforces the 5-axis framework test count and visibility rules.
+   */
+  private getTestDistributionSpec(difficulty: string): string {
+    switch (difficulty) {
+      case 'easy':
+        return `Generate EXACTLY 3 test cases:
+- Test 1 (SMOKE, visible=true):  Basic example directly from the problem statement.
+- Test 2 (BASIC, visible=true):  Simple variation — different input, same concept.
+- Test 3 (COMPLEX, hidden=true): Slightly larger input to prevent hardcoding answers.
+DO NOT include edge cases or scale tests for easy difficulty.
+Total: 2 visible + 1 hidden = 3 tests.`
+
+      case 'medium':
+        return `Generate EXACTLY 4 test cases:
+- Test 1 (SMOKE, visible=true):  Basic example directly from the problem statement.
+- Test 2 (BASIC, visible=true):  Simple variation with different inputs.
+- Test 3 (EDGE, hidden=true):    Boundary values: empty input, zero, negative, null.
+- Test 4 (COMPLEX, hidden=true): Larger input combining both concepts. Prevents hardcoding.
+Total: 2 visible + 2 hidden = 4 tests.`
+
+      case 'hard':
+        return `Generate EXACTLY 5 test cases:
+- Test 1 (SMOKE, visible=true):  One basic example so students can verify their approach works.
+- Test 2 (EDGE, hidden=true):    Boundary: empty, null, zero, single-element, max int.
+- Test 3 (EDGE, hidden=true):    Tricky: duplicates, tie-breaking, precision issues.
+- Test 4 (COMPLEX, hidden=true): Large complex input combining 3+ concepts.
+- Test 5 (SCALE, hidden=true):   Performance test with 10,000+ elements. O(n²) MUST fail.
+Total: 1 visible + 4 hidden = 5 tests.`
+
+      default:
+        return 'Generate EXACTLY 4 test cases with 2 visible and 2 hidden.'
+    }
+  }
+
+  /**
+   * Get test case JSON template for the mega-prompt based on difficulty.
+   */
+  private getTestCaseTemplate(difficulty: string, language: string): string {
+    if (language === 'sql') {
+      return `[
+        {
+          "description": "Test SQL query",
+          "type": "smoke",
+          "expected_output": [{"column": "value"}],
+          "requires_postgres": false,
+          "visible": true
+        }
+      ]`
+    }
+
+    switch (difficulty) {
+      case 'easy':
+        return `[
+        {
+          "description": "Smoke test - basic example from the problem",
+          "type": "smoke",
+          "input_args": [example_arg],
+          "expected_output": example_result,
+          "is_hidden": false,
+          "visible": true
+        },
+        {
+          "description": "Basic logic - simple variation",
+          "type": "basic",
+          "input_args": [basic_arg],
+          "expected_output": basic_result,
+          "is_hidden": false,
+          "visible": true
+        },
+        {
+          "description": "Complex - prevents hardcoding",
+          "type": "complex",
+          "input_args": [complex_args],
+          "expected_output": complex_result,
+          "is_hidden": true,
+          "visible": false
+        }
+      ]`
+
+      case 'medium':
+        return `[
+        {
+          "description": "Smoke test - basic example from the problem",
+          "type": "smoke",
+          "input_args": [example_arg],
+          "expected_output": example_result,
+          "is_hidden": false,
+          "visible": true
+        },
+        {
+          "description": "Basic logic - simple variation",
+          "type": "basic",
+          "input_args": [basic_arg],
+          "expected_output": basic_result,
+          "is_hidden": false,
+          "visible": true
+        },
+        {
+          "description": "Edge case - boundary/empty/zero/null inputs",
+          "type": "edge",
+          "input_args": [edge_arg],
+          "expected_output": edge_result,
+          "is_hidden": true,
+          "visible": false
+        },
+        {
+          "description": "Complex logic - combines both concepts",
+          "type": "complex",
+          "input_args": [complex_args],
+          "expected_output": complex_result,
+          "is_hidden": true,
+          "visible": false
+        }
+      ]`
+
+      case 'hard':
+      default:
+        return `[
+        {
+          "description": "Smoke test - basic example from the problem",
+          "type": "smoke",
+          "input_args": [example_arg],
+          "expected_output": example_result,
+          "is_hidden": false,
+          "visible": true
+        },
+        {
+          "description": "Edge case - boundary values",
+          "type": "edge",
+          "input_args": [edge_arg1],
+          "expected_output": edge_result1,
+          "is_hidden": true,
+          "visible": false
+        },
+        {
+          "description": "Edge case - tricky inputs (duplicates, tie-breaking)",
+          "type": "edge",
+          "input_args": [edge_arg2],
+          "expected_output": edge_result2,
+          "is_hidden": true,
+          "visible": false
+        },
+        {
+          "description": "Complex - combines multiple concepts",
+          "type": "complex",
+          "input_args": [complex_args],
+          "expected_output": complex_result,
+          "is_hidden": true,
+          "visible": false
+        },
+        {
+          "description": "Scale test - performance with large input (10000+ elements)",
+          "type": "scale",
+          "input_args": [large_arg],
+          "expected_output": large_result,
+          "is_hidden": true,
+          "visible": false
+        }
+      ]`
+    }
+  }
+
+  /**
    * Get code style guidance based on configuration
    */
   private getCodeStyleGuidance(): string {
@@ -802,9 +976,13 @@ ADDITIONAL PREFERENCES:
   }
 
   /**
-   * Format test cases to ensure proper structure
+   * Format test cases to ensure proper structure.
+   * Enforces difficulty-based test count and visibility rules:
+   *   Easy:   2 visible + 1 hidden = 3 total
+   *   Medium: 2 visible + 2 hidden = 4 total
+   *   Hard:   1 visible + 4 hidden = 5 total
    */
-  private formatTestCases(testCases: any): Array<{
+  private formatTestCases(testCases: any, difficulty: string = 'medium'): Array<{
     description: string
     type: 'smoke' | 'basic' | 'complex' | 'edge' | 'scale'
     input_args: any[]
@@ -812,31 +990,57 @@ ADDITIONAL PREFERENCES:
     is_hidden: boolean
     visible: boolean
   }> {
-    const GOLDEN_5_TYPES: Array<{ type: 'smoke' | 'basic' | 'complex' | 'edge' | 'scale'; visible: boolean; is_hidden: boolean }> = [
-      { type: 'smoke',   visible: true,  is_hidden: false },
-      { type: 'basic',   visible: true,  is_hidden: false },
-      { type: 'complex', visible: false, is_hidden: true },
-      { type: 'edge',    visible: false, is_hidden: true },
-      { type: 'scale',   visible: false, is_hidden: true },
-    ]
+    const DIFFICULTY_SPEC: Record<string, { total: number; visibleCount: number; types: Array<{ type: 'smoke' | 'basic' | 'complex' | 'edge' | 'scale'; visible: boolean; is_hidden: boolean }> }> = {
+      easy: {
+        total: 3,
+        visibleCount: 2,
+        types: [
+          { type: 'smoke',   visible: true,  is_hidden: false },
+          { type: 'basic',   visible: true,  is_hidden: false },
+          { type: 'complex', visible: false, is_hidden: true },
+        ]
+      },
+      medium: {
+        total: 4,
+        visibleCount: 2,
+        types: [
+          { type: 'smoke',   visible: true,  is_hidden: false },
+          { type: 'basic',   visible: true,  is_hidden: false },
+          { type: 'edge',    visible: false, is_hidden: true },
+          { type: 'complex', visible: false, is_hidden: true },
+        ]
+      },
+      hard: {
+        total: 5,
+        visibleCount: 1,
+        types: [
+          { type: 'smoke',   visible: true,  is_hidden: false },
+          { type: 'edge',    visible: false, is_hidden: true },
+          { type: 'edge',    visible: false, is_hidden: true },
+          { type: 'complex', visible: false, is_hidden: true },
+          { type: 'scale',   visible: false, is_hidden: true },
+        ]
+      },
+    }
+
+    const spec = DIFFICULTY_SPEC[difficulty] || DIFFICULTY_SPEC['medium']
 
     // Handle different input formats
     if (!testCases) return []
     
-    // If it's already an array, normalize to Golden 5 format
+    // If it's already an array, normalize to difficulty-specific format
     if (Array.isArray(testCases)) {
-      // Take first 5 (or pad to 5 by duplicating last)
-      const capped = testCases.slice(0, 5)
+      const capped = testCases.slice(0, spec.total)
       
       return capped.map((testCase, index) => {
-        const golden = GOLDEN_5_TYPES[index] || GOLDEN_5_TYPES[GOLDEN_5_TYPES.length - 1]
+        const golden = spec.types[index] || spec.types[spec.types.length - 1]
         return {
           description: testCase.description || `Test case ${index + 1}`,
           type: testCase.type || golden.type,
           input_args: testCase.input_args || [],
           expected_output: testCase.expected_output,
-          is_hidden: testCase.is_hidden ?? golden.is_hidden,
-          visible: testCase.visible ?? golden.visible,
+          is_hidden: golden.is_hidden,   // ENFORCE from spec, don't trust AI
+          visible: golden.visible,       // ENFORCE from spec, don't trust AI
         }
       })
     }

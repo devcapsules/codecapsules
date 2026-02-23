@@ -176,11 +176,33 @@ export async function processGenerationQueue(
         continue;
       }
 
+      // Check tunnel circuit breaker (trips after 5 consecutive failures)
+      const circuitState = await env.CACHE.get('system:circuit:generation');
+      if (circuitState === 'open') {
+        console.log(JSON.stringify({
+          type: 'log',
+          level: 'warn',
+          action: 'generation.circuit_open',
+          jobId: job.jobId,
+          reason: 'Circuit breaker is open — too many consecutive tunnel failures',
+        }));
+
+        await updateProgress(env, job.jobId, {
+          status: 'failed',
+          progress: 0,
+          currentStep: 'AI service is temporarily unavailable',
+          error: 'AI generation service is recovering. Please try again in a few minutes.',
+        });
+
+        message.ack();
+        continue;
+      }
+
       // ══════════════════════════════════════════════════════════════════════
       // Step 2: Check Semantic Cache (avoid regenerating similar prompts)
       // ══════════════════════════════════════════════════════════════════════
 
-      const cacheKey = await hashForCache(job.userId, job.prompt, job.language);
+      const cacheKey = await hashForCache(job.userId, job.prompt, job.language, job.difficulty);
       const cached = await env.CACHE.get(`gen:cache:${cacheKey}`, 'json') as any;
 
       if (cached) {
@@ -519,11 +541,12 @@ async function updateProgress(
 async function hashForCache(
   _userId: string, 
   prompt: string, 
-  language: string
+  language: string,
+  difficulty: string = 'medium'
 ): Promise<string> {
   // Normalize prompt for cache key (lowercase, trim, first 200 chars)
   const normalizedPrompt = prompt.trim().toLowerCase().slice(0, 200);
-  const data = `${normalizedPrompt}:${language}`;
+  const data = `${normalizedPrompt}:${language}:${difficulty.toLowerCase()}`;
   
   const hash = await crypto.subtle.digest(
     'SHA-256', 

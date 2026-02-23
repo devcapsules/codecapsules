@@ -159,7 +159,7 @@ app.post('/internal/generate', async (req, res) => {
     );
 
     // Convert BaseCapsule → Universal format (dashboard expects this shape)
-    const capsule = convertBaseCapsuleToUniversalFormat(result.capsule);
+    const capsule = convertBaseCapsuleToUniversalFormat(result.capsule, context.difficulty);
 
     // Estimate per-agent token usage from timing data
     // (pipeline doesn't expose raw tokens; consumer needs this for cost tracking)
@@ -617,7 +617,7 @@ app.get('/internal/health', (_req, res) => {
 // The dashboard/frontend expects this shape; the pipeline returns raw BaseCapsule.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function convertBaseCapsuleToUniversalFormat(baseCapsule: any): any {
+function convertBaseCapsuleToUniversalFormat(baseCapsule: any, difficulty: string = 'medium'): any {
   const configData = baseCapsule.config_data || {};
   const capsuleType = baseCapsule.capsule_type || 'CODE';
   const language = baseCapsule.runtime_config?.language || 'javascript';
@@ -688,7 +688,7 @@ function convertBaseCapsuleToUniversalFormat(baseCapsule: any): any {
     title: baseCapsule.title,
     description: baseCapsule.problem_statement_md,
     content,
-    difficulty: 'medium',
+    difficulty,
     // Top-level fields (modal reads these directly)
     hints,
     starterCode: configData.boilerplate_code || '',

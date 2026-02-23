@@ -128,17 +128,39 @@ export class AIService {
 
   /**
    * Generate structured JSON content
+   * @param messages - Array of AIMessage objects (system/user/assistant)
+   * @param options  - Optional: { temperature?, max_tokens? } forwarded to generateContent
    */
-  async generateJSON<T = any>(messages: AIMessage[], schema?: any): Promise<T> {
-    // Add JSON formatting instruction to system message
-    const enhancedMessages = [...messages];
-    if (enhancedMessages[0]?.role === 'system') {
-      enhancedMessages[0].content += '\n\nIMPORTANT: Respond with valid JSON only. No additional text or formatting. Use JSON booleans (true/false) NOT Python booleans (True/False). Use null NOT None. Use literal string values NOT expressions like "a" * 1000.';
+  async generateJSON<T = any>(messages: AIMessage[], options?: {
+    temperature?: number;
+    max_tokens?: number;
+    [key: string]: any;
+  }): Promise<T> {
+    // Ensure messages is an array of AIMessage objects (guard against raw string being passed)
+    let safeMessages: AIMessage[];
+    if (typeof messages === 'string') {
+      console.warn('⚠️ generateJSON received a string instead of AIMessage[]. Wrapping as user message.');
+      safeMessages = [{ role: 'user' as const, content: messages as unknown as string }];
+    } else if (!Array.isArray(messages)) {
+      console.warn('⚠️ generateJSON received non-array. Wrapping as user message.');
+      safeMessages = [{ role: 'user' as const, content: String(messages) }];
+    } else {
+      safeMessages = [...messages];
     }
 
-    const response = await this.generateContent(enhancedMessages, {
+    // Always prepend a system message with JSON formatting rules if none exists
+    const JSON_SYSTEM_INSTRUCTION = 'IMPORTANT: Respond with valid JSON only. No additional text, explanations, or markdown code blocks. Use JSON booleans (true/false) NOT Python booleans (True/False). Use null NOT None. Use literal string values NOT expressions like "a" * 1000.';
+
+    if (safeMessages[0]?.role === 'system') {
+      safeMessages[0] = { ...safeMessages[0], content: safeMessages[0].content + '\n\n' + JSON_SYSTEM_INSTRUCTION };
+    } else {
+      safeMessages.unshift({ role: 'system' as const, content: JSON_SYSTEM_INSTRUCTION });
+    }
+
+    const response = await this.generateContent(safeMessages, {
       responseFormat: 'json',
-      temperature: 0.3 // Lower temperature for more consistent JSON
+      temperature: options?.temperature ?? 0.3,
+      maxTokens: options?.max_tokens,
     });
 
     try {
