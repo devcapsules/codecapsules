@@ -29,6 +29,7 @@
 
 import type { ExecutionResult } from '../routes/execute';
 import { PISTON_LANGUAGE_MAP } from '../routes/execute';
+import { wrapWithDatasetInjection } from './dataset-injection';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Circuit Breaker Types
@@ -181,16 +182,16 @@ export class PistonClient {
     }
 
     // ── Execute with Retry ──
-    const payload = {
+    const payload = wrapWithDatasetInjection({
       language: mapping.runtime,
       version: '*',
       files: [{ name: mapping.fileName, content: code }],
       stdin: input,
-      args: [],
+      args: [] as string[],
       compile_timeout: Math.min(timeLimit, 3) * 1000,
       run_timeout: Math.min(timeLimit, 3) * 1000,
       run_memory_limit: memoryLimit * 1024 * 1024,
-    };
+    });
 
     let lastError: Error | null = null;
 

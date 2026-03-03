@@ -148,6 +148,20 @@ export {
   analyzePipelinePerformance
 } from './agents/generation-pipeline';
 
+// Universal Dataset Catalog (for data analysis capsules)
+export type {
+  DatasetColumn,
+  UniversalDataset
+} from './datasets/universal-datasets';
+
+export {
+  UNIVERSAL_DATASETS,
+  isDataAnalysisContext,
+  buildDatasetCatalogPrompt,
+  buildCompactDatasetSchema,
+  getDatasetFilenames
+} from './datasets/universal-datasets';
+
 // Universal Interface (Primary Export)
 export type { UniversalCapsule, Capsule } from './types/universal-capsule';
 export { CapsuleMigrator, UniversalCapsuleValidator } from './types/universal-capsule';

@@ -17,6 +17,7 @@ import { ApiError } from '../middleware/error-handler';
 import { trackExecution } from '../utils/analytics-buffer';
 import { incrementQuota } from '../middleware/rate-limit';
 import { executeLimit } from '../middleware/body-limit';
+import { wrapWithDatasetInjection } from '../bridge/dataset-injection';
 
 type Variables = {
   auth: Auth | null;
@@ -282,7 +283,66 @@ executeRoutes.get('/runs/:jobId', async (c) => {
     throw new ApiError(404, 'Job not found or expired');
   }
 
-  const jobResult = JSON.parse(raw) as ExecutionJobResult;
+  let jobResult = JSON.parse(raw) as ExecutionJobResult;
+
+  // KV is eventually consistent — stale reads may show 'queued'/'running'
+  // even after the consumer wrote 'completed'. Fall back to D1 (strongly consistent)
+  // if the job has been pending for over 3 seconds.
+  if (
+    (jobResult.status === 'queued' || jobResult.status === 'running') &&
+    jobResult.createdAt &&
+    Date.now() - jobResult.createdAt > 3000
+  ) {
+    try {
+      const d1Row = await c.env.DB.prepare(
+        'SELECT job_id, type, status, stdout, stderr, exit_code, execution_time, test_summary, error, created_at, completed_at FROM execution_results WHERE job_id = ?'
+      ).bind(jobId).first<{
+        job_id: string; type: string; status: string;
+        stdout: string | null; stderr: string | null; exit_code: number | null;
+        execution_time: number | null; test_summary: string | null;
+        error: string | null; created_at: string; completed_at: string | null;
+      }>();
+
+      if (d1Row && (d1Row.status === 'completed' || d1Row.status === 'failed')) {
+        console.log(JSON.stringify({
+          type: 'info',
+          action: 'execute_runs.d1_fallback_hit',
+          jobId,
+          kvStatus: jobResult.status,
+          d1Status: d1Row.status,
+          staleDuration: Date.now() - (jobResult.createdAt || 0),
+        }));
+        // Reconstruct the result from D1
+        const d1Result: ExecutionJobResult = {
+          jobId: d1Row.job_id,
+          status: d1Row.status as 'completed' | 'failed',
+          type: d1Row.type as 'run' | 'tests',
+          createdAt: new Date(d1Row.created_at).getTime(),
+          completedAt: d1Row.completed_at ? new Date(d1Row.completed_at).getTime() : Date.now(),
+          error: d1Row.error || undefined,
+        };
+
+        if (d1Row.type === 'run') {
+          d1Result.result = {
+            success: !d1Row.error && d1Row.exit_code === 0,
+            stdout: d1Row.stdout || '',
+            stderr: d1Row.stderr || '',
+            exit_code: d1Row.exit_code ?? 1,
+            execution_time: d1Row.execution_time || 0,
+            tier: 'piston',
+          };
+        } else if (d1Row.type === 'tests' && d1Row.test_summary) {
+          try {
+            d1Result.testResult = JSON.parse(d1Row.test_summary);
+          } catch {}
+        }
+
+        jobResult = d1Result;
+      }
+    } catch {
+      // D1 fallback failed — continue with stale KV result
+    }
+  }
 
   return c.json({
     success: true,
@@ -403,19 +463,22 @@ export async function executeOnPiston(
       throw new Error('PISTON_URL not configured');
     }
 
+    // Build base payload (dataset injection wraps with bash if .csv is referenced)
+    const payload = wrapWithDatasetInjection({
+      language: mapping.runtime,
+      version: '*',
+      files: [{ name: mapping.fileName, content: code }],
+      stdin: input,
+      args: [] as string[],
+      compile_timeout: Math.min(timeLimit, 3) * 1000, // Piston max: 3s
+      run_timeout: Math.min(timeLimit, 3) * 1000,     // Piston max: 3s
+      run_memory_limit: memoryLimit * 1024 * 1024, // MB → bytes
+    });
+
     const response = await fetch(`${pistonUrl}/api/v2/execute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        language: mapping.runtime,
-        version: '*',
-        files: [{ name: mapping.fileName, content: code }],
-        stdin: input,
-        args: [],
-        compile_timeout: Math.min(timeLimit, 3) * 1000, // Piston max: 3s
-        run_timeout: Math.min(timeLimit, 3) * 1000,     // Piston max: 3s
-        run_memory_limit: memoryLimit * 1024 * 1024, // MB → bytes
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -470,6 +533,30 @@ function utf8ToBase64(str: string): string {
 }
 
 /**
+ * Sanitize code for language-specific keyword mismatches.
+ * Fixes common AI generation mistakes like using JS keywords in Python code.
+ */
+function sanitizeCodeForLanguage(code: string, language: string): string {
+  if (language === 'python') {
+    // Fix JS null/true/false used as standalone identifiers in Python code
+    // Uses word-boundary-aware regex to avoid mutating strings/comments incorrectly
+    return code
+      .replace(/\bis null\b/g, 'is None')
+      .replace(/\b== null\b/g, '== None')
+      .replace(/\b!= null\b/g, '!= None')
+      .replace(/\bnull\b(?=\s*[),:\]\n])/g, 'None')
+      .replace(/(?<!['"])\btrue\b(?!['"])/gi, (match) => {
+        // Only replace lowercase 'true' (JS), not 'True' (already Python)
+        return match === 'true' ? 'True' : match;
+      })
+      .replace(/(?<!['"])\bfalse\b(?!['"])/gi, (match) => {
+        return match === 'false' ? 'False' : match;
+      });
+  }
+  return code;
+}
+
+/**
  * Generate a batched test harness that runs ALL test cases in a single execution.
  * Uses ---JSON_START--- delimiter to separate user output from test results.
  */
@@ -479,6 +566,9 @@ export function generateBatchedTestHarness(
   functionName: string,
   testCases: Array<{ input_args: unknown[]; expected_output: unknown; description?: string; type?: string }>
 ): string {
+  // Sanitize user code for language-specific keyword mismatches
+  userCode = sanitizeCodeForLanguage(userCode, language);
+
   // Base64-encode the full test data array (UTF-8 safe)
   const testDataB64 = utf8ToBase64(JSON.stringify(
     testCases.map((tc, i) => ({
@@ -509,7 +599,27 @@ import json
 import base64
 
 def _normalize(obj):
-    """Normalize for comparison: tuples->lists, sets->sorted lists, round floats."""
+    """Normalize for comparison: tuples->lists, sets->sorted lists, round floats, pandas->native."""
+    # Convert pandas types to native Python before normalizing
+    try:
+        import pandas as _pd
+        import numpy as _np
+        if isinstance(obj, _pd.DataFrame):
+            obj = obj.values.tolist()
+        elif isinstance(obj, _pd.Series):
+            obj = obj.tolist()
+        elif isinstance(obj, (_np.integer,)):
+            obj = int(obj)
+        elif isinstance(obj, (_np.floating,)):
+            obj = float(obj)
+        elif isinstance(obj, _np.ndarray):
+            obj = obj.tolist()
+        elif isinstance(obj, _pd.Timestamp):
+            obj = str(obj)
+    except ImportError:
+        pass
+    if obj is None:
+        return None
     if isinstance(obj, tuple):
         return [_normalize(x) for x in obj]
     if isinstance(obj, set):
@@ -525,10 +635,26 @@ def _normalize(obj):
 _tests = json.loads(base64.b64decode("${testDataB64}").decode('utf-8'))
 _results = []
 
+# Auto-convert list args to pandas Series if pandas is available (safety net)
+def _maybe_convert_args(args):
+    try:
+        import pandas as _pd
+        return [_pd.Series(a) if isinstance(a, list) and len(a) > 0 and not isinstance(a[0], (list, dict)) else a for a in args]
+    except ImportError:
+        return args
+
 for _t in _tests:
     _res = {"id": _t["id"], "passed": False, "actual": None, "error": None, "type": _t.get("type", "unknown")}
     try:
-        _val = ${functionName}(*_t["input_args"])
+        # First try with raw JSON args
+        try:
+            _val = ${functionName}(*_t["input_args"])
+        except (AttributeError, TypeError) as _conv_err:
+            if "has no attribute" in str(_conv_err) or "apply" in str(_conv_err):
+                # Retry with pandas-converted args (list -> Series)
+                _val = ${functionName}(*_maybe_convert_args(_t["input_args"]))
+            else:
+                raise
         _norm_actual = _normalize(_val)
         _norm_expected = _normalize(_t["expected_output"])
         if _norm_actual == _norm_expected:

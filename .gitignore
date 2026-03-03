@@ -103,3 +103,6 @@ terraform.tfvars
 
 # Docker
 .dockerignore
+
+# CSVs copied into bridge build context by build-piston.sh (originals in apps/dashboard/public/)
+infra/bridge/*.csv

@@ -21,6 +21,7 @@ RUN npm install --ignore-scripts
 WORKDIR /build
 COPY apps/bridge-api/ ./apps/bridge-api/
 COPY packages/core/src/agents/ ./packages/core/src/agents/
+COPY packages/core/src/datasets/ ./packages/core/src/datasets/
 COPY packages/core/src/services/ai-service.ts ./packages/core/src/services/ai-service.ts
 COPY packages/core/src/types/base-capsule.ts ./packages/core/src/types/base-capsule.ts
 COPY packages/utils/src/ ./packages/utils/src/

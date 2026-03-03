@@ -29,6 +29,7 @@ import {
 } from '../types/base-capsule'
 
 import type { CapsuleIdea } from './pedagogist-agent'
+import { isDataAnalysisContext, buildDatasetCatalogPrompt } from '../datasets/universal-datasets'
 
 // ===== CODER INTERFACES =====
 
@@ -93,6 +94,11 @@ export class CoderAgent {
     const difficultySpec = this.getImplementationDifficultySpec(context.difficulty)
     const testSpec = this.getTestDistributionSpec(context.difficulty)
 
+    // Inject universal dataset catalog for data analysis capsules
+    const datasetBlock = isDataAnalysisContext(context.language, context.userPrompt)
+      ? `\n${buildDatasetCatalogPrompt()}\n`
+      : ''
+
     const prompt = `You are a senior software engineer. Take this exact problem idea:
 
 IDEA: "${idea.title}"
@@ -107,7 +113,7 @@ ${difficultySpec}
 
 === TEST CASE DISTRIBUTION (MANDATORY) ===
 ${testSpec}
-=== END TEST CASE DISTRIBUTION ===
+=== END TEST CASE DISTRIBUTION ===${datasetBlock}
 
 Generate the complete BaseCapsule JSON for it. Include:
 - problem_statement (markdown format)
@@ -142,7 +148,34 @@ function solution(arg1, arg2) {
 If the problem naturally involves randomness (games, simulations):
 - Accept a 'seed' parameter OR use fixed values for deterministic behavior
 - Example: def game(target_number) instead of using random.randint()
-=== END MANDATORY STRUCTURE ===
+${datasetBlock ? `
+REQUIRED STRUCTURE FOR PANDAS / DATA ANALYSIS:
+import pandas as pd
+def solution(filepath='apple_global_sales_dataset.csv'):
+    df = pd.read_csv(filepath)
+    # All logic here — use real column names from the dataset catalog above
+    return result
+
+- The function MUST accept the CSV filepath as a parameter (default to the dataset filename)
+- The function MUST return a deterministic result (DataFrame, Series, scalar, dict, or list)
+- Do NOT hardcode row indices — use filtering/aggregation logic
+
+CRITICAL — TEST CASES FOR DATA ANALYSIS CAPSULES:
+- ONLY the following real CSV files exist in the execution environment:
+    • apple_global_sales_dataset.csv
+    • spotify-tracks-dataset.csv
+- ALL test cases MUST use one of these two real filenames as the filepath argument
+- NEVER invent fictional test files (e.g., test_data/small.csv, mock_data.csv, empty.csv)
+- NEVER create test cases that expect non-existent files — there are NO other CSVs available
+- Every test case input_args MUST be either:
+    • [] (empty — uses the default filepath parameter)
+    • ["apple_global_sales_dataset.csv"]
+    • ["spotify-tracks-dataset.csv"]
+- Test expected_output values must be based on REAL properties of these datasets
+  (e.g., the Apple dataset has 11500 rows, the Spotify dataset has 114000 rows)
+- Vary test cases by testing DIFFERENT ASPECTS of the same real dataset, NOT different files
+  Example: Test 1 checks row count, Test 2 checks column names, Test 3 checks a filtered result
+` : ''}=== END MANDATORY STRUCTURE ===
 
 === LANGUAGE KEYWORD CORRECTNESS ===
 CRITICAL: Use the CORRECT keywords for the target language. NEVER mix JavaScript and Python keywords.
@@ -159,6 +192,15 @@ CRITICAL TEST CASE RULES FOR CODE (Python/JavaScript):
 5. Example for sum_list([1,2]): {"input_args": [[1, 2]], "expected_output": 3}
 6. Example for reverse("hi"): {"input_args": ["hi"], "expected_output": "ih"}
 7. NEVER use -Infinity, Infinity, or NaN - use null instead (these are not valid JSON)
+8. INPUTS ARE ALWAYS JSON TYPES: input_args are deserialized from JSON, so arguments will be
+   plain Python lists, dicts, strings, numbers, booleans, or None — NEVER pandas Series,
+   DataFrames, or numpy arrays. Your solution function MUST handle conversion internally.
+   - WRONG: def solution(dates): return dates.apply(pd.to_datetime)  # FAILS — list has no .apply()
+   - RIGHT: def solution(dates): s = pd.Series(dates); return s.apply(pd.to_datetime).tolist()
+   If the solution uses pandas internally, wrap inputs with pd.Series() or pd.DataFrame() INSIDE
+   the function body, and return plain Python types (list, dict, scalar) — not pandas objects.
+9. "expected_output" must also be a JSON-serializable type (list, dict, string, number, null)
+   — NEVER a pandas Series or DataFrame. Convert with .tolist(), .to_dict(), or .item().
 
 CRITICAL TEST CASE RULES FOR SQL:
 1. Include "schema_setup" array with CREATE TABLE and INSERT statements

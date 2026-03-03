@@ -16,9 +16,12 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 services:
-  # ── 1. Piston — Code Execution Engine ──────────────────────────────────────
+  # ── 1. Piston — Code Execution Engine (Custom Image with Datasets) ─────────
   piston:
-    image: ghcr.io/engineer-man/piston:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.piston
+    image: devcapsules-piston:latest
     container_name: devcapsules_piston
     restart: always
     # NOT exposed to host — only bridge-api reaches it on the Docker network

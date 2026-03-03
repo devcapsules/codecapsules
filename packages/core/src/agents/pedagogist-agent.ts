@@ -19,6 +19,8 @@ import type {
   CapsuleType 
 } from '../types/base-capsule'
 
+import { isDataAnalysisContext, buildDatasetCatalogPrompt } from '../datasets/universal-datasets'
+
 // ===== PEDAGOGIST INTERFACES =====
 
 /**
@@ -82,13 +84,20 @@ export class PedagogistAgent {
   async generateIdea(context: GenerationContext): Promise<CapsuleIdea> {
     const difficultySpec = this.getDifficultySpec(context.difficulty)
 
+    // Inject universal dataset catalog for data analysis capsules
+    const datasetBlock = isDataAnalysisContext(context.language, context.userPrompt)
+      ? `\n${buildDatasetCatalogPrompt()}\n`
+      : ''
+
     const prompt = `You are an expert curriculum designer. A user wants a '${context.difficulty}' '${context.language}' problem about '${context.userPrompt}'.
 
 === DIFFICULTY SPECIFICATION: ${context.difficulty.toUpperCase()} ===
 ${difficultySpec}
-=== END DIFFICULTY SPECIFICATION ===
+=== END DIFFICULTY SPECIFICATION ===${datasetBlock}
 
 Brainstorm ONE single, unique, high-quality problem idea that STRICTLY follows the difficulty specification above.
+${datasetBlock ? `The problem MUST use one of the Universal Datasets listed above. Reference the actual column names in your description.
+CRITICAL: Only these CSV files exist in the execution environment — apple_global_sales_dataset.csv and spotify-tracks-dataset.csv. NEVER reference any other CSV files. Do NOT suggest creating test/mock/sample CSVs.` : ''}
 
 Return JSON with this exact structure:
 {

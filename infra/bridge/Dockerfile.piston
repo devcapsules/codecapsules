@@ -1,0 +1,39 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# DevCapsules Custom Piston — Baked-In Universal Datasets
+#
+# Extends the official Piston image with:
+#   1. Pre-loaded CSV datasets at /piston/datasets/ (read-only)
+#   2. Pre-installed Python packages (pandas, numpy) in the Piston runtime
+#
+# The datasets are copied into each job's sandbox at runtime via the
+# run_lab.sh wrapper script (sent by the Cloudflare Worker execution payload).
+#
+# Build:
+#   docker build -t devcapsules-piston:latest -f Dockerfile.piston .
+#
+# The build context must contain:
+#   - apple_global_sales_dataset.csv
+#   - spotify-tracks-dataset.csv
+#
+# These are copied from apps/dashboard/public/ by the build script.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+FROM ghcr.io/engineer-man/piston:latest
+
+# ── 1. Create a permanent, read-only dataset directory ────────────────────────
+RUN mkdir -p /piston/datasets
+
+# ── 2. Copy universal datasets into the master directory ──────────────────────
+COPY apple_global_sales_dataset.csv /piston/datasets/
+COPY spotify-tracks-dataset.csv     /piston/datasets/
+
+# ── 3. Lock down permissions — read-only for all users ────────────────────────
+# Students cannot delete or modify the master copies.
+# They only ever work with ephemeral copies in /piston/jobs/<jobId>/
+RUN chmod -R 444 /piston/datasets/* && \
+    chmod 555 /piston/datasets
+
+# ── 4. Verify files are present ──────────────────────────────────────────────
+RUN ls -la /piston/datasets/ && \
+    echo "=== Dataset sizes ===" && \
+    wc -l /piston/datasets/*.csv
