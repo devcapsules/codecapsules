@@ -20,20 +20,22 @@
 
 FROM ghcr.io/engineer-man/piston:latest
 
-# ── 1. Create a permanent, read-only dataset directory ────────────────────────
-RUN mkdir -p /piston/datasets
+# ── 1. Create dataset directory INSIDE the Python runtime package ─────────────
+# Piston's nsjail sandbox only mounts /piston/packages/ — anything outside
+# (like /piston/datasets/) is invisible to job sandboxes.
+# Placing CSVs inside the Python 3.10.0 package dir means every Python job
+# can access them at /piston/packages/python/3.10.0/datasets/
+RUN mkdir -p /piston/packages/python/3.10.0/datasets
 
-# ── 2. Copy universal datasets into the master directory ──────────────────────
-COPY apple_global_sales_dataset.csv /piston/datasets/
-COPY spotify-tracks-dataset.csv     /piston/datasets/
+# ── 2. Copy universal datasets into the sandbox-visible directory ─────────────
+COPY apple_global_sales_dataset.csv /piston/packages/python/3.10.0/datasets/
+COPY spotify-tracks-dataset.csv     /piston/packages/python/3.10.0/datasets/
 
 # ── 3. Lock down permissions — read-only for all users ────────────────────────
-# Students cannot delete or modify the master copies.
-# They only ever work with ephemeral copies in /piston/jobs/<jobId>/
-RUN chmod -R 444 /piston/datasets/* && \
-    chmod 555 /piston/datasets
+RUN chmod -R 444 /piston/packages/python/3.10.0/datasets/* && \
+    chmod 555 /piston/packages/python/3.10.0/datasets
 
 # ── 4. Verify files are present ──────────────────────────────────────────────
-RUN ls -la /piston/datasets/ && \
+RUN ls -la /piston/packages/python/3.10.0/datasets/ && \
     echo "=== Dataset sizes ===" && \
-    wc -l /piston/datasets/*.csv
+    wc -l /piston/packages/python/3.10.0/datasets/*.csv

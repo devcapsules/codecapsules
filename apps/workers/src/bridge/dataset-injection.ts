@@ -18,8 +18,11 @@
  */
 
 /**
- * Intercepts Python execution payloads and wraps them in a Bash script
- * to inject universal datasets into the ephemeral Piston sandbox.
+ * Intercepts Python execution payloads and prepends a shutil-based preamble
+ * that copies universal datasets from /piston/datasets/ into the sandbox cwd.
+ *
+ * We stay in the Python runtime (no bash) because the custom Piston image
+ * only has c, c++, java, javascript, and python runtimes installed.
  */
 export function wrapWithDatasetInjection(pistonPayload: any) {
   // 1. Only apply this to Python executions
@@ -35,27 +38,35 @@ export function wrapWithDatasetInjection(pistonPayload: any) {
   if (!mainFile) return pistonPayload;
 
   // 3. Heuristic: Only inject if the code actually looks for a CSV
-  // (Saves a few milliseconds on basic "Hello World" algorithms)
   const needsDataset = mainFile.content.includes('.csv');
   if (!needsDataset) return pistonPayload;
 
-  // 4. Transform the payload into a Bash execution
+  // 4. Prepend a Python preamble that copies CSVs into cwd, then run original code
+  // CSVs live at /piston/packages/python/3.10.0/datasets/ because Piston's nsjail
+  // sandbox only mounts /piston/packages/ — anything outside is invisible to jobs.
+  const preamble = [
+    '# === Dataset injection preamble (auto-injected) ===',
+    'import shutil, glob, os',
+    'for _csv in glob.glob("/piston/packages/python/3.10.0/datasets/*.csv"):',
+    '    _dst = os.path.basename(_csv)',
+    '    if not os.path.exists(_dst):',
+    '        shutil.copy2(_csv, _dst)',
+    '# === End preamble ===',
+    '',
+  ].join('\n');
+
+  // Patch the main file content in-place (keep Python runtime)
+  const patchedFiles = pistonPayload.files.map((f: any) => {
+    if (f === mainFile) {
+      return { ...f, content: preamble + f.content };
+    }
+    return f;
+  });
+
   return {
     ...pistonPayload,
-    language: 'bash',
-    version: '5.1.0', // Default bash version in Piston
-    files: [
-      {
-        name: 'run_lab.sh',
-        // The 2>/dev/null || true ensures the script doesn't crash if the folder is empty
-        content: `#!/bin/bash\n\n# Inject read-only datasets into ephemeral job folder\ncp /piston/datasets/*.csv . 2>/dev/null || true\n\n# Run the student's Python code\npython3 ${mainFile.name}`,
-      },
-      ...pistonPayload.files,
-    ],
-    // Tell Piston to execute the bash script instead of the Python file directly
-    main: 'run_lab.sh',
-    // Bump limits for data analysis workloads
-    run_timeout: Math.max(pistonPayload.run_timeout || 3000, 10000),
-    run_memory_limit: Math.max(pistonPayload.run_memory_limit || 0, 256 * 1024 * 1024),
+    files: patchedFiles,
+    // Don't override timeout/memory — honour whatever the caller or Piston default provides.
+    // Piston's server-side limit is the real cap; exceeding it causes a 400.
   };
 }
