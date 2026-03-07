@@ -148,7 +148,7 @@ export function TestFailureDisplay({
                 {isLoadingHint ? (
                   <div className="flex items-center gap-3 text-blue-600">
                     <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                    <span className="text-sm">AI Mentor is analyzing your code...</span>
+                    <span className="text-sm">EdGE Assistant is analyzing your code...</span>
                   </div>
                 ) : hint ? (
                   <div className="space-y-3">
@@ -156,7 +156,7 @@ export function TestFailureDisplay({
                       <Lightbulb className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
                       <div className="flex-1">
                         <div className="font-medium text-blue-900 mb-1">
-                          AI Mentor
+                          EdGE Assistant
                           {hint.is_cached && (
                             <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
                               Instant
@@ -214,7 +214,7 @@ export function TestFailureDisplay({
                 ) : (
                   <div className="flex items-center gap-3 text-gray-500">
                     <Lightbulb className="h-4 w-4" />
-                    <span className="text-sm">AI Mentor temporarily unavailable</span>
+                    <span className="text-sm">EdGE Assistant temporarily unavailable</span>
                   </div>
                 )}
               </div>

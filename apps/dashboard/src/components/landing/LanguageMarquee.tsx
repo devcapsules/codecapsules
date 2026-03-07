@@ -10,8 +10,8 @@ const LANGUAGES = [
 ];
 
 export function LanguageMarquee() {
-  // Double the array so the marquee loops seamlessly
-  const doubled = [...LANGUAGES, ...LANGUAGES];
+  // Repeat enough times so the track always overflows the viewport for a seamless loop
+  const repeated = [...LANGUAGES, ...LANGUAGES, ...LANGUAGES, ...LANGUAGES, ...LANGUAGES];
 
   return (
     <div
@@ -34,7 +34,7 @@ export function LanguageMarquee() {
 
       <div className="overflow-hidden">
         <div className="marquee-track">
-          {doubled.map((lang, i) => (
+          {repeated.map((lang, i) => (
             <span
               key={`${lang.label}-${i}`}
               className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full whitespace-nowrap text-sm font-medium"

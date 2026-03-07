@@ -1,0 +1,1 @@
+﻿{"language":"python","version":"3.10.0","files":[{"name":"test.py","content":"import os, glob\nprint(os.path.exists(\"/piston/datasets\"))\ntry:\n    print(os.listdir(\"/piston/datasets\"))\nexcept:\n    print(\"no access\")\nprint(glob.glob(\"/piston/datasets/*.csv\"))"}]}

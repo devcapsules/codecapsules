@@ -19,14 +19,7 @@ export default function AuthCallback() {
 
       if (data.session?.user) {
         // Check if this is a new user
-        const userCreatedAt = new Date(data.session.user.created_at)
-        const now = new Date()
-        const timeDiff = now.getTime() - userCreatedAt.getTime()
-        const isNewUser = timeDiff < 300000 // Less than 5 minutes old = new user
-        
-        // Redirect based on user status
-        const redirectTo = isNewUser ? '/create-capsule' : '/dashboard'
-        router.push(redirectTo)
+        router.push('/dashboard')
       } else {
         // No session, redirect to login
         router.push('/login')

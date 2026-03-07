@@ -136,6 +136,9 @@ AZURE_OPENAI_API_VERSION = "2025-01-01-preview"
 # AZURE_OPENAI_API_KEY     — Azure OpenAI authentication
 # JWT_SECRET               — JWT signing key for auth
 # WORKER_SHARED_SECRET     — HMAC secret for Workers ↔ Azure VMs auth (Tunnel Bridge)
+# RAZORPAY_KEY_ID          — Razorpay key_id (starts with rzp_live_ or rzp_test_)
+# RAZORPAY_KEY_SECRET      — Razorpay key_secret
+# RAZORPAY_WEBHOOK_SECRET  — Razorpay webhook secret for signature verification
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Cron Triggers — Scheduled Jobs

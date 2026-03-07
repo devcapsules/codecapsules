@@ -21,31 +21,26 @@ export function Navigation() {
           {/* Desktop Menu */}
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-6">
-              <Link href="/blog" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
-                Blog
-              </Link>
+              <a href="#edge-assistant" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
+                EdGE Assistant
+              </a>
+              <a href="#edge-forge" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
+                EdGE Forge
+              </a>
               <a href="#features" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
                 Features
               </a>
               <a href="#pricing" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
                 Pricing
               </a>
-              <a href="#faq" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
-                FAQ
-              </a>
               {user ? (
                 <Link href="/dashboard" className="text-[#00ff87] hover:text-green-300 px-3 py-2 text-sm font-medium transition-colors">
                   Dashboard
                 </Link>
               ) : (
-                <>
-                  <a href="/dashboard" className="text-[#00ff87] hover:text-green-300 px-3 py-2 text-sm font-medium transition-colors">
-                    Creator Studio
-                  </a>
-                  <Link href="/login" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
-                    Login
-                  </Link>
-                </>
+                <Link href="/login" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
+                  Login
+                </Link>
               )}
             </div>
           </div>
@@ -64,7 +59,7 @@ export function Navigation() {
                 href="/signup"
                 className="bg-[#00ff87] hover:bg-[#00ef77] text-black px-4 py-2 rounded-lg font-semibold text-sm transition-all transform hover:scale-105 shadow-lg shadow-green-500/25"
               >
-                Try Creator Studio
+                Try EdGE Forge
               </Link>
             )}
           </div>
@@ -91,17 +86,17 @@ export function Navigation() {
       {isMenuOpen && (
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 bg-gray-950 border-t border-gray-800">
-            <Link href="/blog" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium">
-              Blog
-            </Link>
-            <a href="#features" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium">
+            <a href="#edge-assistant" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium" onClick={() => setIsMenuOpen(false)}>
+              EdGE Assistant
+            </a>
+            <a href="#edge-forge" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium" onClick={() => setIsMenuOpen(false)}>
+              EdGE Forge
+            </a>
+            <a href="#features" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium" onClick={() => setIsMenuOpen(false)}>
               Features
             </a>
-            <a href="#pricing" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium">
+            <a href="#pricing" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium" onClick={() => setIsMenuOpen(false)}>
               Pricing
-            </a>
-            <a href="#faq" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium">
-              FAQ
             </a>
             {user ? (
               <Link href="/dashboard" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium">

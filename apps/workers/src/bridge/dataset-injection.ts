@@ -41,16 +41,19 @@ export function wrapWithDatasetInjection(pistonPayload: any) {
   const needsDataset = mainFile.content.includes('.csv');
   if (!needsDataset) return pistonPayload;
 
-  // 4. Prepend a Python preamble that copies CSVs into cwd, then run original code
+  // 4. Prepend a Python preamble that symlinks CSVs into cwd
   // CSVs live at /piston/packages/python/3.10.0/datasets/ because Piston's nsjail
   // sandbox only mounts /piston/packages/ — anything outside is invisible to jobs.
+  // We use symlinks instead of copies because the sandbox tmpfs is too small for
+  // the 20MB Spotify dataset.
   const preamble = [
     '# === Dataset injection preamble (auto-injected) ===',
-    'import shutil, glob, os',
-    'for _csv in glob.glob("/piston/packages/python/3.10.0/datasets/*.csv"):',
-    '    _dst = os.path.basename(_csv)',
-    '    if not os.path.exists(_dst):',
-    '        shutil.copy2(_csv, _dst)',
+    'import os as _os',
+    '_DATASET_DIR = "/piston/packages/python/3.10.0/datasets"',
+    'if _os.path.isdir(_DATASET_DIR):',
+    '    for _f in _os.listdir(_DATASET_DIR):',
+    '        if _f.endswith(".csv") and not _os.path.exists(_f):',
+    '            _os.symlink(_os.path.join(_DATASET_DIR, _f), _f)',
     '# === End preamble ===',
     '',
   ].join('\n');

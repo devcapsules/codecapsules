@@ -20,6 +20,10 @@ import { authRoutes } from './routes/auth';
 import { analyticsRoutes } from './routes/analytics';
 import mentorRoutes from './routes/mentor';
 import { playlistRoutes } from './routes/playlists';
+import { edgeRoutes } from './routes/edge-assistant';
+import { paymentRoutes } from './routes/payments';
+import { voucherRoutes } from './routes/vouchers';
+import { supabaseProxy } from './routes/supabase-proxy';
 
 // Middleware
 import { requestId } from './middleware/request-id';
@@ -27,6 +31,7 @@ import { rateLimiter } from './middleware/rate-limit';
 import { authMiddleware } from './middleware/auth';
 import { ApiError } from './middleware/error-handler';
 import { defaultBodyLimit } from './middleware/body-limit';
+import { CAPSULE_LIMITS } from './middleware/tier-gate';
 
 // Durable Objects
 export { ConcurrencyController } from './durable-objects/concurrency-controller';
@@ -116,6 +121,12 @@ app.use('*', secureHeaders({
 
 // CORS
 app.use('*', async (c, next) => {
+  // Supabase proxy handles its own CORS — skip global CORS for it
+  if (c.req.path.startsWith('/supabase')) {
+    await next();
+    return;
+  }
+
   const allowedOrigins = c.env.CORS_ORIGINS.split(',');
   
   // Allow any origin for embed widget routes (capsule reads, execution, playlists, etc.)
@@ -123,6 +134,7 @@ app.use('*', async (c, next) => {
                        c.req.path.includes('/capsules/') ||
                        c.req.path.includes('/playlists/') ||
                        c.req.path.includes('/execute/runs/') ||
+                       c.req.path.includes('/edge/') ||
                        (c.req.path.includes('/execute') && c.req.method === 'POST');
   
   return cors({
@@ -158,6 +170,28 @@ app.get('/health', (c) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
+// Supabase Auth Proxy (bypasses ISP DNS blocks in India)
+// No auth/rate-limit — Supabase handles its own auth & rate limiting
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Handle CORS preflight for /supabase/* 
+app.options('/supabase/*', (c) => {
+  const origin = c.req.header('Origin') || '*';
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-api-version',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
+});
+
+app.route('/supabase', supabaseProxy);
+
+// ══════════════════════════════════════════════════════════════════════════════
 // API v1 Routes
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -180,6 +214,9 @@ api.route('/auth', authRoutes);
 api.route('/analytics', analyticsRoutes);
 api.route('/mentor', mentorRoutes);
 api.route('/playlists', playlistRoutes);
+api.route('/edge', edgeRoutes);
+api.route('/payments', paymentRoutes);
+api.route('/vouchers', voucherRoutes);
 
 // ── Organization-scoped aliases (UI components call these paths) ──
 // GET/POST /organizations/:orgId/playlists → /playlists
@@ -196,17 +233,30 @@ api.get('/my-capsules', async (c) => {
   }
 
   const capsules = await c.env.DB.prepare(`
-    SELECT id, title, description, type, difficulty, language,
-           function_name, test_count, has_hints, tags, quality_score,
-           is_published, created_at, updated_at
-    FROM capsules
-    WHERE creator_id = ? AND is_deleted = 0
-    ORDER BY updated_at DESC
+    SELECT c.id, c.title, c.description, c.type, c.difficulty, c.language,
+           c.function_name, c.test_count, c.has_hints, c.tags, c.quality_score,
+           c.is_published, c.created_at, c.updated_at,
+           COALESCE(s.impressions, 0) as impressions,
+           COALESCE(s.total_runs, 0) as total_runs,
+           COALESCE(s.total_passes, 0) as total_passes,
+           COALESCE(s.total_fails, 0) as total_fails,
+           COALESCE(s.completion_rate, 0) as completion_rate
+    FROM capsules c
+    LEFT JOIN capsule_stats s ON c.id = s.capsule_id
+    WHERE c.creator_id = ? AND c.is_deleted = 0
+    ORDER BY c.updated_at DESC
   `).bind(auth.userId).all();
+
+  const capsuleCount = (capsules.results || []).length;
+  const plan = auth.plan || 'free';
+  const capsuleLimit = CAPSULE_LIMITS[plan as keyof typeof CAPSULE_LIMITS] ?? 10;
 
   return c.json({
     success: true,
     capsules: capsules.results || [],
+    limits: {
+      capsules: { current: capsuleCount, limit: capsuleLimit, plan },
+    },
     meta: {
       requestId: c.get('requestId'),
       timestamp: Date.now(),
@@ -287,7 +337,13 @@ export default {
 
 async function aggregateAnalytics(env: Env): Promise<void> {
   try {
-    await env.DB.exec(`
+    // Aggregate ALL events (no time window) into capsule_stats.
+    // Event types match what is actually written:
+    //   impression        — capsule viewed (from capsules.ts trackEvent + embed)
+    //   code_run / run    — user clicked Run (embed maps run_clicked → code_run; legacy = run)
+    //   test_passed / test_pass — test passed (embed maps test_passed; legacy = test_pass)
+    //   test_failed / test_fail — test failed (embed maps test_failed; legacy = test_fail)
+    await env.DB.prepare(`
       INSERT OR REPLACE INTO capsule_stats (
         capsule_id, impressions, total_runs, total_passes,
         total_fails, completion_rate, engagement_rate, last_computed
@@ -295,18 +351,17 @@ async function aggregateAnalytics(env: Env): Promise<void> {
       SELECT
         capsule_id,
         SUM(CASE WHEN event_type = 'impression' THEN 1 ELSE 0 END) as impressions,
-        SUM(CASE WHEN event_type = 'run' THEN 1 ELSE 0 END) as total_runs,
-        SUM(CASE WHEN event_type = 'test_pass' THEN 1 ELSE 0 END) as total_passes,
-        SUM(CASE WHEN event_type = 'test_fail' THEN 1 ELSE 0 END) as total_fails,
-        CAST(SUM(CASE WHEN event_type = 'test_pass' THEN 1 ELSE 0 END) AS REAL) /
-          NULLIF(SUM(CASE WHEN event_type = 'run' THEN 1 ELSE 0 END), 0) as completion_rate,
-        CAST(SUM(CASE WHEN event_type = 'run' THEN 1 ELSE 0 END) AS REAL) /
+        SUM(CASE WHEN event_type IN ('run', 'code_run') THEN 1 ELSE 0 END) as total_runs,
+        SUM(CASE WHEN event_type IN ('test_pass', 'test_passed') THEN 1 ELSE 0 END) as total_passes,
+        SUM(CASE WHEN event_type IN ('test_fail', 'test_failed') THEN 1 ELSE 0 END) as total_fails,
+        CAST(SUM(CASE WHEN event_type IN ('test_pass', 'test_passed') THEN 1 ELSE 0 END) AS REAL) /
+          NULLIF(SUM(CASE WHEN event_type IN ('run', 'code_run') THEN 1 ELSE 0 END), 0) as completion_rate,
+        CAST(SUM(CASE WHEN event_type IN ('run', 'code_run') THEN 1 ELSE 0 END) AS REAL) /
           NULLIF(SUM(CASE WHEN event_type = 'impression' THEN 1 ELSE 0 END), 0) as engagement_rate,
         datetime('now') as last_computed
       FROM capsule_events
-      WHERE created_at > datetime('now', '-1 day')
       GROUP BY capsule_id
-    `);
+    `).run();
     
     console.log('Analytics aggregation completed');
   } catch (error) {

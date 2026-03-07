@@ -70,7 +70,7 @@ export function FeaturesSection() {
             </div>
           </div>
 
-          {/* Feature 3 — AI Generator */}
+          {/* Feature 3 — EdGE Forge Generator */}
           <div className="feat-card rounded-2xl p-7 border" style={{
             '--card-glow': 'rgba(139,92,246,0.12)',
             border: '1px solid rgba(255,255,255,0.08)',
@@ -81,9 +81,9 @@ export function FeaturesSection() {
               style={{ background: 'rgba(139,92,246,0.15)' }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.937A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
             </div>
-            <h3 className="text-lg font-black text-white mb-2">AI Challenge Generator</h3>
+            <h3 className="text-lg font-black text-white mb-2">EdGE Forge</h3>
             <p className="text-slate-500 text-sm leading-relaxed mb-4">
-              Never write boilerplate or test cases from scratch again. Give our AI a topic, and it generates the problem statement, reference solution, and 5 robust test cases in seconds.
+              Never write boilerplate or test cases from scratch again. Describe a topic, and EdGE Forge generates the problem statement, reference solution, and 5 robust test cases in seconds.
             </p>
             <div className="flex flex-wrap gap-1.5">
               <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.25)', color: '#a78bfa' }}>Creator+</span>

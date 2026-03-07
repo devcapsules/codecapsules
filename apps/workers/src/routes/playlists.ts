@@ -47,6 +47,7 @@ function safeJsonParse(raw: unknown, fallback: any = null) {
 
 /** Normalize a course row from D1 into the shape the UI expects */
 function normaliseCourse(row: Record<string, any>) {
+  const isPublished = !!row.is_published || row.status === 'published';
   return {
     // Map DB column names → UI field names
     playlist_id: row.id,
@@ -54,8 +55,9 @@ function normaliseCourse(row: Record<string, any>) {
     creator_id: row.creator_id,
     title: row.title,
     description: row.description || '',
-    is_public: !!row.is_published,
-    status: row.status || (row.is_published ? 'published' : 'draft'),
+    is_public: isPublished,
+    status: row.status || (isPublished ? 'published' : 'draft'),
+    published_at: isPublished ? (row.published_at || row.updated_at || row.created_at) : null,
     cover_image: row.cover_image || null,
     tags: safeJsonParse(row.tags, []),
     created_at: row.created_at,
@@ -181,36 +183,51 @@ playlistRoutes.get('/:id/embed', async (c) => {
 
   if (!course) throw new ApiError(404, 'Course not found or not published');
 
+  // High #6 fix: Include full capsule content for the FIRST capsule so the
+  // embed widget can render instantly without a second network round-trip.
   const items = await c.env.DB.prepare(`
     SELECT cc.position, cc.is_gate, cc.is_optional,
            cap.id as capsule_id, cap.title, cap.description, cap.type,
-           cap.difficulty, cap.language, cap.test_count
+           cap.difficulty, cap.language, cap.test_count,
+           cap.content, cap.has_hints, cap.tags, cap.function_name
     FROM course_capsules cc
     JOIN capsules cap ON cc.capsule_id = cap.id
     WHERE cc.course_id = ?
     ORDER BY cc.position ASC
   `).bind(id).all();
 
+  const rows = items.results || [];
+
   const data = {
     ...normaliseCourse(course as any),
-    items: (items.results || []).map((row: any) => ({
-      item_id: `${id}_${row.capsule_id}`,
-      playlist_id: id,
-      capsule_id: row.capsule_id,
-      order: row.position,
-      is_gate: !!row.is_gate,
-      is_optional: !!row.is_optional,
-      capsule: {
-        id: row.capsule_id,
-        title: row.title,
-        description: row.description,
-        type: row.type,
-        difficulty: row.difficulty,
-        language: row.language,
-        test_count: row.test_count,
-      },
-    })),
-    total_items: items.results?.length || 0,
+    items: rows.map((row: any, idx: number) => {
+      const base: any = {
+        item_id: `${id}_${row.capsule_id}`,
+        playlist_id: id,
+        capsule_id: row.capsule_id,
+        order: row.position,
+        is_gate: !!row.is_gate,
+        is_optional: !!row.is_optional,
+        capsule: {
+          id: row.capsule_id,
+          title: row.title,
+          description: row.description,
+          type: row.type,
+          difficulty: row.difficulty,
+          language: row.language,
+          test_count: row.test_count,
+        },
+      };
+      // Include full content for first capsule so widget renders immediately
+      if (idx === 0) {
+        base.capsule.content = safeJsonParse(row.content, {});
+        base.capsule.has_hints = !!row.has_hints;
+        base.capsule.tags = safeJsonParse(row.tags, []);
+        base.capsule.function_name = row.function_name;
+      }
+      return base;
+    }),
+    total_items: rows.length,
   };
 
   return c.json({ success: true, data, meta: meta(c) });
@@ -290,45 +307,95 @@ playlistRoutes.put('/:id', async (c) => {
   const body = await c.req.json();
   const { title, description, is_public, items } = body;
 
-  // Build batched transaction (guardrail: delete + insert in single batch)
+  // ── Build batched transaction ──
   const statements: D1PreparedStatement[] = [];
 
-  // Update course metadata
-  statements.push(
-    c.env.DB.prepare(`
-      UPDATE courses
-      SET title = COALESCE(?, title),
-          description = COALESCE(?, description),
-          is_published = CASE WHEN ? IS NOT NULL THEN ? ELSE is_published END,
-          status = CASE WHEN ? = 1 THEN 'published' WHEN ? = 0 THEN 'draft' ELSE status END,
-          updated_at = datetime('now')
-      WHERE id = ?
-    `).bind(
-      title ?? null,
-      description ?? null,
-      is_public !== undefined ? 1 : null,
-      is_public ? 1 : 0,
-      is_public ? 1 : 0,
-      is_public ? 0 : 0,
-      id
-    )
-  );
-
-  // If items are provided, delete-all then re-insert (transactional via batch)
-  if (Array.isArray(items)) {
+  // Update course metadata (Critical #1 fix: clean is_published/status logic)
+  if (is_public !== undefined) {
     statements.push(
-      c.env.DB.prepare(`DELETE FROM course_capsules WHERE course_id = ?`).bind(id)
+      c.env.DB.prepare(`
+        UPDATE courses
+        SET title = COALESCE(?, title),
+            description = COALESCE(?, description),
+            is_published = ?,
+            status = ?,
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).bind(
+        title ?? null,
+        description ?? null,
+        is_public ? 1 : 0,
+        is_public ? 'published' : 'draft',
+        id
+      )
     );
+  } else {
+    statements.push(
+      c.env.DB.prepare(`
+        UPDATE courses
+        SET title = COALESCE(?, title),
+            description = COALESCE(?, description),
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).bind(
+        title ?? null,
+        description ?? null,
+        id
+      )
+    );
+  }
 
+  // Critical #2 fix: Proper sync instead of delete-all/re-insert.
+  // Compare incoming items vs existing rows. Upsert new/changed, delete removed,
+  // and PRESERVE is_gate + is_optional flags that the UI may not send.
+  if (Array.isArray(items)) {
+    // Fetch existing items to diff
+    const existing = await c.env.DB.prepare(`
+      SELECT capsule_id, position, is_gate, is_optional FROM course_capsules WHERE course_id = ?
+    `).bind(id).all();
+    const existingMap = new Map<string, any>();
+    for (const row of (existing.results || []) as any[]) {
+      existingMap.set(row.capsule_id, row);
+    }
+
+    const incomingIds = new Set<string>();
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
+      const capsuleId = item.capsule_id;
       const position = item.order ?? item.position ?? (i + 1);
-      statements.push(
-        c.env.DB.prepare(`
-          INSERT INTO course_capsules (course_id, capsule_id, position, is_gate, is_optional)
-          VALUES (?, ?, ?, ?, ?)
-        `).bind(id, item.capsule_id, position, item.is_gate ? 1 : 0, item.is_optional ? 1 : 0)
-      );
+      incomingIds.add(capsuleId);
+
+      const prev = existingMap.get(capsuleId);
+      if (prev) {
+        // Existing item — update position + merge flags (preserve if not sent)
+        const gate = item.is_gate !== undefined ? (item.is_gate ? 1 : 0) : prev.is_gate;
+        const optional = item.is_optional !== undefined ? (item.is_optional ? 1 : 0) : prev.is_optional;
+        if (prev.position !== position || prev.is_gate !== gate || prev.is_optional !== optional) {
+          statements.push(
+            c.env.DB.prepare(`
+              UPDATE course_capsules SET position = ?, is_gate = ?, is_optional = ?
+              WHERE course_id = ? AND capsule_id = ?
+            `).bind(position, gate, optional, id, capsuleId)
+          );
+        }
+      } else {
+        // New item
+        statements.push(
+          c.env.DB.prepare(`
+            INSERT INTO course_capsules (course_id, capsule_id, position, is_gate, is_optional)
+            VALUES (?, ?, ?, ?, ?)
+          `).bind(id, capsuleId, position, item.is_gate ? 1 : 0, item.is_optional ? 1 : 0)
+        );
+      }
+    }
+
+    // Delete removed items
+    for (const [capsuleId] of existingMap) {
+      if (!incomingIds.has(capsuleId)) {
+        statements.push(
+          c.env.DB.prepare(`DELETE FROM course_capsules WHERE course_id = ? AND capsule_id = ?`).bind(id, capsuleId)
+        );
+      }
     }
   }
 
@@ -631,7 +698,7 @@ playlistRoutes.post('/:id/progress', async (c) => {
         CASE WHEN ? = 'completed' THEN datetime('now') ELSE NULL END,
         datetime('now')
       )
-      ON CONFLICT(user_id, capsule_id) DO UPDATE SET
+      ON CONFLICT(user_id, capsule_id, course_id) DO UPDATE SET
         status = COALESCE(excluded.status, user_progress.status),
         attempts = user_progress.attempts + 1,
         best_time = CASE
@@ -642,7 +709,6 @@ playlistRoutes.post('/:id/progress', async (c) => {
         hints_used = CASE WHEN excluded.hints_used > user_progress.hints_used THEN excluded.hints_used ELSE user_progress.hints_used END,
         last_code = COALESCE(excluded.last_code, user_progress.last_code),
         completed_at = CASE WHEN excluded.status = 'completed' AND user_progress.completed_at IS NULL THEN datetime('now') ELSE user_progress.completed_at END,
-        course_id = COALESCE(excluded.course_id, user_progress.course_id),
         updated_at = datetime('now')
     `).bind(
       userId, capsule_id, id,

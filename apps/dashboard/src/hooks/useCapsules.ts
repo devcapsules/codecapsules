@@ -61,7 +61,26 @@ export function useCapsules() {
       const data = await response.json();
 
       if (data.success) {
-        setCapsules(data.capsules || []);
+        // Map snake_case API fields to camelCase + compute analytics
+        const mapped = (data.capsules || []).map((c: any) => ({
+          id: c.id,
+          title: c.title,
+          description: c.description,
+          type: c.type,
+          language: c.language,
+          difficulty: c.difficulty,
+          tags: c.tags ? (typeof c.tags === 'string' ? JSON.parse(c.tags) : c.tags) : [],
+          createdAt: c.created_at || c.createdAt,
+          isPublished: c.is_published === 1 || c.is_published === true || c.isPublished === true,
+          analytics: {
+            impressions: Number(c.impressions) || 0,
+            runs: Number(c.total_runs) || 0,
+            passRate: (Number(c.total_runs) || 0) > 0
+              ? Math.round(((Number(c.total_passes) || 0) / (Number(c.total_runs) || 1)) * 100) + '%'
+              : '0%',
+          },
+        }));
+        setCapsules(mapped);
       } else {
         throw new Error(data.error || 'Failed to fetch capsules');
       }

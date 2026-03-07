@@ -77,6 +77,36 @@ write_files:
       curl -sf "${BRIDGE_API}/api/v2/runtimes" \
         | jq -r '.[] | "  \(.language) \(.version) (aliases: \(.aliases | join(", ")))"'
 
+      # -- Install Python data-science packages for Universal Datasets --------
+      echo ""
+      echo "[CodeCapsule] Installing Python data-science packages (pandas, numpy)..."
+      docker exec devcapsules_piston bash -c '
+        # Find the Piston Python installation
+        PYTHON_BIN=$(find /piston/packages -name "python3" -type f 2>/dev/null | head -1)
+        PIP_BIN=$(find /piston/packages -name "pip3" -type f 2>/dev/null | head -1)
+
+        if [ -z "$PIP_BIN" ]; then
+          # Try pip instead of pip3
+          PIP_BIN=$(find /piston/packages -name "pip" -type f 2>/dev/null | head -1)
+        fi
+
+        if [ -n "$PIP_BIN" ]; then
+          echo "  Using pip: $PIP_BIN"
+          $PIP_BIN install pandas numpy --quiet --no-warn-script-location 2>&1
+          echo "  -> pandas + numpy installed"
+        else
+          echo "  WARNING: pip not found in Piston Python runtime"
+          echo "  Trying python -m ensurepip..."
+          $PYTHON_BIN -m ensurepip --default-pip 2>/dev/null
+          $PYTHON_BIN -m pip install pandas numpy --quiet --no-warn-script-location 2>&1
+          echo "  -> pandas + numpy installed via ensurepip"
+        fi
+
+        # Verify
+        $PYTHON_BIN -c "import pandas; print(f\"  pandas {pandas.__version__} OK\")"
+        $PYTHON_BIN -c "import numpy; print(f\"  numpy {numpy.__version__} OK\")"
+      ' || echo "  -> WARNING: Failed to install pandas/numpy (data analysis capsules may not work)"
+
   # -- Health check script (used by Azure LB probes if needed) -----------------
   - path: /opt/codecapsule/healthcheck.sh
     permissions: "0755"
@@ -148,6 +178,10 @@ runcmd:
   - git clone --depth 1 https://github.com/devcapsules/codecapsules.git /opt/devcapsules-repo
   - mkdir -p /opt/devcapsules-bridge
   - cp /opt/devcapsules-repo/infra/bridge/docker-compose.yml /opt/devcapsules-bridge/
+  - cp /opt/devcapsules-repo/infra/bridge/Dockerfile.piston /opt/devcapsules-bridge/
+  # Copy datasets into bridge build context for custom Piston image
+  - cp /opt/devcapsules-repo/apps/dashboard/public/apple_global_sales_dataset.csv /opt/devcapsules-bridge/
+  - cp /opt/devcapsules-repo/apps/dashboard/public/spotify-tracks-dataset.csv /opt/devcapsules-bridge/
   - |
     # Create .env with secrets (placeholders replaced by deploy script)
     cat > /opt/devcapsules-bridge/.env << 'ENVEOF'

@@ -16,6 +16,8 @@ import { CTASection } from '../components/landing/CTASection';
 import { Footer } from '../components/landing/Footer';
 import DemoVideoSection from '../components/landing/DemoVideoSection';
 import { CurriculumSection } from '../components/landing/CurriculumSection';
+import { EdgeAssistantShowcase } from '../components/landing/EdgeAssistantShowcase';
+import { EdgeForgeShowcase } from '../components/landing/EdgeForgeShowcase';
 
 export default function HomePage() {
   const { user, loading } = useAuth();
@@ -24,13 +26,7 @@ export default function HomePage() {
   useEffect(() => {
     // If user is authenticated, redirect them to their appropriate dashboard
     if (!loading && user) {
-      const userCreatedAt = new Date(user.created_at);
-      const now = new Date();
-      const timeDiff = now.getTime() - userCreatedAt.getTime();
-      const isNewUser = timeDiff < 300000; // Less than 5 minutes old = new user
-      
-      const redirectTo = isNewUser ? '/create-capsule' : '/dashboard';
-      router.push(redirectTo);
+      router.push('/dashboard');
     }
   }, [user, loading, router]);
 
@@ -40,12 +36,12 @@ export default function HomePage() {
   return (
     <>
       <Head>
-        <title>Devcapsules - Interactive Coding Platform | AI-Powered Code Tutorials & Live Execution</title>
+        <title>Devcapsules - Interactive Coding Platform | EdGE-Powered Code Tutorials & Live Execution</title>
         <meta 
           name="description" 
-          content="Devcapsules (dev capsules) is an interactive coding platform for creating AI-powered programming tutorials with live code execution. Build executable code widgets for Python, Java, SQL, JavaScript. Software development education platform - not pharmaceutical products." 
+          content="Devcapsules (dev capsules) is an interactive coding platform for creating EdGE-powered programming tutorials with live code execution. Build executable code widgets for Python, Java, SQL, JavaScript. Software development education platform - not pharmaceutical products." 
         />
-        <meta name="keywords" content="devcapsules, dev capsules, dev capsules coding, dev capsules programming, devcapsules.com, interactive coding platform, AI code tutorials, live code execution, programming education, online code editor, developer tools, embed code widgets, Python tutorials, Java tutorials, SQL tutorials, JavaScript playground, coding sandbox, code execution platform, learn programming online, software development education, dev capsules code editor, dev capsules interactive tutorials" />
+        <meta name="keywords" content="devcapsules, dev capsules, dev capsules coding, dev capsules programming, devcapsules.com, interactive coding platform, EdGE Forge code tutorials, live code execution, programming education, online code editor, developer tools, embed code widgets, Python tutorials, Java tutorials, SQL tutorials, JavaScript playground, coding sandbox, code execution platform, learn programming online, software development education, dev capsules code editor, dev capsules interactive tutorials" />
         <meta name="author" content="Devcapsules Team" />
         <meta name="creator" content="Devcapsules" />
         <meta name="publisher" content="Devcapsules" />
@@ -85,8 +81,8 @@ export default function HomePage() {
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://devcapsules.com" />
-        <meta property="og:title" content="Devcapsules: Create Interactive Coding Tutorials with AI" />
-        <meta property="og:description" content="🚀 Transform your coding tutorials with AI! Create interactive, executable code widgets for Python, Java, SQL & more. Embed anywhere, execute live code, engage learners instantly." />
+        <meta property="og:title" content="Devcapsules: Create Interactive Coding Tutorials with EdGE" />
+        <meta property="og:description" content="🚀 Transform your coding tutorials with EdGE Forge! Create interactive, executable code widgets for Python, Java, SQL & more. Embed anywhere, execute live code, engage learners instantly." />
         <meta property="og:image" content="https://devcapsules.com/logo.png" />
         <meta property="og:image:width" content="600" />
         <meta property="og:image:height" content="60" />
@@ -101,8 +97,8 @@ export default function HomePage() {
         {/* Twitter Card - Enhanced for better social sharing */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:url" content="https://devcapsules.com" />
-        <meta name="twitter:title" content="🚀 Devcapsules: Create Interactive Coding Tutorials with AI" />
-        <meta name="twitter:description" content="Transform static code into engaging, executable tutorials! ✨ AI-powered platform for Python, Java, SQL, JavaScript & more. Join 50,000+ developers worldwide." />
+        <meta name="twitter:title" content="🚀 Devcapsules: Create Interactive Coding Tutorials with EdGE" />
+        <meta name="twitter:description" content="Transform static code into engaging, executable tutorials! ✨ EdGE-powered platform for Python, Java, SQL, JavaScript & more. Join 50,000+ developers worldwide." />
         <meta name="twitter:image" content="https://devcapsules.com/images/devcapsules-hero.png" />
         <meta name="twitter:image:alt" content="Devcapsules Interactive Coding Platform Screenshot" />
         <meta name="twitter:site" content="@devcapsules" />
@@ -145,19 +141,19 @@ export default function HomePage() {
                 "contentUrl": "https://devcapsules.com/logo.png",
                 "width": 600,
                 "height": 60,
-                "caption": "Devcapsules Logo - AI-Powered Interactive Coding Platform"
+                "caption": "Devcapsules Logo - EdGE-Powered Interactive Coding Platform"
               },
               "image": [
                 "https://devcapsules.com/logo.png",
                 "https://devcapsules.com/images/devcapsules-hero.png"
               ],
-              "description": "🚀 Create interactive coding tutorials instantly! AI-powered platform with Python, Java, SQL, JavaScript, C#, and Linux Terminal execution. Transform static code into engaging, executable learning experiences.",
+              "description": "🚀 Create interactive coding tutorials instantly! EdGE-powered platform with Python, Java, SQL, JavaScript, C#, and Linux Terminal execution. Transform static code into engaging, executable learning experiences.",
               "applicationCategory": ["EducationalApplication", "DeveloperTool", "WebApplication"],
               "applicationSubCategory": "Interactive Programming Education",
               "operatingSystem": ["Web Browser", "Cross-platform"],
               "browserRequirements": "Modern web browser with JavaScript enabled",
               "softwareVersion": "2.0.1",
-              "releaseNotes": "Enhanced AI features, improved multi-language support, faster execution",
+              "releaseNotes": "Enhanced EdGE features, improved multi-language support, faster execution",
               "datePublished": "2024-01-01",
               "dateModified": "2025-12-21",
               "copyrightYear": 2024,
@@ -187,7 +183,7 @@ export default function HomePage() {
                   "availability": "https://schema.org/InStock",
                   "priceValidUntil": "2026-12-31",
                   "itemCondition": "https://schema.org/NewCondition",
-                  "description": "500 executions/month, 5 AI generations, 10 capsules"
+                  "description": "500 executions/month, 5 EdGE Forge generations, 10 capsules"
                 },
                 {
                   "@type": "Offer", 
@@ -196,7 +192,7 @@ export default function HomePage() {
                   "priceCurrency": "USD",
                   "availability": "https://schema.org/InStock",
                   "priceValidUntil": "2026-12-31",
-                  "description": "10,000 executions/month, unlimited AI generations, white label"
+                  "description": "10,000 executions/month, unlimited EdGE Forge generations, white label"
                 },
                 {
                   "@type": "Offer", 
@@ -205,11 +201,11 @@ export default function HomePage() {
                   "priceCurrency": "USD",
                   "availability": "https://schema.org/InStock",
                   "priceValidUntil": "2026-12-31",
-                  "description": "100,000 executions/month, unlimited AI, custom domain, priority support"
+                  "description": "100,000 executions/month, unlimited EdGE Forge, custom domain, priority support"
                 }
               ],
               "featureList": [
-                "✨ AI-Powered Tutorial Generation",
+                "✨ EdGE-Powered Tutorial Generation",
                 "🐍 Interactive Python Code Execution",
                 "☕ Java Programming Environment", 
                 "🗄️ SQL Query Sandbox",
@@ -250,7 +246,7 @@ export default function HomePage() {
               ],
               "keywords": [
                 "interactive coding tutorials",
-                "AI programming education", 
+                "EdGE-powered programming education", 
                 "live code execution",
                 "embedded coding widgets",
                 "Python tutorials",
@@ -275,7 +271,7 @@ export default function HomePage() {
               "url": "https://devcapsules.com",
               "name": "Devcapsules - Interactive Coding Platform",
               "alternateName": "Devcapsules.com",
-              "description": "Devcapsules is a software development education platform for creating interactive coding tutorials with live code execution. Build AI-powered programming widgets for Python, Java, SQL, JavaScript.",
+              "description": "Devcapsules is a software development education platform for creating interactive coding tutorials with live code execution. Build EdGE-powered programming widgets for Python, Java, SQL, JavaScript.",
               "inLanguage": "en-US",
               "publisher": {
                 "@type": "Organization",
@@ -290,13 +286,13 @@ export default function HomePage() {
                   "contentUrl": "https://devcapsules.com/logo.png",
                   "width": 600,
                   "height": 60,
-                  "caption": "Devcapsules Logo - AI-Powered Interactive Coding Platform",
+                  "caption": "Devcapsules Logo - EdGE-Powered Interactive Coding Platform",
                   "representativeOfPage": true
                 },
                 "image": {
                   "@id": "https://devcapsules.com/#logo"
                 },
-                "description": "Leading AI-powered platform for creating interactive coding tutorials and executable programming widgets used by educators, developers, and coding bootcamps worldwide",
+                "description": "Leading EdGE-powered platform for creating interactive coding tutorials and executable programming widgets used by educators, developers, and coding bootcamps worldwide",
                 "foundingDate": "2024-01-01",
                 "slogan": "Transform Static Code into Interactive Learning",
                 "contactPoint": {
@@ -315,7 +311,7 @@ export default function HomePage() {
                 ],
                 "knowsAbout": [
                   "Interactive Programming Education",
-                  "AI-Powered Coding Tutorials", 
+                  "EdGE-Powered Coding Tutorials", 
                   "Python Programming",
                   "Java Development",
                   "SQL Database Training",
@@ -346,7 +342,7 @@ export default function HomePage() {
         />
       </Head>
       
-      <div className="min-h-screen text-white relative" style={{ background: '#04040a' }}>
+      <div className="min-h-screen text-white relative overflow-x-hidden" style={{ background: '#04040a' }}>
         {/* Fixed page grid — shows through glassmorphism cards */}
         <div className="fixed inset-0 pointer-events-none select-none" aria-hidden="true" style={{
           backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
@@ -357,10 +353,12 @@ export default function HomePage() {
         <Navigation />
         <div className="pt-16">
         <HeroSection />
+        <div className="reveal"><EdgeAssistantShowcase /></div>
         <div className="reveal"><DemoVideoSection /></div>
         <div className="reveal mt-12"><LanguageMarquee /></div>
         <div className="reveal"><SocialProofSection /></div>
         <div className="reveal" id="features"><FeaturesSection /></div>
+        <div className="reveal"><EdgeForgeShowcase /></div>
         <div className="reveal"><ValuePropsSection /></div>
         <div className="reveal"><CurriculumSection /></div>
         <div className="reveal"><ComparisonSection /></div>

@@ -20,6 +20,7 @@ const PUBLIC_ROUTES = new Set([
   '/api/v1/execute',          // Execute (rate limited instead)
   '/api/v1/execute/tests',    // Test execution (rate limited instead)
   '/api/v1/analytics/track',  // Embed analytics tracking
+  '/api/v1/edge/assist',      // EdGE Assistant (embed widget, rate limited instead)
 ]);
 
 // Prefix-based public routes (use trailing slash to prevent injection)

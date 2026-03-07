@@ -50,13 +50,8 @@ export async function updateSession(request: NextRequest) {
 
   if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
     // User is logged in but trying to access login/signup, redirect appropriately
-    const userCreatedAt = new Date(user.created_at)
-    const now = new Date()
-    const timeDiff = now.getTime() - userCreatedAt.getTime()
-    const isNewUser = timeDiff < 300000 // Less than 5 minutes old = new user
-    
     const url = request.nextUrl.clone()
-    url.pathname = isNewUser ? '/create-capsule' : '/dashboard'
+    url.pathname = '/dashboard'
     return NextResponse.redirect(url)
   }
 

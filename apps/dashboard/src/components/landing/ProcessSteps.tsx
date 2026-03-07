@@ -6,7 +6,7 @@ const steps = [
   {
     id: 1,
     title: 'Generate',
-    desc: 'Paste a prompt. AI writes the code.',
+    desc: 'Paste a prompt. EdGE Forge writes the code.',
     Icon: Terminal,
   },
   {

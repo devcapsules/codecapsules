@@ -42,7 +42,7 @@ export default function App({ Component, pageProps }: AppProps) {
       <Head>
         {/* Global defaults that can be overridden by individual pages */}
         <title>Devcapsules - Interactive Coding Platform</title>
-        <meta name="description" content="AI-powered interactive coding platform for creating executable programming tutorials and embedded code widgets." />
+        <meta name="description" content="Interactive coding platform powered by EdGE for creating executable programming tutorials and embedded code widgets." />
         <meta name="keywords" content="devcapsules, dev capsules, interactive coding, developer education, programming tutorials, code execution, educational technology" />
         <meta name="author" content="Devcapsules Team" />
         

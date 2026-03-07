@@ -8,6 +8,7 @@
 
 import { Hono } from 'hono';
 import { ApiError } from '../middleware/error-handler';
+import { checkCapsuleLimit } from '../middleware/tier-gate';
 import { TunnelClient } from '../utils/tunnel-client';
 
 type Variables = {
@@ -31,7 +32,7 @@ async function validateCapsuleContent(
     content?.primary?.code?.wasmVersion?.solution ||
     content?.solutionCode ||
     content?.config_data?.reference_solution;
-  const testCases = content?.testCases || content?.config_data?.test_cases || [];
+  const testCases = content?.primary?.code?.wasmVersion?.testCases || content?.primary?.database?.testCases || content?.testCases || content?.config_data?.test_cases || [];
 
   if (!solutionCode || testCases.length === 0) {
     // No tests to run = consider valid (can't validate)
@@ -66,6 +67,10 @@ async function validateCapsuleContent(
     return { valid: true }; // Can't validate this language
   }
 
+  // Data analysis capsules (pandas/numpy) need more memory
+  const isDataAnalysis = solutionCode.includes('import pandas') || solutionCode.includes('read_csv');
+  const memoryLimit = isDataAnalysis ? 256 * 1024 * 1024 : 128 * 1024 * 1024;
+
   try {
     const resp = await fetch(`${pistonUrl}/api/v2/execute`, {
       method: 'POST',
@@ -74,8 +79,8 @@ async function validateCapsuleContent(
         language: mapping.runtime,
         version: '*',
         files: [{ name: mapping.fileName, content: harness }],
-        run_timeout: 5000, // 5s timeout
-        run_memory_limit: 128 * 1024 * 1024,
+        run_timeout: 10000,
+        run_memory_limit: memoryLimit,
       }),
     });
 
@@ -87,6 +92,17 @@ async function validateCapsuleContent(
     const result = (await resp.json()) as any;
     const stdout = result.run?.stdout || '';
     const stderr = result.run?.stderr || '';
+
+    // Detect sandbox crash (OOM / signal kill)
+    if (stderr.includes('fatal signal') || stderr.includes('signal 6') || stderr.includes('Killed')) {
+      return {
+        valid: false,
+        error: {
+          type: 'runtime',
+          message: 'Sandbox out of memory — test data may be too large. Try reducing expected output size.',
+        },
+      };
+    }
 
     // Parse test results from stdout
     const passMatch = stdout.match(/PASSED:\s*(\d+)/);
@@ -146,7 +162,21 @@ async function healCapsule(
 }
 
 /**
- * Build batched test harness for validation (simplified version)
+ * UTF-8 safe base64 encoding for embedding test data in harness.
+ */
+function utf8ToBase64(str: string): string {
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
+
+/**
+ * Build batched test harness for validation.
+ * Uses base64-encoded test data (not inline literals) to handle large outputs
+ * from data analysis capsules safely.
  */
 function buildBatchedTestHarness(
   solution: string,
@@ -156,67 +186,120 @@ function buildBatchedTestHarness(
 ): string {
   const lang = language.toLowerCase();
 
+  // Normalize test cases into a consistent shape
+  const normalized = testCases.map((tc, i) => ({
+    id: i,
+    input_args: tc.input_args ?? (tc.input !== undefined ? [tc.input] : []),
+    expected_output: tc.expected_output ?? tc.expectedOutput,
+    description: tc.description || `Test ${i}`,
+  }));
+
+  const testDataB64 = utf8ToBase64(JSON.stringify(normalized));
+
   if (lang === 'python') {
-    const tests = testCases
-      .map((tc, i) => {
-        const input = JSON.stringify(tc.input);
-        const expected = JSON.stringify(tc.expected_output ?? tc.expectedOutput);
-        return `
+    return `
+import random
+random.seed(42)
 try:
-    result = ${functionName}(${tc.input !== undefined ? input : ''})
-    if result == ${expected}:
-        print("PASS test_${i}")
-        passed += 1
-    else:
-        print(f"FAIL test_${i}: got {result}, expected ${expected}")
-        failed += 1
-except Exception as e:
-    print(f"FAIL test_${i}: {e}")
-    failed += 1
-`;
-      })
-      .join('\n');
+    import numpy as np
+    np.random.seed(42)
+except ImportError:
+    pass
 
-    return `${solution}
+${solution}
 
+import json, base64
+
+def _normalize(obj):
+    try:
+        import pandas as _pd
+        import numpy as _np
+        if isinstance(obj, _pd.DataFrame):
+            obj = obj.values.tolist()
+        elif isinstance(obj, _pd.Series):
+            obj = obj.tolist()
+        elif isinstance(obj, (_np.integer,)):
+            obj = int(obj)
+        elif isinstance(obj, (_np.floating,)):
+            obj = float(obj)
+        elif isinstance(obj, _np.ndarray):
+            obj = obj.tolist()
+    except ImportError:
+        pass
+    if obj is None:
+        return None
+    if isinstance(obj, tuple):
+        return [_normalize(x) for x in obj]
+    if isinstance(obj, set):
+        return sorted([_normalize(x) for x in obj], key=lambda x: json.dumps(x, default=str))
+    if isinstance(obj, dict):
+        return {k: _normalize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_normalize(x) for x in obj]
+    if isinstance(obj, float):
+        return round(obj, 6)
+    return obj
+
+_tests = json.loads(base64.b64decode("${testDataB64}").decode('utf-8'))
 passed = 0
 failed = 0
-${tests}
+
+for _t in _tests:
+    try:
+        result = ${functionName}(*_t["input_args"])
+        if _normalize(result) == _normalize(_t["expected_output"]):
+            print(f"PASS test_{_t['id']}")
+            passed += 1
+        else:
+            print(f"FAIL test_{_t['id']}: mismatch")
+            failed += 1
+    except Exception as e:
+        print(f"FAIL test_{_t['id']}: {e}")
+        failed += 1
+
 print(f"PASSED: {passed}")
 print(f"FAILED: {failed}")
 `;
   }
 
   if (lang === 'javascript') {
-    const tests = testCases
-      .map((tc, i) => {
-        const inputArgs = tc.input !== undefined ? JSON.stringify(tc.input) : '';
-        const expected = JSON.stringify(tc.expected_output ?? tc.expectedOutput);
-        return `
-try {
-  const result = ${functionName}(${inputArgs});
-  if (JSON.stringify(result) === '${expected.replace(/'/g, "\\'")}') {
-    console.log("PASS test_${i}");
-    passed++;
-  } else {
-    console.log(\`FAIL test_${i}: got \${JSON.stringify(result)}, expected ${expected}\`);
-    failed++;
-  }
-} catch (e) {
-  console.log(\`FAIL test_${i}: \${e.message}\`);
-  failed++;
+    return `
+${solution}
+
+function _normalize(obj) {
+    if (obj === null || obj === undefined) return obj;
+    if (typeof obj === 'number') return Math.round(obj * 1e6) / 1e6;
+    if (Array.isArray(obj)) return obj.map(_normalize);
+    if (typeof obj === 'object') {
+        const out = {};
+        for (const k of Object.keys(obj).sort()) out[k] = _normalize(obj[k]);
+        return out;
+    }
+    return obj;
 }
-`;
-      })
-      .join('\n');
 
-    return `${solution}
-
+const _tests = JSON.parse(atob("${testDataB64}"));
 let passed = 0;
 let failed = 0;
-${tests}
-console.log(\`PASSED: \${passed}\`);
-console.log(\`FAILED: \${failed}\`);
+
+for (const _t of _tests) {
+    try {
+        const result = ${functionName}(..._t.input_args);
+        if (JSON.stringify(_normalize(result)) === JSON.stringify(_normalize(_t.expected_output))) {
+            console.log("PASS test_" + _t.id);
+            passed++;
+        } else {
+            console.log("FAIL test_" + _t.id + ": mismatch");
+            failed++;
+        }
+    } catch (e) {
+        console.log("FAIL test_" + _t.id + ": " + e.message);
+        failed++;
+    }
+}
+
+console.log("PASSED: " + passed);
+console.log("FAILED: " + failed);
 `;
   }
 
@@ -305,8 +388,9 @@ capsuleRoutes.get('/:id', async (c) => {
   }
 
   const row = await c.env.DB.prepare(`
-    SELECT * FROM capsules 
-    WHERE id = ? AND is_deleted = 0
+    SELECT c.*, u.plan as creator_plan FROM capsules c
+    LEFT JOIN users u ON c.creator_id = u.id
+    WHERE c.id = ? AND c.is_deleted = 0
   `).bind(id).first();
 
   if (!row) {
@@ -366,6 +450,16 @@ capsuleRoutes.post('/', async (c) => {
   const auth = c.get('auth');
   if (!auth) {
     throw new ApiError(401, 'Authentication required');
+  }
+
+  // ── Tier Enforcement: Capsule creation limit ──
+  const capsuleCheck = await checkCapsuleLimit(c.env.DB, auth.userId, auth.plan);
+  if (!capsuleCheck.allowed) {
+    throw new ApiError(
+      403,
+      `Capsule limit reached (${capsuleCheck.current}/${capsuleCheck.limit} on ${auth.plan} plan). Upgrade for more.`,
+      'CAPSULE_LIMIT_EXCEEDED'
+    );
   }
 
   const body = await c.req.json();

@@ -22,6 +22,7 @@
  */
 
 import { createTunnelClient } from '../utils/tunnel-client';
+import { needsDEO, calibrateExpectedOutputs } from '../bridge/dynamic-expected-output';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Types
@@ -168,8 +169,8 @@ export async function processGenerationQueue(
         await updateProgress(env, job.jobId, {
           status: 'failed',
           progress: 0,
-          currentStep: 'AI generation is temporarily paused',
-          error: 'AI generation is temporarily paused. Please try again later.',
+          currentStep: 'EdGE Forge is temporarily paused',
+          error: 'EdGE Forge is temporarily paused. Please try again later.',
         });
 
         message.ack();
@@ -191,7 +192,7 @@ export async function processGenerationQueue(
           status: 'failed',
           progress: 0,
           currentStep: 'AI service is temporarily unavailable',
-          error: 'AI generation service is recovering. Please try again in a few minutes.',
+          error: 'EdGE Forge is recovering. Please try again in a few minutes.',
         });
 
         message.ack();
@@ -244,7 +245,7 @@ export async function processGenerationQueue(
       await updateProgress(env, job.jobId, {
         status: 'processing',
         progress: 5,
-        currentStep: 'Queued for AI generation...',
+        currentStep: 'Queued for EdGE Forge...',
         steps: ['Queue'],
       });
 
@@ -276,7 +277,7 @@ export async function processGenerationQueue(
           difficulty: job.difficulty,
           type: job.type || 'code',
         },
-        { timeoutMs: 55_000 } // Pipeline typically takes ~60s, we wait 55s
+        { timeoutMs: 120_000 } // Pipeline + Piston validation + healing can take ~90s
       );
 
       // Check for tunnel-level failure (network, timeout, 500, etc.)
@@ -387,7 +388,57 @@ export async function processGenerationQueue(
       }
 
       // ══════════════════════════════════════════════════════════════════════
-      // Step 9: Cache for Future Semantic Hits
+      // Step 9: DEO — Calibrate Expected Outputs for Data Analysis Capsules
+      //
+      // AI agents invent expected_output values without seeing real CSV data.
+      // For data-analysis capsules, run the reference solution on Piston with
+      // real datasets, capture actual outputs, and patch expected_output values.
+      // This is non-fatal: if Piston fails, we keep the AI-generated values.
+      // ══════════════════════════════════════════════════════════════════════
+
+      if (needsDEO(job.language, job.prompt, result.capsule)) {
+        await updateProgress(env, job.jobId, {
+          status: 'processing',
+          progress: 92,
+          currentStep: 'Calibrating test cases against real data...',
+          steps: [
+            'Queue ✓',
+            'Pedagogist ✓',
+            'Coder ✓',
+            'Debugger ✓',
+            'Calibrating Tests',
+          ],
+        });
+
+        try {
+          const deoResult = await calibrateExpectedOutputs(
+            result.capsule,
+            env,
+            job.jobId,
+          );
+
+          console.log(JSON.stringify({
+            type: 'metric',
+            name: 'deo.result',
+            jobId: job.jobId,
+            patched: deoResult.patched,
+            patchedCount: deoResult.patchedCount,
+            totalTests: deoResult.totalTests,
+            errors: deoResult.errors,
+          }));
+        } catch (deoError) {
+          // Non-fatal — log and continue with AI-generated expected values
+          console.warn(JSON.stringify({
+            type: 'warn',
+            action: 'deo.failed_nonfatal',
+            jobId: job.jobId,
+            error: deoError instanceof Error ? deoError.message : String(deoError),
+          }));
+        }
+      }
+
+      // ══════════════════════════════════════════════════════════════════════
+      // Step 10: Cache for Future Semantic Hits
       // ══════════════════════════════════════════════════════════════════════
 
       await env.CACHE.put(
@@ -401,7 +452,7 @@ export async function processGenerationQueue(
       );
 
       // ══════════════════════════════════════════════════════════════════════
-      // Step 10: Mark Complete
+      // Step 11: Mark Complete
       // ══════════════════════════════════════════════════════════════════════
 
       await updateProgress(env, job.jobId, {

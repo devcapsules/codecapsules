@@ -169,10 +169,10 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
                       border: '1px solid rgba(139,92,246,0.3)',
                       animation: 'pulse 2s ease-in-out infinite',
                     }}>
-                    AI
+                    ⚡
                   </div>
                   <div>
-                    <div className="text-base font-extrabold text-white">AI Challenge Generator</div>
+                    <div className="text-base font-extrabold text-white">EdGE Forge</div>
                     <div className="text-xs mt-0.5 flex items-center gap-1.5" style={{ color: '#64748b' }}>
                       <span className="flex gap-0.5">
                         <span className="w-1 h-1 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '0ms' }} />

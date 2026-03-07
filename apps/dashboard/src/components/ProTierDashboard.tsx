@@ -42,10 +42,24 @@ export default function ProTierDashboard({ userId }: Props) {
   const fetchProTierMetrics = async () => {
     try {
       setLoading(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const apiUrl = process.env.NEXT_PUBLIC_WORKERS_API_URL
+        || process.env.NEXT_PUBLIC_API_URL
+        || 'http://localhost:8787';
       
+      // Get auth headers
+      const headers: Record<string, string> = {};
+      try {
+        const stored = localStorage.getItem('devcapsules_auth');
+        if (stored) {
+          const auth = JSON.parse(stored);
+          if (auth.accessToken && auth.expiresAt > Date.now()) {
+            headers['Authorization'] = `Bearer ${auth.accessToken}`;
+          }
+        }
+      } catch { /* ignore */ }
+
       // Fetch Pro Tier metrics
-      const response = await fetch(`${apiUrl}/api/analytics/pro-tier/${userId}?range=${timeRange}`);
+      const response = await fetch(`${apiUrl}/api/v1/analytics/pro-tier/${userId}?range=${timeRange}`, { headers });
       const data = await response.json();
       
       if (data.success) {

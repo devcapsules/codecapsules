@@ -51,6 +51,11 @@ interface Env {
   SUPABASE_JWT_SECRET: string;
   // HMAC shared secret for Workers ↔ Azure VM authentication
   WORKER_SHARED_SECRET: string;
+
+  // ── Razorpay ──
+  RAZORPAY_KEY_ID: string;
+  RAZORPAY_KEY_SECRET: string;
+  RAZORPAY_WEBHOOK_SECRET: string;
 }
 
 // ── Queue Job Types ──

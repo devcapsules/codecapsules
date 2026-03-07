@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   
-  const { signIn, signInWithProvider, isNewUser } = useAuth()
+  const { signIn, signInWithProvider } = useAuth()
   const router = useRouter()
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -28,7 +28,7 @@ export default function LoginPage() {
       setError(error.message)
     } else {
       // Redirect based on user status
-      const redirectTo = isNewUser ? '/create-capsule' : '/dashboard'
+      const redirectTo = '/dashboard'
       router.push(redirectTo)
     }
     
@@ -52,7 +52,7 @@ export default function LoginPage() {
         <title>Sign In - Devcapsules</title>
         <meta
           name="description"
-          content="Log in to your Devcapsules creator dashboard. Manage your interactive coding widgets, track analytics, and create AI-powered coding environments."
+          content="Log in to your Devcapsules creator dashboard. Manage your interactive coding widgets, track analytics, and create EdGE-powered coding environments."
         />
         <meta name="robots" content="noindex, nofollow" />
         <meta property="og:title" content="Sign In - Devcapsules" />

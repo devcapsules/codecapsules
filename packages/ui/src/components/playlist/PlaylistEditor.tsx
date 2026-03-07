@@ -251,9 +251,9 @@ function AIGeneratorModal({
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-600">
-          <h3 className="text-lg font-semibold text-white">Generate New Exercise</h3>
+          <h3 className="text-lg font-semibold text-white">EdGE Forge — New Exercise</h3>
           <p className="text-sm text-gray-300 mt-1">
-            Describe what you want students to learn, and AI will create a complete exercise.
+            Describe what you want students to learn, and EdGE Forge will create a complete exercise.
           </p>
         </div>
 
@@ -314,7 +314,7 @@ function AIGeneratorModal({
             <div className="flex items-start space-x-2">
               <Lightbulb className="w-5 h-5 text-blue-400 mt-0.5" />
               <div>
-                <h4 className="text-sm font-medium text-blue-300 mb-1">AI Generation Tips</h4>
+                <h4 className="text-sm font-medium text-blue-300 mb-1">EdGE Forge Tips</h4>
                 <ul className="text-sm text-blue-200 space-y-1">
                   <li>• Be specific about the learning objective</li>
                   <li>• Include difficulty level (beginner, intermediate, advanced)</li>
@@ -402,7 +402,7 @@ export function PlaylistEditor({
 
   const [selectedCapsules, setSelectedCapsules] = useState<Set<string>>(new Set())
   const [capsuleSearch, setCapsuleSearch] = useState('')
-  const [activeTab, setActiveTab] = useState<'content' | 'browse'>('browse') // Start on browse for new courses
+  const [activeTab, setActiveTab] = useState<'content' | 'browse'>(playlistId ? 'content' : 'browse')
 
   // Filter available capsules that aren't already in the course
   const filteredAvailableCapsules = useMemo(() => {
@@ -427,8 +427,27 @@ export function PlaylistEditor({
       try {
         setState(prev => ({ ...prev, isLoading: true }))
 
-        // Load available capsules for the organization
-        const capsulesResponse = await fetch(`${apiBaseUrl}/organizations/${organizationId}/capsules`, {
+        // If editing an existing playlist, fetch it from the API
+        let loadedPlaylist: PlaylistWithCapsules | null = initialPlaylist || null
+
+        if (playlistId && !initialPlaylist) {
+          const playlistResponse = await fetch(`${apiBaseUrl}/playlists/${playlistId}`, {
+            headers: {
+              'Authorization': `Bearer ${getAuthToken()}`,
+              'Content-Type': 'application/json'
+            }
+          })
+
+          if (playlistResponse.ok) {
+            const playlistJson = await playlistResponse.json()
+            loadedPlaylist = playlistJson.data || playlistJson
+          } else {
+            throw new Error('Failed to load course data')
+          }
+        }
+
+        // Load available capsules for the creator
+        const capsulesResponse = await fetch(`${apiBaseUrl}/capsules`, {
           headers: {
             'Authorization': `Bearer ${getAuthToken()}`,
             'Content-Type': 'application/json'
@@ -438,13 +457,28 @@ export function PlaylistEditor({
         if (capsulesResponse.ok) {
           const capsulesJson = await capsulesResponse.json()
           const availableCapsules: BaseCapsule[] = capsulesJson.data || capsulesJson
+
+          // Extract capsules from loaded playlist items
+          const playlistCapsules: BaseCapsule[] = loadedPlaylist?.items
+            ? loadedPlaylist.items
+                .sort((a: any, b: any) => (a.order ?? a.position ?? 0) - (b.order ?? b.position ?? 0))
+                .map((item: any) => item.capsule)
+                .filter(Boolean)
+            : []
           
           setState(prev => ({
             ...prev,
+            playlist: {
+              title: loadedPlaylist?.title || prev.playlist.title || '',
+              description: loadedPlaylist?.description || prev.playlist.description || '',
+              is_public: loadedPlaylist?.is_public ?? prev.playlist.is_public ?? false
+            },
             availableCapsules,
-            capsules: initialPlaylist?.items?.map(item => item.capsule) || [],
+            capsules: playlistCapsules,
             isLoading: false
           }))
+        } else {
+          throw new Error('Failed to load capsules')
         }
       } catch (error) {
         setState(prev => ({
@@ -456,7 +490,7 @@ export function PlaylistEditor({
     }
 
     loadData()
-  }, [organizationId, initialPlaylist, apiBaseUrl])
+  }, [playlistId, organizationId, initialPlaylist, apiBaseUrl])
 
   // ===== CAPSULE MANAGEMENT =====
   
@@ -536,7 +570,7 @@ export function PlaylistEditor({
     } catch (error) {
       setState(prev => ({
         ...prev,
-        error: error instanceof Error ? error.message : 'AI generation failed'
+        error: error instanceof Error ? error.message : 'EdGE Forge generation failed'
       }))
     } finally {
       setState(prev => ({ ...prev, generationInProgress: false }))
@@ -803,7 +837,7 @@ export function PlaylistEditor({
                     className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-200 bg-blue-900 rounded-md hover:bg-blue-800"
                   >
                     <Wand2 className="w-4 h-4 mr-2" />
-                    Generate with AI
+                    Generate with EdGE Forge
                   </button>
                 </div>
               </div>
@@ -892,7 +926,7 @@ export function PlaylistEditor({
                             className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
                           >
                             <Wand2 className="w-4 h-4 mr-2" />
-                            Generate with AI
+                            Generate with EdGE Forge
                           </button>
                         </div>
                       </div>

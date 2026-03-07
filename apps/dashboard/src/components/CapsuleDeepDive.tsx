@@ -62,9 +62,23 @@ export default function CapsuleDeepDive({ capsuleId, cohortId }: Props) {
   const fetchCapsuleDeepDive = async () => {
     try {
       setLoading(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const apiUrl = process.env.NEXT_PUBLIC_WORKERS_API_URL
+        || process.env.NEXT_PUBLIC_API_URL
+        || 'http://localhost:8787';
       
-      const response = await fetch(`${apiUrl}/api/analytics/capsule-deep-dive/${capsuleId}${cohortId ? `?cohort=${cohortId}` : ''}`);
+      // Get auth headers
+      const headers: Record<string, string> = {};
+      try {
+        const stored = localStorage.getItem('devcapsules_auth');
+        if (stored) {
+          const auth = JSON.parse(stored);
+          if (auth.accessToken && auth.expiresAt > Date.now()) {
+            headers['Authorization'] = `Bearer ${auth.accessToken}`;
+          }
+        }
+      } catch { /* ignore */ }
+
+      const response = await fetch(`${apiUrl}/api/v1/analytics/capsule-deep-dive/${capsuleId}${cohortId ? `?cohort=${cohortId}` : ''}`, { headers });
       const result = await response.json();
       
       if (result.success) {

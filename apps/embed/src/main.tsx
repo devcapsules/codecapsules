@@ -2,7 +2,9 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import AdaptiveCapsuleEmbed from './components/AdaptiveCapsuleEmbed'
+import PlaylistEmbed from './components/PlaylistEmbed'
 import { DCAnimationProvider } from './components/DCAnimations'
+import { embedAnalytics } from './utils/EmbedAnalytics'
 import './index.css'
 
 // Get widget ID from URL params or data attributes
@@ -25,20 +27,44 @@ const getPlaylistId = () => {
   return urlParams.get('playlist') || null
 }
 
+/** "Headless Playlist" — courseId baked into the embed URL for analytics grouping */
+const getCourseId = () => {
+  const urlParams = new URLSearchParams(window.location.search)
+  return urlParams.get('courseId') || urlParams.get('course_id') || null
+}
+
 const widgetId = getWidgetId()
 const playlistId = getPlaylistId()
+const courseId = getCourseId()
 
-if (widgetId) {
-  const container = document.getElementById('devcapsules-root') || document.body
-  const root = ReactDOM.createRoot(container)
-  
+// Attach courseId to analytics singleton so every event is tagged
+if (courseId) {
+  embedAnalytics.courseId = courseId
+}
+
+const container = document.getElementById('devcapsules-root') || document.body
+const root = ReactDOM.createRoot(container)
+
+if (playlistId) {
+  // ── Playlist mode: Seamless Arcade player ──
   root.render(
     <React.StrictMode>
       <DCAnimationProvider>
-        <AdaptiveCapsuleEmbed widgetId={widgetId} />
+        <PlaylistEmbed playlistId={playlistId} />
+      </DCAnimationProvider>
+    </React.StrictMode>,
+  )
+} else if (widgetId) {
+  // ── Single capsule mode (original behaviour) ──
+  // courseId is the "Headless Playlist" context — purely for analytics grouping.
+  // When a creator embeds ?id=abc&courseId=xyz, every event is tagged with the course.
+  root.render(
+    <React.StrictMode>
+      <DCAnimationProvider>
+        <AdaptiveCapsuleEmbed widgetId={widgetId} courseId={courseId ?? undefined} />
       </DCAnimationProvider>
     </React.StrictMode>,
   )
 } else {
-  document.body.innerHTML = '<div style="color: red; padding: 20px;">Devcapsules: Invalid widget configuration</div>'
+  document.body.innerHTML = '<div style="color: red; padding: 20px;">Devcapsules: Invalid widget configuration. Use ?id=capsuleId or ?playlist=playlistId</div>'
 }

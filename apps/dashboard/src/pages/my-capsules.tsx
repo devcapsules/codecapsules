@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/router';
 import { Trash2, Edit, Play, Clock, Code, Database, Terminal, MoreVertical } from 'lucide-react';
+import CreateCapsuleModal from '../components/CreateCapsuleModal';
 
 export default function MyCapsules() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -29,12 +31,13 @@ export default function MyCapsules() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <>
+      <div className="min-h-screen bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-3xl font-bold text-white">My Capsules</h1>
             <button 
-              onClick={() => router.push('/create-capsule')}
+              onClick={() => setIsCreateModalOpen(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
               + New Capsule
@@ -48,7 +51,7 @@ export default function MyCapsules() {
               <p className="text-slate-400">Create your first capsule to get started!</p>
             </div>
             <button 
-              onClick={() => router.push('/create-capsule')}
+              onClick={() => setIsCreateModalOpen(true)}
               className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
               Create Your First Capsule
@@ -56,5 +59,12 @@ export default function MyCapsules() {
           </div>
         </div>
       </div>
+
+      {/* Create Capsule Modal */}
+      <CreateCapsuleModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
+    </>
   );
 }

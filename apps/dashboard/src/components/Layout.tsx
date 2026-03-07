@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
-import Head from 'next/head';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/router';
-
+import CreateCapsuleModal from './CreateCapsuleModal';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +11,7 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const { user, loading, signOut } = useAuth();
   const router = useRouter();
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -37,7 +37,7 @@ export default function Layout({ children }: LayoutProps) {
       return user.user_metadata.full_name;
     }
     if (user?.user_metadata?.first_name) {
-      return `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim();
+      return ` `.trim();
     }
     return user?.email || 'User';
   };
@@ -47,12 +47,9 @@ export default function Layout({ children }: LayoutProps) {
     return router.pathname === path;
   };
 
-  // Check if we're on the dashboard page (has its own Create button)
-  const isOnDashboard = router.pathname === '/dashboard' || router.pathname === '/';
-
   const sidebarNavItems = [
     { href: '/dashboard', label: 'My Capsules', icon: 'collection' },
-    { href: '/courses', label: 'Courses', icon: 'academic-cap' },
+    { href: '/courses', label: 'Courses', icon: 'book' },
     { href: '/blog', label: 'Blog', icon: 'newspaper' },
     { href: '/analytics', label: 'Analytics', icon: 'chart-bar' },
     { href: '/account', label: 'Account', icon: 'user' },
@@ -63,12 +60,12 @@ export default function Layout({ children }: LayoutProps) {
     switch (iconName) {
       case 'collection':
         return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>;
+      case 'book':
+        return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>;
       case 'chart-bar':
         return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>;
       case 'newspaper':
         return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>;
-      case 'academic-cap':
-        return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" /></svg>;
       case 'user':
         return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
       default:
@@ -77,259 +74,113 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   return (
-    <>
-      <Head>
-        {/* Global Meta Tags */}
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#04040a" />
-        <meta name="msapplication-TileColor" content="#04040a" />
-        
-        {/* Default Open Graph tags (can be overridden by pages) */}
-        <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Devcapsules" />
-        <meta property="og:locale" content="en_US" />
-        <meta property="og:image" content="https://devcapsules.com/logo.png" />
-        
-        {/* Twitter Card defaults */}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:site" content="@devcapsules" />
-        
-        {/* Favicons - Updated to use logo.png */}
-        <link rel="apple-touch-icon" sizes="180x180" href="/favicon.ico" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon.ico" />
-        <link rel="shortcut icon" type="image/png" href="/favicon.ico" />
-        <link rel="manifest" href="/site.webmanifest" />
-        <link rel="icon" href="/favicon.ico" />
-        
-        {/* Preconnect to external domains for performance */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
-        
-        {/* Global structured data for brand - Google logo requirements */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "Organization",
-              "name": "Devcapsules",
-              "url": "https://devcapsules.com",
-              "logo": {
-                "@type": "ImageObject",
-                "url": "https://devcapsules.com/logo.png",
-                "width": 600,
-                "height": 60,
-                "caption": "Devcapsules Logo"
-              },
-              "image": "https://devcapsules.com/logo.png",
-              "description": "AI-powered interactive coding platform for creating executable programming tutorials",
-              "sameAs": [
-                "https://twitter.com/devcapsules",
-                "https://github.com/devcapsules",
-                "https://linkedin.com/company/devcapsules"
-              ]
-            })
-          }}
-        />
-        
-        {/* WebSite structured data for search appearance */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "WebSite",
-              "name": "Devcapsules",
-              "alternateName": "DevCapsules Interactive Coding Platform",
-              "url": "https://devcapsules.com",
-              "description": "AI-powered interactive coding platform for creating executable programming tutorials and embedded code widgets",
-              "publisher": {
-                "@type": "Organization",
-                "name": "Devcapsules",
-                "logo": {
-                  "@type": "ImageObject",
-                  "url": "https://devcapsules.com/logo.png",
-                  "width": 600,
-                  "height": 60
-                }
-              },
-              "potentialAction": {
-                "@type": "SearchAction",
-                "target": {
-                  "@type": "EntryPoint",
-                  "urlTemplate": "https://devcapsules.com/search?q={search_term_string}"
-                },
-                "query-input": "required name=search_term_string"
-              }
-            })
-          }}
-        />
-      </Head>
-      
-      <div className="min-h-screen" style={{ background: '#04040a' }}>
+    <div className="min-h-screen" style={{ background: '#04040a' }}>
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-30 border-b" style={{ background: '#08080f', borderColor: 'rgba(255,255,255,0.07)' }}>
+      <header className="fixed top-0 left-0 right-0 z-50 bg-gray-950/95 backdrop-blur-sm border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Left side - Logo and Navigation */}
-            <div className="flex items-center space-x-4 md:space-x-8">
-              {/* Logo */}
-              <Link href="/dashboard" className="flex items-center space-x-2">
-                <img src="/favicon.ico" alt="Devcapsules" className="w-8 h-8" />
-                <div>
-                  <div className="text-lg font-bold text-white">Devcapsules</div>
-                </div>
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <div className="flex items-center">
+              <Link href="/dashboard" className="flex-shrink-0 flex items-center">
+                <img src="/favicon.ico" alt="Devcapsules" className="w-8 h-8 mr-2" />
+                <span className="text-lg font-bold text-white">Devcapsules</span>
               </Link>
+            </div>
 
-              {/* Navigation Links */}
-              <nav className="hidden md:flex items-center space-x-6">
+            {/* Desktop Nav Links */}
+            <div className="hidden md:block">
+              <div className="ml-10 flex items-baseline space-x-1">
                 {sidebarNavItems.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
-                      isActivePage(item.href)
-                        ? 'border'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                    style={isActivePage(item.href) ? { background: 'rgba(0,255,135,0.08)', color: '#00ff87', borderColor: 'rgba(0,255,135,0.2)' } : undefined}
-                    onMouseEnter={e => { if (!isActivePage(item.href)) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
-                    onMouseLeave={e => { if (!isActivePage(item.href)) (e.currentTarget as HTMLElement).style.background = ''; }}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActivePage(item.href) ? 'bg-green-500/10 text-[#00ff87]' : 'text-gray-300 hover:text-white'}`}
                   >
                     {getIcon(item.icon)}
                     <span>{item.label}</span>
                   </Link>
                 ))}
-              </nav>
-            </div>
-
-            {/* Right side - Create Button and User Menu */}
-            <div className="flex items-center space-x-2 md:space-x-4">
-              {/* Create New Capsule Button - Hidden on dashboard since it has its own */}
-              {!isOnDashboard && (
-                <button
-                  onClick={() => {
-                    const event = new CustomEvent('openCreateModal');
-                    window.dispatchEvent(event);
-                  }}
-                  className="text-[#04040a] py-2 px-3 md:px-4 rounded-lg transition-colors font-bold text-xs md:text-sm min-h-[40px]"
-                style={{ background: '#00ff87' }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#00e87a'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = '#00ff87'}
-                >
-                  <span className="hidden sm:inline">Create Capsule</span>
-                  <span className="sm:hidden">Create</span>
-                </button>
-              )}
-
-              {/* User Menu */}
-              <div className="flex items-center">
-                {loading ? (
-                  <div className="w-8 h-8 animate-pulse bg-slate-600 rounded-full"></div>
-                ) : user ? (
-                  <div className="relative group">
-                    <button className="flex items-center space-x-2 md:space-x-3 text-slate-300 hover:text-white px-2 md:px-3 py-2 rounded-lg transition-colors min-h-[40px]" style={{ }} onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'} onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}>
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center border" style={{ background: 'rgba(0,255,135,0.15)', borderColor: 'rgba(0,255,135,0.3)' }}>
-                        <span className="text-sm font-bold" style={{ color: '#00ff87' }}>{getUserInitials(user)}</span>
-                      </div>
-                      <span className="text-sm font-medium hidden lg:block">{getUserDisplayName(user)}</span>
-                      <svg className="w-4 h-4 md:hidden" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                    
-                    {/* User Dropdown Menu */}
-                    <div className="absolute right-0 mt-2 w-48 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200 z-50" style={{ background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.07)' }}>
-                      <div className="py-1">
-                        <Link href="/account" className="flex items-center px-4 py-3 text-sm text-slate-300 hover:text-white transition-colors" onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'} onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}>
-                          <span>Account Settings</span>
-                        </Link>
-                        <div className="my-1" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}></div>
-                        <button 
-                          onClick={handleSignOut}
-                          className="flex items-center px-4 py-3 text-sm text-slate-300 hover:text-white transition-colors w-full text-left"
-                          onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'}
-                          onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}
-                        >
-                          <span>Sign Out</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-8 h-8 bg-slate-600 rounded-full animate-pulse"></div>
-                )}
               </div>
             </div>
+
+            {/* Right - CTA + User Menu */}
+            <div className="hidden md:flex items-center space-x-3">
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="bg-[#00ff87] hover:bg-[#00ef77] text-black px-4 py-2 rounded-lg font-semibold text-sm transition-all transform hover:scale-105 shadow-lg shadow-green-500/25"
+              >
+                Create Capsule
+              </button>
+
+              {loading ? (
+                <div className="w-8 h-8 animate-pulse rounded-full bg-white/10"></div>
+              ) : user ? (
+                <div className="relative group">
+                  <button className="flex items-center space-x-3 text-gray-300 hover:text-white px-3 py-2 rounded-lg transition-colors hover:bg-white/5">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-green-500/15 border border-green-500/30">
+                      <span className="text-sm font-medium text-[#00ff87]">{getUserInitials(user)}</span>
+                    </div>
+                    <span className="text-sm font-medium text-gray-300">{getUserDisplayName(user)}</span>
+                  </button>
+
+                  {/* User Dropdown */}
+                  <div className="absolute right-0 mt-2 w-48 rounded-lg shadow-lg bg-gray-950 border border-gray-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                    <div className="py-1">
+                      <Link href="/account" className="flex items-center px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors">
+                        Account Settings
+                      </Link>
+                      <div className="my-1 border-t border-gray-800"></div>
+                      <button
+                        onClick={handleSignOut}
+                        className="flex items-center px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors w-full text-left">
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-8 h-8 rounded-full animate-pulse bg-white/10"></div>
+              )}
+            </div>
+
+            {/* Mobile menu button */}
+            <div className="md:hidden">
+              <button className="text-gray-300 hover:text-white p-2">
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
           </div>
-
-
         </div>
       </header>
 
-      {/* Page Content */}
-      <main className="flex-1 pb-20 md:pb-0" style={{ background: '#04040a' }}>
-        {children}
-      </main>
-
       {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40" style={{ background: '#08080f', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-        <nav className="flex items-center justify-around px-2 py-3 safe-area-pb">
-          {sidebarNavItems.filter(item => item.href !== '/blog').slice(0, 2).map((item) => (
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-gray-950 border-t border-gray-800">
+        <nav className="flex justify-around py-2">
+          {sidebarNavItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center py-1 px-2 transition-colors text-xs font-medium ${
-                isActivePage(item.href)
-                  ? ''
-                  : 'text-slate-400'
-              }`}
-              style={isActivePage(item.href) ? { color: '#00ff87' } : undefined}
+              className={`flex flex-col items-center px-2 py-1 rounded-lg transition-colors text-xs font-medium ${isActivePage(item.href) ? 'text-[#00ff87]' : 'text-slate-500'}`}
             >
-              <div className="w-6 h-6 mb-1">
-                {getIcon(item.icon)}
-              </div>
-              <span>{item.label}</span>
-            </Link>
-          ))}
-          
-          {/* Create Button */}
-          <button
-            onClick={() => {
-              const event = new CustomEvent('openCreateModal');
-              window.dispatchEvent(event);
-            }}
-            className="flex flex-col items-center justify-center py-1 px-2 text-xs font-medium text-white"
-          >
-            <div className="w-8 h-8 mb-1 rounded-full flex items-center justify-center" style={{ background: '#00ff87' }}>
-              <svg className="w-5 h-5" fill="none" stroke="#04040a" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-              </svg>
-            </div>
-            <span>Create</span>
-          </button>
-          
-          {sidebarNavItems.filter(item => item.href !== '/blog').slice(2).map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex flex-col items-center justify-center py-1 px-2 transition-colors text-xs font-medium ${
-                isActivePage(item.href)
-                  ? ''
-                  : 'text-slate-400'
-              }`}
-              style={isActivePage(item.href) ? { color: '#00ff87' } : undefined}
-            >
-              <div className="w-6 h-6 mb-1">
-                {getIcon(item.icon)}
-              </div>
-              <span>{item.label}</span>
+              {getIcon(item.icon)}
+              <span className="mt-1">{item.label}</span>
             </Link>
           ))}
         </nav>
       </div>
+
+      {/* Page Content */}
+      <main className="flex-1 pt-16 pb-16 md:pb-0" style={{ background: '#04040a' }}>
+        {children}
+      </main>
+
+      {/* Create Capsule Modal */}
+      <CreateCapsuleModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
     </div>
-    </>
   );
 }

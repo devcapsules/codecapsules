@@ -70,7 +70,7 @@ export function ValuePropsSection() {
             <ul className="space-y-2">
               {[
                 'Embed challenges into any blog or course',
-                'AI generates test cases, you get the credit',
+                'EdGE Forge generates test cases, you get the credit',
                 'Free tier to get started immediately',
               ].map(item => (
                 <li key={item} className="flex items-center gap-2 text-sm text-slate-500">

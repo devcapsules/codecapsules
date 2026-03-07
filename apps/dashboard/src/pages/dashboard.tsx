@@ -5,10 +5,37 @@ import CreateCapsuleModal from '../components/CreateCapsuleModal';
 import PublishEmbedModal from '../components/PublishEmbedModal';
 import { useCapsules } from '../hooks/useCapsules';
 
+// Dashboard metrics from command-center API
+interface DashboardMetrics {
+  total_capsules: number;
+  published_capsules: number;
+  draft_capsules: number;
+  total_impressions: number;
+  total_runs: number;
+  total_passes: number;
+  total_fails: number;
+  runs_this_month: number;
+  passes_this_month: number;
+  fails_this_month: number;
+  hints_this_month: number;
+  edge_interventions: number;
+}
+
+interface DashboardData {
+  metrics: DashboardMetrics;
+  recent_playlists: any[];
+}
+
+const formatNumber = (n: number): string => {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  return n.toString();
+};
+
 // Helper function to format analytics data for display
 const formatAnalytics = (capsule: any) => ({
-  impressions: capsule.analytics?.impressions?.toString() || '0',
-  runs: capsule.analytics?.runs?.toString() || '0', 
+  impressions: (capsule.analytics?.impressions ?? 0).toString(),
+  runs: (capsule.analytics?.runs ?? 0).toString(),
   passRate: capsule.analytics?.passRate || '0%'
 });
 
@@ -235,6 +262,47 @@ export default function Dashboard() {
   const [selectedCapsule, setSelectedCapsule] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAllCapsules, setShowAllCapsules] = useState(true);
+  const [dashData, setDashData] = useState<DashboardData | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+
+  // Fetch dashboard metrics from command-center API
+  useEffect(() => {
+    if (!user) return;
+    const fetchMetrics = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_WORKERS_API_URL
+          || process.env.NEXT_PUBLIC_API_URL
+          || 'http://localhost:8787';
+        const headers: Record<string, string> = {};
+        const stored = localStorage.getItem('devcapsules_auth');
+        if (stored) {
+          try {
+            const auth = JSON.parse(stored);
+            if (auth.accessToken && auth.expiresAt > Date.now()) {
+              headers['Authorization'] = `Bearer ${auth.accessToken}`;
+            }
+          } catch { /* ignore */ }
+        }
+        const res = await fetch(`${apiUrl}/api/v1/analytics/command-center`, { headers });
+        if (res.ok) {
+          const json = await res.json();
+          setDashData(json.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch dashboard metrics:', err);
+      } finally {
+        setMetricsLoading(false);
+      }
+    };
+    fetchMetrics();
+  }, [user]);
+
+  const metrics = dashData?.metrics;
+  const totalCourses = dashData?.recent_playlists?.length ?? 0;
+  const successRate = metrics && metrics.total_runs > 0
+    ? Math.round((metrics.total_passes / metrics.total_runs) * 100)
+    : 0;
 
   // Filter capsules based on search query
   const filteredCapsules = capsules.filter(capsule => 
@@ -309,23 +377,83 @@ export default function Dashboard() {
     return null; // Will redirect to login
   }
 
+  // Capsules to display: show all by default, toggle to collapse to 6
+  const displayedCapsules = showAllCapsules ? filteredCapsules : filteredCapsules.slice(0, 6);
+
   return (
     <div className="min-h-screen" style={{ background: '#04040a' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header with Primary CTA */}
+
+        {/* Welcome Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <h1 className="text-3xl font-bold text-white">
-            My Capsules <span className="text-slate-400 font-normal">({capsules.length})</span>
-          </h1>
-          <button 
+          <div>
+            <h1 className="text-3xl font-bold text-white">
+              Welcome back{user?.user_metadata?.first_name ? `, ${user.user_metadata.first_name}` : ''}
+            </h1>
+            <p className="text-slate-400 mt-1">Here&apos;s what&apos;s happening with your capsules</p>
+          </div>
+          <button
             onClick={() => setIsCreateModalOpen(true)}
-          className="text-[#04040a] px-6 py-3 rounded-lg font-bold transition-colors whitespace-nowrap"
+            className="text-[#04040a] px-6 py-3 rounded-lg font-bold transition-colors whitespace-nowrap"
             style={{ background: '#00ff87' }}
             onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='#00e87a'}
             onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background='#00ff87'}
           >
-            Create New Capsule
+            + New Capsule
           </button>
+        </div>
+
+        {/* ── Metrics Row ────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-10">
+          {[
+            { label: 'Total Executions', value: metrics ? formatNumber(metrics.total_runs) : '—', icon: (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            ), color: '#00ff87' },
+            { label: 'EdGE TA Interventions', value: metrics ? formatNumber(metrics.edge_interventions) : '—', icon: (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+            ), color: '#a78bfa' },
+            { label: 'Success Rate', value: metrics ? `${successRate}%` : '—', icon: (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            ), color: successRate >= 60 ? '#00ff87' : '#f59e0b' },
+            { label: 'Total Capsules', value: metrics ? metrics.total_capsules.toString() : capsules.length.toString(), icon: (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+            ), color: '#38bdf8' },
+            { label: 'Total Courses', value: totalCourses.toString(), icon: (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+            ), color: '#fb923c' },
+          ].map((card) => (
+            <div key={card.label} className="rounded-xl p-5 transition-all" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="flex items-center gap-2 mb-3">
+                <span style={{ color: card.color }}>{card.icon}</span>
+                <span className="text-xs text-slate-400 uppercase tracking-wide">{card.label}</span>
+              </div>
+              {metricsLoading ? (
+                <div className="h-8 w-16 rounded bg-white/5 animate-pulse" />
+              ) : (
+                <div className="text-2xl font-bold" style={{ color: card.color }}>{card.value}</div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* ── Capsules Section ──────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <h2 className="text-xl font-semibold text-white">
+            My Capsules <span className="text-slate-400 font-normal text-base">({capsules.length})</span>
+          </h2>
+          <div className="flex items-center gap-3">
+            {filteredCapsules.length > 6 && (
+              <button
+                onClick={() => setShowAllCapsules(!showAllCapsules)}
+                className="text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                style={{ color: '#00ff87', background: 'rgba(0,255,135,0.08)', border: '1px solid rgba(0,255,135,0.2)' }}
+                onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(0,255,135,0.15)'}
+                onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background='rgba(0,255,135,0.08)'}
+              >
+                {showAllCapsules ? `Show Less (6 of ${filteredCapsules.length})` : `View All ${filteredCapsules.length} Capsules`}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* View Toggle and Search */}
@@ -380,26 +508,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Analytics Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="rounded-lg p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
-            <div className="text-2xl font-bold text-white">12.8k</div>
-            <div className="text-sm text-slate-400">Total Views</div>
-          </div>
-          <div className="rounded-lg p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
-            <div className="text-2xl font-bold text-white">8.2k</div>
-            <div className="text-sm text-slate-400">Total Runs</div>
-          </div>
-          <div className="rounded-lg p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
-            <div className="text-2xl font-bold" style={{ color: '#00ff87' }}>68%</div>
-            <div className="text-sm text-slate-400">Success Rate</div>
-          </div>
-          <div className="rounded-lg p-6" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
-            <div className="text-2xl font-bold text-white">{capsules.length}</div>
-            <div className="text-sm text-slate-400">Active Capsules</div>
-          </div>
-        </div>
-
         {/* Empty State for New Users */}
         {capsules.length === 0 && !capsulesLoading && (
           <div className="text-center py-16">
@@ -428,7 +536,7 @@ export default function Dashboard() {
         {capsules.length > 0 && viewMode === 'grid' ? (
           /* Card Grid View */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCapsules.map((capsule) => {
+            {displayedCapsules.map((capsule) => {
               const analytics = formatAnalytics(capsule);
               return (
                 <CapsuleCard 
@@ -484,7 +592,7 @@ export default function Dashboard() {
             
             {/* Table Rows */}
             <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-              {filteredCapsules.map((capsule) => {
+              {displayedCapsules.map((capsule) => {
                 const analytics = formatAnalytics(capsule);
                 const isPublished = capsule.isPublished === true;
                 return (

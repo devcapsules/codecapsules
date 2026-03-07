@@ -15,8 +15,8 @@ export default function CoursesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen bg-[#04040a] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-emerald-500/30 border-t-emerald-500"></div>
       </div>
     )
   }
@@ -27,14 +27,21 @@ export default function CoursesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen bg-[#04040a]">
       <CourseCreatorDashboard
         organizationId={user.id}
         userId={user.id}
         apiBaseUrl={API_URL}
         authToken={session?.access_token}
         onCreateNew={() => router.push('/courses/new')}
-        onPlaylistSelect={(playlist: any) => router.push(`/courses/edit/${playlist.id || playlist.playlist_id}`)}
+        onPlaylistSelect={(playlist: any) => router.push(`/courses/edit/?id=${playlist.id || playlist.playlist_id}`)}
+        onViewDetails={(playlist: any) => router.push(`/courses/detail/?id=${playlist.id || playlist.playlist_id}`)}
+        onPreviewPlaylist={(playlist: any) => {
+          // Only open preview for draft courses
+          if (!playlist.published_at) {
+            window.open(`/courses/preview/?id=${playlist.id || playlist.playlist_id}`, '_blank')
+          }
+        }}
       />
     </div>
   )

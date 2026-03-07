@@ -5,14 +5,15 @@ const tiers = [
   {
     name: 'HOBBY',
     sub: 'Testing & Personal Blogs',
-    price: '$0',
+    price: '₹0',
     period: '/month',
     cta: 'Start Free',
     href: '/signup',
+    plan: 'free',
     featured: false,
     features: [
       { text: '500 executions/month', included: true },
-      { text: '5 AI generations/month', included: true },
+      { text: '5 EdGE Forge generations/month', included: true },
       { text: '10 capsules storage', included: true },
       { text: 'DevCapsules watermark', included: false },
       { text: 'Community support', included: true },
@@ -21,34 +22,39 @@ const tiers = [
   {
     name: 'CREATOR',
     sub: 'Course Creators & Writers',
-    price: '$19',
+    price: '₹2,499',
+    originalPrice: '₹2,999',
     period: '/month',
     cta: 'Start 14-Day Trial',
     href: '/signup',
+    plan: 'creator',
     featured: true,
     badge: '⭐ Best Value',
     features: [
       { text: '10,000 executions/month', included: true },
-      { text: '100 AI generations/month', included: true },
+      { text: '50 EdGE Forge generations/month', included: true },
       { text: 'Unlimited capsules storage', included: true },
       { text: 'White label (no logo)', included: true },
       { text: 'Email support', included: true },
     ],
   },
   {
-    name: 'BUSINESS',
+    name: 'PRO / BOOTCAMP',
     sub: 'Bootcamps & Academies',
-    price: '$149',
+    price: '₹8,299',
+    usdPrice: '$99',
     period: '/month',
     cta: 'Contact Sales',
     href: '/contact',
+    plan: 'team',
     featured: false,
     features: [
       { text: '100,000 executions/month', included: true },
-      { text: '500 AI generations/month', included: true },
-      { text: 'Unlimited capsules storage', included: true },
+      { text: '500 EdGE Forge generations/month', included: true },
+      { text: '150 active capsules', included: true },
+      { text: 'Advanced EdGE Analytics', included: true },
       { text: 'White label + custom domain', included: true },
-      { text: 'Priority Slack support', included: true },
+      { text: 'Priority email support', included: true },
     ],
   },
 ];
@@ -105,9 +111,15 @@ export function PricingSection() {
                 </h3>
                 <p className="text-xs text-slate-500 mb-4">{tier.sub}</p>
                 <div className="flex items-end gap-1">
+                  {(tier as any).originalPrice && (
+                    <span className="text-lg text-slate-500 line-through mr-1 mb-1">{(tier as any).originalPrice}</span>
+                  )}
                   <span className="text-3xl font-bold text-white">{tier.price}</span>
                   <span className="text-slate-400 text-sm mb-1">{tier.period}</span>
                 </div>
+                {(tier as any).usdPrice && (
+                  <div className="text-xs text-slate-500 mt-1">≈ {(tier as any).usdPrice} USD</div>
+                )}
               </div>
 
               <ul className="space-y-2.5 mb-8 flex-1">

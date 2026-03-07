@@ -67,22 +67,26 @@ export interface JobStatusResponse {
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // ── Poll configuration ──
-const POLL_INTERVAL_MS = 300;   // Poll every 300ms
-const POLL_TIMEOUT_MS = 30_000; // Give up after 30s
+const POLL_START_MS = 2000;     // Start polling at 2s
+const POLL_MAX_MS = 6000;       // Cap at 6s
+const POLL_TIMEOUT_MS = 60_000; // Give up after 60s
 
 /**
- * Poll a job until it completes or fails
+ * Poll a job until it completes or fails (exponential backoff)
  */
 async function pollJobResult(jobId: string): Promise<JobStatusResponse> {
   const deadline = Date.now() + POLL_TIMEOUT_MS;
+  let interval = POLL_START_MS;
 
   while (Date.now() < deadline) {
+    await sleep(interval);
+    interval = Math.min(interval * 1.5, POLL_MAX_MS);
+
     const res = await fetch(`${API_URL}/execute/runs/${jobId}`);
 
     if (!res.ok) {
       if (res.status === 404) {
         // Job not found yet — might still be propagating to KV
-        await sleep(POLL_INTERVAL_MS);
         continue;
       }
       throw new Error(`Poll failed: ${res.status}`);
@@ -93,9 +97,6 @@ async function pollJobResult(jobId: string): Promise<JobStatusResponse> {
     if (data.status === 'completed' || data.status === 'failed') {
       return data;
     }
-
-    // Still queued or running — wait and retry
-    await sleep(POLL_INTERVAL_MS);
   }
 
   throw new Error('Execution timed out — the server may be under heavy load. Please try again.');
@@ -235,6 +236,24 @@ export async function executeWithTests(
 }
 
 /**
+ * Convert a JS value to a valid Python literal string.
+ * Handles null→None, true→True, false→False, nested arrays/objects.
+ */
+function toPythonLiteral(value: any): string {
+  if (value === null || value === undefined) return 'None';
+  if (value === true) return 'True';
+  if (value === false) return 'False';
+  if (typeof value === 'string') return JSON.stringify(value);
+  if (typeof value === 'number') return String(value);
+  if (Array.isArray(value)) return `[${value.map(toPythonLiteral).join(', ')}]`;
+  if (typeof value === 'object') {
+    const entries = Object.entries(value).map(([k, v]) => `${JSON.stringify(k)}: ${toPythonLiteral(v)}`);
+    return `{${entries.join(', ')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+/**
  * Generate test wrapper code for a specific language
  */
 function generateTestCode(
@@ -243,23 +262,22 @@ function generateTestCode(
   functionName: string,
   input: any
 ): string {
-  const inputStr = JSON.stringify(input);
-
   switch (language.toLowerCase()) {
     case 'python':
       return `${userCode}
 
 # Test execution
-import json
-result = ${functionName}(${Array.isArray(input) ? input.map(i => JSON.stringify(i)).join(', ') : inputStr})
+result = ${functionName}(${Array.isArray(input) ? input.map(toPythonLiteral).join(', ') : toPythonLiteral(input)})
 print(result)`;
 
-    case 'javascript':
+    case 'javascript': {
+      const inputStr = JSON.stringify(input);
       return `${userCode}
 
 // Test execution
 const result = ${functionName}(${Array.isArray(input) ? input.map(i => JSON.stringify(i)).join(', ') : inputStr});
 console.log(result);`;
+    }
 
     default:
       return userCode;

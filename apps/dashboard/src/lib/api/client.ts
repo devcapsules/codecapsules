@@ -24,6 +24,7 @@ export interface GenerationRequest {
   concepts?: string[]
   includeTestCases?: boolean
   includeHints?: boolean
+  skipCache?: boolean
 }
 
 export interface ExecutionRequest {
@@ -680,16 +681,19 @@ class DevcapsulesAPIClient {
       })
 
       // Call execute/tests endpoint
-      const result = await this.makeRequest<{
+      const submitResult = await this.makeRequest<{
         success: boolean
-        summary: {
+        jobId?: string
+        status?: string
+        statusUrl?: string
+        summary?: {
           totalTests: number
           passedTests: number
           failedTests: number
           successRate: number
           allPassed: boolean
         }
-        results: any[]
+        results?: any[]
       }>('/api/execute/tests', {
         method: 'POST',
         body: JSON.stringify({
@@ -699,6 +703,52 @@ class DevcapsulesAPIClient {
           functionName,
         }),
       })
+
+      // ── Handle async (queued) vs sync (SQL) responses ──
+      let result: { summary: { allPassed: boolean; passedTests: number; failedTests: number; totalTests: number }; results: any[] }
+
+      if (submitResult.jobId && submitResult.status === 'queued') {
+        // Async path — poll for completion with exponential backoff
+        console.log(`⏳ Test job queued: ${submitResult.jobId}, polling...`)
+        let pollInterval = 2000   // start at 2s
+        const maxInterval = 6000  // cap at 6s
+        const timeout = 60000
+        const startTime = Date.now()
+
+        while (true) {
+          if (Date.now() - startTime > timeout) {
+            throw new Error('Test execution timed out after 60 seconds')
+          }
+          await this.sleep(pollInterval)
+          pollInterval = Math.min(pollInterval * 1.5, maxInterval)
+
+          const jobResult = await this.makeRequest<{
+            jobId: string
+            status: string
+            testResult?: {
+              success: boolean
+              summary: { totalTests: number; passedTests: number; failedTests: number; successRate: number; allPassed: boolean }
+              results: any[]
+            }
+            error?: string
+          }>(`/api/execute/runs/${submitResult.jobId}`, {}, false)
+
+          console.log(`🔄 Poll ${submitResult.jobId}: status=${jobResult.status}`)
+
+          if (jobResult.status === 'completed' && jobResult.testResult) {
+            result = jobResult.testResult
+            break
+          }
+          if (jobResult.status === 'failed') {
+            throw new Error(jobResult.error || 'Test execution failed')
+          }
+        }
+      } else if (submitResult.summary) {
+        // Sync path (SQL) — summary already in response
+        result = { summary: submitResult.summary, results: submitResult.results || [] }
+      } else {
+        throw new Error('Unexpected response from execute/tests endpoint')
+      }
 
       // Log detailed results for debugging
       console.log('📊 Validation results summary:', {

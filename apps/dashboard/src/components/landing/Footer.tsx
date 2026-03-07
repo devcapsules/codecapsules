@@ -68,11 +68,11 @@ export function Footer() {
 
         <div className="border-t border-gray-800 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex flex-wrap justify-center md:justify-start space-x-4 mb-4 md:mb-0 text-sm">
-              <a href="/privacy" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</a>
-              <a href="/terms" className="text-gray-400 hover:text-white transition-colors">Terms of Service</a>
-              <a href="/cookies" className="text-gray-400 hover:text-white transition-colors">Cookie Policy</a>
-              <a href="/refund-policy" className="text-gray-400 hover:text-white transition-colors">Refund Policy</a>
+            <div className="flex flex-wrap justify-center md:justify-start gap-x-4 gap-y-1 mb-4 md:mb-0 text-sm">
+              <a href="/privacy" className="text-gray-400 hover:text-white transition-colors">Privacy</a>
+              <a href="/terms" className="text-gray-400 hover:text-white transition-colors">Terms</a>
+              <a href="/cookies" className="text-gray-400 hover:text-white transition-colors">Cookies</a>
+              <a href="/refund-policy" className="text-gray-400 hover:text-white transition-colors">Refunds</a>
             </div>
             <p className="text-gray-400 text-sm">
               © 2026 Devcapsules. All rights reserved.

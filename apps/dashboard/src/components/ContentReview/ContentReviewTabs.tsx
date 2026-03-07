@@ -230,7 +230,7 @@ export default function ContentReviewTabs({
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-2 text-sm text-gray-400">
             <CheckCircleIcon className="h-4 w-4 text-green-400" />
-            <span>AI Quality Score: 86.3/100</span>
+            <span>EdGE Quality Score: 86.3/100</span>
           </div>
         </div>
         

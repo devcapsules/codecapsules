@@ -112,7 +112,7 @@ export function SuccessToast({ isVisible, onClose, qualityScore }: SuccessToastP
     <ToastNotification
       type="success"
       title="Capsule Generated!"
-      message={`Successfully generated with ${qualityScore ? `quality score: ${qualityScore}%` : 'AI content'}. Ready to save or embed.`}
+      message={`Successfully generated with ${qualityScore ? `quality score: ${qualityScore}%` : 'EdGE Forge'}. Ready to save or embed.`}
       isVisible={isVisible}
       onClose={onClose}
     />

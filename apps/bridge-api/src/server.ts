@@ -152,14 +152,165 @@ app.post('/internal/generate', async (req, res) => {
     };
 
     const result: PipelineGenerationResult = await getPipeline().generateCapsule(context);
-    const elapsed = Date.now() - t0;
+    const pipelineElapsed = Date.now() - t0;
 
     console.log(
-      `✅ [${jobId}] Done ${elapsed}ms | quality=${(result.overall_quality * 100).toFixed(1)}%`
+      `✅ [${jobId}] Pipeline done ${pipelineElapsed}ms | quality=${(result.overall_quality * 100).toFixed(1)}%`
     );
 
     // Convert BaseCapsule → Universal format (dashboard expects this shape)
-    const capsule = convertBaseCapsuleToUniversalFormat(result.capsule, context.difficulty);
+    let capsule = convertBaseCapsuleToUniversalFormat(result.capsule, context.difficulty);
+
+    // ══════════════════════════════════════════════════════════════════════
+    // POST-PIPELINE VALIDATION: Run solution against tests via Piston
+    // If tests fail, use DebuggerAgent to self-heal (max 2 attempts)
+    // This catches type errors, logic bugs, and mismatched test cases
+    // that the AI pipeline doesn't catch because skip_validation=true
+    // ══════════════════════════════════════════════════════════════════════
+    
+    const MAX_HEAL_ATTEMPTS = 2;
+    let validationPassed = false;
+    let healAttempts = 0;
+
+    // Only validate CODE capsules (not SQL — SQL validation is different)
+    if (capsuleType === 'CODE') {
+      const solutionCode =
+        capsule.content?.primary?.code?.wasmVersion?.solution ||
+        capsule.solution || '';
+      const testCases =
+        capsule.content?.primary?.code?.wasmVersion?.testCases ||
+        capsule.testCases || [];
+      const functionName =
+        capsule.content?.functionName ||
+        extractFunctionName(capsule.starterCode || solutionCode) ||
+        'solution';
+
+      if (solutionCode && testCases.length > 0) {
+        for (let attempt = 0; attempt <= MAX_HEAL_ATTEMPTS; attempt++) {
+          const currentSolution = attempt === 0
+            ? solutionCode
+            : (capsule.content?.primary?.code?.wasmVersion?.solution || solutionCode);
+          const currentTests = capsule.content?.primary?.code?.wasmVersion?.testCases || testCases;
+
+          console.log(`🧪 [${jobId}] Validation attempt ${attempt + 1}/${MAX_HEAL_ATTEMPTS + 1} | ${currentTests.length} tests`);
+
+          const testResults: Array<{ testCase: number; passed: boolean; output: string; error: string }> = [];
+
+          for (let i = 0; i < currentTests.length; i++) {
+            const tc = currentTests[i];
+            const harness = buildTestHarness(currentSolution, tc, language, functionName);
+            try {
+              const exec = await callPiston(config.pistonUrl, language, harness);
+              const passed = (exec.stdout || '').includes('TEST_PASSED');
+              testResults.push({
+                testCase: i + 1,
+                passed,
+                output: exec.stdout || '',
+                error: exec.stderr || '',
+              });
+              if (!passed) {
+                console.log(`   ❌ Test ${i + 1}: ${exec.stdout?.trim() || exec.stderr?.trim() || 'no output'}`);
+              }
+            } catch (err: any) {
+              testResults.push({ testCase: i + 1, passed: false, output: '', error: err.message });
+              console.log(`   ❌ Test ${i + 1}: ${err.message}`);
+            }
+          }
+
+          const passedCount = testResults.filter(r => r.passed).length;
+          console.log(`🧪 [${jobId}] Results: ${passedCount}/${currentTests.length} passed`);
+
+          if (passedCount === currentTests.length) {
+            validationPassed = true;
+            console.log(`✅ [${jobId}] All tests passed!`);
+            break;
+          }
+
+          // Tests failed — try to heal if we have attempts left
+          if (attempt < MAX_HEAL_ATTEMPTS) {
+            healAttempts++;
+            console.log(`🩹 [${jobId}] Healing attempt ${healAttempts}/${MAX_HEAL_ATTEMPTS}...`);
+
+            // Collect error details for the debugger
+            const failedTests = testResults.filter(r => !r.passed);
+            const errorSummary = failedTests
+              .map(r => `Test ${r.testCase}: ${r.error || r.output}`)
+              .join('\n');
+
+            try {
+              const debugger_ = getDebuggerAgent();
+              
+              // Build a BaseCapsule-like object for the debugger
+              const capsuleForHealing: any = {
+                id: `heal-${jobId}`,
+                title: capsule.title,
+                capsule_type: 'CODE',
+                runtime_config: { language },
+                config_data: {
+                  reference_solution: currentSolution,
+                  boilerplate_code: capsule.starterCode || capsule.content?.primary?.code?.wasmVersion?.starterCode || '',
+                  test_cases: currentTests.map((tc: any) => ({
+                    input_args: tc.input_args || tc.input || [],
+                    expected_output: tc.expected_output ?? tc.expected,
+                    description: tc.name || tc.description || '',
+                  })),
+                },
+                problem_statement_md: capsule.description || capsule.content?.primary?.problemStatement || '',
+              };
+
+              const executionError = {
+                type: 'test_failure' as const,
+                message: `${failedTests.length}/${currentTests.length} tests failed:\n${errorSummary}`,
+                failed_tests: failedTests.map(r => r.testCase),
+              };
+
+              const healed = await debugger_.fixCapsule(capsuleForHealing, executionError);
+              
+              // Apply healed solution back to the universal-format capsule
+              const healedSolution = (healed.config_data as any)?.reference_solution;
+              const healedTestCases = (healed.config_data as any)?.test_cases;
+              
+              if (healedSolution && healedSolution.length > 20) {
+                capsule.content.primary.code.wasmVersion.solution = healedSolution;
+                capsule.solution = healedSolution;
+                console.log(`🩹 [${jobId}] Applied healed solution (${healedSolution.length} chars)`);
+              }
+              
+              // If debugger also fixed test cases, update them
+              if (healedTestCases && Array.isArray(healedTestCases) && healedTestCases.length > 0) {
+                const updatedTestCases = healedTestCases.map((tc: any, index: number) => ({
+                  id: index + 1,
+                  name: tc.description || `Test case ${index + 1}`,
+                  input: JSON.stringify(tc.input_args || []),
+                  expected: JSON.stringify(tc.expected_output),
+                  description: tc.description || `Test case ${index + 1}`,
+                  input_args: tc.input_args,
+                  expected_output: tc.expected_output,
+                  is_hidden: tc.is_hidden || false,
+                }));
+                capsule.content.primary.code.wasmVersion.testCases = updatedTestCases;
+                capsule.content.testCases = updatedTestCases;
+                capsule.testCases = updatedTestCases;
+                console.log(`🩹 [${jobId}] Applied healed test cases (${updatedTestCases.length} tests)`);
+              }
+            } catch (healError: any) {
+              console.warn(`⚠️ [${jobId}] Healing failed:`, healError.message);
+              // Continue to next attempt or give up
+            }
+          } else {
+            console.warn(`⚠️ [${jobId}] Validation failed after ${MAX_HEAL_ATTEMPTS} heal attempts. Returning capsule anyway.`);
+          }
+        }
+      } else {
+        console.log(`⚠️ [${jobId}] Skipping validation: no solution or test cases`);
+        validationPassed = true; // Can't validate, pass through
+      }
+    } else {
+      console.log(`ℹ️ [${jobId}] SQL capsule — skipping Piston validation`);
+      validationPassed = true;
+    }
+
+    const elapsed = Date.now() - t0;
 
     // Estimate per-agent token usage from timing data
     // (pipeline doesn't expose raw tokens; consumer needs this for cost tracking)
@@ -180,8 +331,8 @@ app.post('/internal/generate', async (req, res) => {
       debugger: {
         model: 'gpt-4o-mini',
         prompt_tokens: 600,
-        completion_tokens: 300,
-        time_ms: timings?.debugger_ms || 0,
+        completion_tokens: 300 + (healAttempts * 500), // Account for healing tokens
+        time_ms: (timings?.debugger_ms || 0) + (healAttempts * 5000),
       },
     };
 
@@ -192,12 +343,17 @@ app.post('/internal/generate', async (req, res) => {
       qualityScore: result.overall_quality,
       tokenUsage,
       generationTimeMs: elapsed,
+      validated: validationPassed,
+      healAttempts,
       pipeline: {
         educational_score: result.educational_score,
         technical_score: result.technical_score,
-        agents_used: result.agents_used,
+        agents_used: [...(result.agents_used || []), ...(healAttempts > 0 ? ['debugger-heal'] : [])],
         pedagogical_idea: result.pedagogical_idea,
-        warnings: result.warnings,
+        warnings: [
+          ...(result.warnings || []),
+          ...(!validationPassed ? ['⚠️ Some tests may still fail — capsule was returned with best-effort healing'] : []),
+        ],
       },
     });
   } catch (error: any) {

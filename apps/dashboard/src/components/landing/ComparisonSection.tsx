@@ -28,7 +28,7 @@ export function ComparisonSection() {
             </div>
             <h3 className="text-xl font-bold mb-3 text-[#00ff87]">Lightning Fast Setup</h3>
             <p className="text-gray-300 text-sm leading-relaxed">
-              Generate interactive coding environments in 30 seconds with AI. No complex configurations or technical setup required.
+              Generate interactive coding environments in 30 seconds with EdGE Forge. No complex configurations or technical setup required.
             </p>
           </div>
 

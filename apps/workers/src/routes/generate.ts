@@ -43,7 +43,7 @@ generateRoutes.post('/', async (c) => {
   }
 
   const body = await c.req.json();
-  const { prompt, language, difficulty = 'MEDIUM' } = body;
+  const { prompt, language, difficulty = 'MEDIUM', skipCache = false } = body;
 
   // Validate inputs
   if (!prompt || typeof prompt !== 'string') {
@@ -71,49 +71,61 @@ generateRoutes.post('/', async (c) => {
   // ── Circuit Breaker: Check if AI is healthy ──
   const circuitState = await c.env.CACHE.get('system:circuit:generation');
   if (circuitState === 'open') {
-    throw new ApiError(503, 'AI generation is temporarily unavailable. Please try again in a few minutes.', 'CIRCUIT_OPEN');
+    throw new ApiError(503, 'EdGE Forge is temporarily unavailable. Please try again in a few minutes.', 'CIRCUIT_OPEN');
   }
 
   // ── Idempotency: Deduplicate identical requests within 10min window ──
   const idempotencyKey = await hashPrompt(`${auth.userId}:${prompt.trim().toLowerCase()}:${language}`);
-  const existingJob = await c.env.CACHE.get(`idemp:${idempotencyKey}`, 'json') as { jobId: string } | null;
-  if (existingJob) {
-    return c.json({
-      success: true,
-      jobId: existingJob.jobId,
-      status: 'already_queued',
-      statusUrl: `/api/v1/generate/${existingJob.jobId}/status`,
-      deduplicated: true,
-      meta: {
-        requestId: c.get('requestId'),
-        timestamp: Date.now(),
-        version: c.env.API_VERSION,
-      },
-    }, 200);
+  if (!skipCache) {
+    const existingJob = await c.env.CACHE.get(`idemp:${idempotencyKey}`, 'json') as { jobId: string } | null;
+    if (existingJob) {
+      return c.json({
+        success: true,
+        jobId: existingJob.jobId,
+        status: 'already_queued',
+        statusUrl: `/api/v1/generate/${existingJob.jobId}/status`,
+        deduplicated: true,
+        meta: {
+          requestId: c.get('requestId'),
+          timestamp: Date.now(),
+          version: c.env.API_VERSION,
+        },
+      }, 200);
+    }
+  } else {
+    // Clear stale idempotency key so regeneration creates a fresh job
+    await c.env.CACHE.delete(`idemp:${idempotencyKey}`);
   }
 
   // ── Concurrency Cap: Reject if too many jobs in flight ──
   const queueDepth = parseInt(await c.env.CACHE.get('system:queue:depth') || '0');
   if (queueDepth >= MAX_CONCURRENT_JOBS) {
-    throw new ApiError(429, `AI generation queue is full (${queueDepth}/${MAX_CONCURRENT_JOBS}). Please wait for current jobs to complete.`, 'QUEUE_FULL');
+    throw new ApiError(429, `EdGE Forge queue is full (${queueDepth}/${MAX_CONCURRENT_JOBS}). Please wait for current jobs to complete.`, 'QUEUE_FULL');
   }
 
-  // Check semantic cache (similar prompts)
-  const cachedResult = await checkSemanticCache(c.env, prompt, language);
-  if (cachedResult) {
-    // Return cached result immediately
-    return c.json({
-      success: true,
-      jobId: cachedResult.jobId,
-      status: 'completed',
-      fromCache: true,
-      result: cachedResult,
-      meta: {
-        requestId: c.get('requestId'),
-        timestamp: Date.now(),
-        version: c.env.API_VERSION,
-      },
-    });
+  // Check semantic cache (similar prompts) — skip if regenerating
+  if (!skipCache) {
+    const cachedResult = await checkSemanticCache(c.env, prompt, language);
+    if (cachedResult) {
+      // Return cached result immediately
+      return c.json({
+        success: true,
+        jobId: cachedResult.jobId,
+        status: 'completed',
+        fromCache: true,
+        result: cachedResult,
+        meta: {
+          requestId: c.get('requestId'),
+          timestamp: Date.now(),
+          version: c.env.API_VERSION,
+        },
+      });
+    }
+  } else {
+    // Clear semantic cache so next request also gets fresh results
+    const normalizedPrompt = prompt.toLowerCase().trim().replace(/\s+/g, ' ');
+    const hash = await hashPrompt(normalizedPrompt);
+    await c.env.CACHE.delete(`gencache:${language.toLowerCase()}:${hash}`);
   }
 
   // Create job

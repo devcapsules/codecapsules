@@ -26,10 +26,10 @@ export function CTASection() {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
           <Link href="/signup"
-            className="inline-flex items-center gap-2 px-9 py-4 rounded-2xl font-black text-black text-lg transition-all duration-200 hover:scale-[1.02]"
+            className="inline-flex items-center gap-2 px-6 sm:px-9 py-3.5 sm:py-4 rounded-2xl font-black text-black text-base sm:text-lg transition-all duration-200 hover:scale-[1.02]"
             style={{ background: 'linear-gradient(135deg, #00ff87, #00b894)', boxShadow: '0 0 40px rgba(0,255,135,0.35)' }}>
-            Start Building Your Free Capsule
-            <svg width="18" height="18" fill="none" viewBox="0 0 18 18"><path d="M3 9h12M10 5l5 4-5 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            Start Building Free
+            <svg width="18" height="18" fill="none" viewBox="0 0 18 18" className="hidden sm:block"><path d="M3 9h12M10 5l5 4-5 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </Link>
         </div>
         <p className="text-xs text-slate-700">No credit card <span aria-hidden="true"> &middot; </span> Free tier forever <span aria-hidden="true"> &middot; </span> 5-minute setup</p>

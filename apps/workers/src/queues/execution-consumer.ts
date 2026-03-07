@@ -146,7 +146,7 @@ export async function processExecutionQueue(
       const slotResult = await acquireSlot(env, job);
 
       if (!slotResult.granted) {
-        // At capacity — retry the message (backpressure)
+        // At capacity — retry or fail if retries exhausted
         console.log(JSON.stringify({
           type: 'info',
           action: 'execution_queue.slot_denied_retrying',
@@ -157,8 +157,31 @@ export async function processExecutionQueue(
           attempt: msg.attempts,
         }));
 
-        msg.retry();
-        return; // Don't process — will come back via queue retry
+        // After max retries (2), write failure to KV so client isn't stuck polling forever
+        if (msg.attempts >= 2) {
+          console.log(JSON.stringify({
+            type: 'warn',
+            action: 'execution_queue.slot_denied_exhausted',
+            jobId: job.jobId,
+            attempts: msg.attempts,
+          }));
+          await env.JOB_PROGRESS.put(
+            kvKey,
+            JSON.stringify({
+              jobId: job.jobId,
+              status: 'failed',
+              type: job.type,
+              error: `Server busy — concurrency limit reached (${slotResult.activeCount}/${slotResult.maxSlots} slots). Please try again.`,
+              createdAt: job.timestamp,
+              completedAt: Date.now(),
+            } satisfies ExecutionJobResult),
+            { expirationTtl: 300 }
+          );
+          msg.ack(); // Don't retry further
+        } else {
+          msg.retry();
+        }
+        return; // Don't process
       }
 
       slotAcquired = true;

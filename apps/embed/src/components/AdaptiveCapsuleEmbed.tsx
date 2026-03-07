@@ -5,6 +5,8 @@ import TerminalCapsuleEmbed from './TerminalCapsuleEmbed'
 
 interface CapsuleEmbedProps {
   widgetId: string
+  /** Headless Playlist context — courseId for analytics grouping */
+  courseId?: string
 }
 
 interface BaseCapsule {
@@ -16,9 +18,10 @@ interface BaseCapsule {
   difficulty: string
   isPublished: boolean
   createdAt: string
+  [key: string]: any  // Allow extra fields to pass through
 }
 
-export default function AdaptiveCapsuleEmbed({ widgetId }: CapsuleEmbedProps) {
+export default function AdaptiveCapsuleEmbed({ widgetId, courseId }: CapsuleEmbedProps) {
   const [capsule, setCapsule] = useState<BaseCapsule | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -128,7 +131,7 @@ export default function AdaptiveCapsuleEmbed({ widgetId }: CapsuleEmbedProps) {
   
   switch (capsuleType) {
     case 'CODE':
-      return <CodeCapsuleEmbed widgetId={widgetId} />
+      return <CodeCapsuleEmbed widgetId={widgetId} capsuleData={capsule} courseId={courseId} />
     
     case 'DATABASE':
     case 'SQL':
@@ -139,6 +142,6 @@ export default function AdaptiveCapsuleEmbed({ widgetId }: CapsuleEmbedProps) {
     
     default:
       // Fallback to code embed for unknown types
-      return <CodeCapsuleEmbed widgetId={widgetId} />
+      return <CodeCapsuleEmbed widgetId={widgetId} capsuleData={capsule} courseId={courseId} />
   }
 }

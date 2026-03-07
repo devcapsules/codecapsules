@@ -20,6 +20,8 @@ interface AnalyticsEvent {
   event_type: string;
   metadata?: string;
   session_id?: string;
+  learner_id?: string;
+  learner_name?: string;
   client_ip?: string;
   user_agent?: string;
   referrer?: string;
@@ -92,8 +94,8 @@ export async function flushEventBuffer(env: Env): Promise<{ flushed: number; err
       // Batch insert into D1
       try {
         const stmt = env.DB.prepare(`
-          INSERT INTO capsule_events (id, capsule_id, user_id, event_type, metadata, session_id, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO capsule_events (id, capsule_id, user_id, event_type, metadata, session_id, learner_id, learner_name, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         const statements = events.map(e =>
@@ -104,6 +106,8 @@ export async function flushEventBuffer(env: Env): Promise<{ flushed: number; err
             e.event_type,
             e.metadata || null,
             e.session_id || null,
+            e.learner_id || null,
+            e.learner_name || null,
             e.timestamp
           )
         );

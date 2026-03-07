@@ -7,6 +7,7 @@
 import { Hono } from 'hono';
 import { ApiError } from '../middleware/error-handler';
 import { generateApiKey, generateJWT } from '../middleware/auth';
+import { CAPSULE_LIMITS } from '../middleware/tier-gate';
 
 type Variables = {
   auth: Auth | null;
@@ -145,9 +146,22 @@ authRoutes.get('/me', async (c) => {
     throw new ApiError(404, 'User not found');
   }
 
+  // Fetch capsule count for limit display
+  const capsuleCount = await c.env.DB.prepare(
+    'SELECT COUNT(*) as count FROM capsules WHERE creator_id = ? AND is_deleted = 0'
+  ).bind(auth.userId).first<{ count: number }>();
+
+  const plan = (user as any).plan || 'free';
+  const capsuleLimit = CAPSULE_LIMITS[plan as keyof typeof CAPSULE_LIMITS] ?? 10;
+
   return c.json({
     success: true,
-    data: user,
+    data: {
+      ...user,
+      limits: {
+        capsules: { current: capsuleCount?.count || 0, limit: capsuleLimit },
+      },
+    },
     meta: {
       requestId: c.get('requestId'),
       timestamp: Date.now(),

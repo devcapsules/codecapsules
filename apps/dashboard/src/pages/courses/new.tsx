@@ -17,8 +17,8 @@ export default function NewCoursePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen bg-[#04040a] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-emerald-500/30 border-t-emerald-500"></div>
       </div>
     )
   }
@@ -29,7 +29,7 @@ export default function NewCoursePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen bg-[#04040a]">
       <PlaylistEditor
         playlistId={undefined}
         organizationId={user.id}

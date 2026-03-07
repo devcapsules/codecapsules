@@ -38,14 +38,15 @@ export default function SignupPage() {
         first_name: firstName,
         last_name: lastName,
         full_name: `${firstName} ${lastName}`.trim(),
-      }
+      },
+      emailRedirectTo: `${window.location.origin}/auth/callback`,
     })
     
     if (error) {
       setError(error.message)
     } else {
       setMessage('Check your email for the confirmation link!')
-      // For new signups, we'll redirect to create-capsule after email confirmation
+      // For new signups, we'll redirect to dashboard after email confirmation
     }
     
     setLoading(false)
@@ -81,11 +82,11 @@ export default function SignupPage() {
             Start Creating<br /><span style={{ color: '#00ff87' }}>Interactive Labs.</span>
           </h1>
           <p className="text-lg text-slate-400 mb-8 leading-relaxed">
-            Transform your ideas into engaging coding challenges with AI-powered generation and real-time execution.
+            Transform your ideas into engaging coding challenges with EdGE Forge generation and real-time execution.
           </p>
           <div className="space-y-4">
             {[
-              'AI-powered challenge generation',
+              'EdGE Forge challenge generation',
               'Interactive coding environments',
               'Instant feedback and execution',
             ].map((item) => (

@@ -68,7 +68,7 @@ export default function DemoVideoSection() {
   };
 
   return (
-    <div className="max-w-[900px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="max-w-[900px] mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-4">
 
       {/* LEFT: Before */}
       <div className="rounded-2xl overflow-hidden border border-white/[0.08] bg-[rgba(10,10,20,0.8)] backdrop-blur-xl hover:-translate-y-1 transition-transform duration-300">
