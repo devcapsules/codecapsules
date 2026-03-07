@@ -190,7 +190,8 @@ export class PistonClient {
       args: [] as string[],
       compile_timeout: Math.min(timeLimit, 3) * 1000,
       run_timeout: Math.min(timeLimit, 3) * 1000,
-      run_memory_limit: memoryLimit * 1024 * 1024,
+      compile_memory_limit: -1,
+      run_memory_limit: -1,
     });
 
     let lastError: Error | null = null;

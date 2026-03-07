@@ -472,7 +472,8 @@ export async function executeOnPiston(
       args: [] as string[],
       compile_timeout: Math.min(timeLimit, 3) * 1000, // Piston max: 3s
       run_timeout: Math.min(timeLimit, 3) * 1000,     // Piston max: 3s
-      run_memory_limit: memoryLimit * 1024 * 1024, // MB → bytes
+      compile_memory_limit: -1,                     // Unlimited — prevents signal 6
+      run_memory_limit: -1,                          // Unlimited — prevents signal 6
     });
 
     const response = await fetch(`${pistonUrl}/api/v2/execute`, {

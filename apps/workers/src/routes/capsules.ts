@@ -80,7 +80,8 @@ async function validateCapsuleContent(
         version: '*',
         files: [{ name: mapping.fileName, content: harness }],
         run_timeout: 10000,
-        run_memory_limit: memoryLimit,
+        compile_memory_limit: -1,
+        run_memory_limit: -1,
       }),
     });
 
