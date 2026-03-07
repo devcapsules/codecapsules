@@ -201,6 +201,17 @@ CRITICAL TEST CASE RULES FOR CODE (Python/JavaScript):
    the function body, and return plain Python types (list, dict, scalar) — not pandas objects.
 9. "expected_output" must also be a JSON-serializable type (list, dict, string, number, null)
    — NEVER a pandas Series or DataFrame. Convert with .tolist(), .to_dict(), or .item().
+10. KEEP TEST DATA COMPACT — all test cases are bundled into a single sandbox execution.
+    Oversized payloads crash the sandbox. Follow these guidelines:
+    - Use short strings (1-3 words max) for string arguments and dictionary values
+    - Keep lists/arrays to 3-5 elements per test case, never more
+    - Keep dictionaries to 2-4 keys each
+    - Prefer simple primitives (numbers, short strings, booleans) over nested structures
+    - If the problem involves lists of objects, use 2-3 small objects per test — NOT 5+
+    - Total JSON size of ALL test cases combined should stay well under 2KB
+    - GOOD: {"input_args": [[{"name": "A"}, {"name": "B"}]], "expected_output": {"A": 1, "B": 1}}
+    - BAD:  {"input_args": [[{"assignee":"Alice","task":"Task 1"},{"assignee":"Bob","task":"Task 2"},{"assignee":"Alice","task":"Task 3"}]], ...}
+    - Instead of long realistic strings, use short placeholders: "T1", "T2", "Alice" → "A", "Bob" → "B"
 
 CRITICAL TEST CASE RULES FOR SQL:
 1. Include "schema_setup" array with CREATE TABLE and INSERT statements

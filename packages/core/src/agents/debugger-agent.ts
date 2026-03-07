@@ -415,6 +415,9 @@ CRITICAL JSON RULES:
 - Use arrays [] for lists, NEVER use set notation like {"a", "b"}
 - Python sets must be represented as JSON arrays: ["a", "e", "i"] not {"a", "e", "i"}
 - All values must be valid JSON (no Python-specific syntax)
+- KEEP TEST DATA COMPACT: use short strings (1-3 words), lists of 3-5 items max,
+  dictionaries with 2-4 keys. All test cases run in a single sandbox call — oversized
+  payloads crash it. Use short placeholders like "A", "B" instead of long strings.
 
 Rules:
 - Make minimal changes to preserve educational value
