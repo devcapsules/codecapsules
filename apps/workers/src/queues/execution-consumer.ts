@@ -364,12 +364,48 @@ async function processTestJob(
   const startTime = Date.now();
   const cappedCases = job.testCases.slice(0, 5);
 
+  // Normalize test cases: ensure input_args and expected_output are properly typed
+  const normalizedCases = cappedCases.map((tc: any) => {
+    let inputArgs = tc.input_args;
+
+    // If input_args is missing, try to parse tc.input as JSON array
+    if (inputArgs === undefined && tc.input !== undefined) {
+      try {
+        const parsed = JSON.parse(typeof tc.input === 'string' ? tc.input : JSON.stringify(tc.input));
+        if (Array.isArray(parsed)) {
+          inputArgs = parsed;
+        } else {
+          inputArgs = [parsed];
+        }
+      } catch {
+        inputArgs = [tc.input];
+      }
+    }
+
+    // Parse expected_output from string if needed
+    let expectedOutput = tc.expected_output ?? tc.expectedOutput ?? tc.expected;
+    if (typeof expectedOutput === 'string') {
+      try {
+        expectedOutput = JSON.parse(expectedOutput);
+      } catch {
+        // Keep as string
+      }
+    }
+
+    return {
+      input_args: inputArgs ?? [],
+      expected_output: expectedOutput,
+      description: tc.description || tc.name || `Test ${tc.id || ''}`,
+      type: tc.type || 'unknown',
+    };
+  });
+
   // Generate batched test harness
   const harnessCode = generateBatchedTestHarness(
     job.language,
     job.userCode,
     job.functionName,
-    cappedCases
+    normalizedCases
   );
 
   console.log(JSON.stringify({

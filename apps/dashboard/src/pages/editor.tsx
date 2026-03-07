@@ -707,7 +707,11 @@ export default function CapsuleEditor() {
             id: index + 1,
             name: testCase.name || testCase.description || `Test case ${index + 1}`,
             input: safeStringify(rawInput),
-            expected: safeStringify(rawExpected)
+            expected: safeStringify(rawExpected),
+            // Preserve backend format for validation (critical — without these,
+            // the validator can't reconstruct typed args from display strings)
+            input_args: testCase.input_args,
+            expected_output: testCase.expected_output ?? testCase.output ?? testCase.expected,
           };
         }) || []
         
@@ -1073,7 +1077,10 @@ export default function CapsuleEditor() {
             id: index + 1,
             name: testCase.name || testCase.description || `Test case ${index + 1}`,
             input: safeStringify(rawInput),
-            expected: safeStringify(rawExpected)
+            expected: safeStringify(rawExpected),
+            // Preserve backend format for validation
+            input_args: testCase.input_args,
+            expected_output: testCase.expected_output ?? testCase.output ?? testCase.expected,
           };
         }) || [];
 

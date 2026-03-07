@@ -623,19 +623,34 @@ class DevcapsulesAPIClient {
 
         // Try to parse editor display format into backend format
         try {
-          // Parse input string like "nums = [2,7,11,15], target = 9" into args
           const inputStr = tc.input || ''
           const args: unknown[] = []
           
-          // Try splitting by comma-separated assignments
-          const assignments = inputStr.split(/,\s*(?=[a-zA-Z_])/)
-          for (const assignment of assignments) {
-            const match = assignment.match(/\w+\s*=\s*(.+)/)
-            if (match) {
-              try {
-                args.push(JSON.parse(match[1].trim()))
-              } catch {
-                args.push(match[1].trim())
+          // Strategy 1: Try parsing as a JSON array first
+          // Handles inputs like '[1,"Buy groceries",false]' from universal format
+          let parsedAsJson = false
+          try {
+            const parsed = JSON.parse(inputStr)
+            if (Array.isArray(parsed)) {
+              args.push(...parsed)
+              parsedAsJson = true
+            }
+          } catch {
+            // Not valid JSON — fall through to assignment parsing
+          }
+          
+          // Strategy 2: Try splitting by comma-separated assignments
+          // Handles inputs like 'nums = [2,7], target = 9'
+          if (!parsedAsJson) {
+            const assignments = inputStr.split(/,\s*(?=[a-zA-Z_])/)
+            for (const assignment of assignments) {
+              const match = assignment.match(/\w+\s*=\s*(.+)/)
+              if (match) {
+                try {
+                  args.push(JSON.parse(match[1].trim()))
+                } catch {
+                  args.push(match[1].trim())
+                }
               }
             }
           }

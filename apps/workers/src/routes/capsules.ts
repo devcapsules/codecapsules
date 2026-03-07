@@ -187,12 +187,40 @@ function buildBatchedTestHarness(
   const lang = language.toLowerCase();
 
   // Normalize test cases into a consistent shape
-  const normalized = testCases.map((tc, i) => ({
-    id: i,
-    input_args: tc.input_args ?? (tc.input !== undefined ? [tc.input] : []),
-    expected_output: tc.expected_output ?? tc.expectedOutput,
-    description: tc.description || `Test ${i}`,
-  }));
+  const normalized = testCases.map((tc, i) => {
+    let inputArgs = tc.input_args;
+    
+    // If input_args is missing, try to parse tc.input as JSON array
+    if (inputArgs === undefined && tc.input !== undefined) {
+      try {
+        const parsed = JSON.parse(typeof tc.input === 'string' ? tc.input : JSON.stringify(tc.input));
+        if (Array.isArray(parsed)) {
+          inputArgs = parsed;
+        } else {
+          inputArgs = [parsed];
+        }
+      } catch {
+        inputArgs = [tc.input];
+      }
+    }
+    
+    // Parse expected_output from string if needed
+    let expectedOutput = tc.expected_output ?? tc.expectedOutput ?? tc.expected;
+    if (typeof expectedOutput === 'string') {
+      try {
+        expectedOutput = JSON.parse(expectedOutput);
+      } catch {
+        // Keep as string
+      }
+    }
+    
+    return {
+      id: i,
+      input_args: inputArgs ?? [],
+      expected_output: expectedOutput,
+      description: tc.description || tc.name || `Test ${i}`,
+    };
+  });
 
   const testDataB64 = utf8ToBase64(JSON.stringify(normalized));
 
