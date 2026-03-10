@@ -598,6 +598,8 @@ export default function CapsuleEditor() {
   const [activeHintIndex, setActiveHintIndex] = useState<number | null>(null);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [togglingFeatured, setTogglingFeatured] = useState(false);
   const [publishedCapsuleId, setPublishedCapsuleId] = useState<string>('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -1797,10 +1799,42 @@ export default function CapsuleEditor() {
             <p className="text-slate-400 mb-8">
               Your capsule has been successfully published and is now discoverable.
             </p>
+
+            {/* Featured Toggle */}
+            {publishedCapsuleId && (
+              <button
+                disabled={togglingFeatured}
+                onClick={async () => {
+                  setTogglingFeatured(true)
+                  try {
+                    const currentTags = isFeatured ? ['generated'] : ['generated', 'featured']
+                    const stored = localStorage.getItem('devcapsules_auth')
+                    const token = stored ? JSON.parse(stored).accessToken : null
+                    await fetch(`${API_URL}/api/v1/capsules/${publishedCapsuleId}/tags`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                      body: JSON.stringify({ tags: currentTags }),
+                    })
+                    setIsFeatured(!isFeatured)
+                  } catch {}
+                  setTogglingFeatured(false)
+                }}
+                className={`w-full mb-4 px-4 py-2.5 rounded-lg text-sm font-medium border transition-all flex items-center justify-center gap-2 ${
+                  isFeatured
+                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
+                    : 'border-white/10 bg-white/3 text-slate-400 hover:text-white hover:border-white/20'
+                }`}
+              >
+                <span>{isFeatured ? '★' : '☆'}</span>
+                <span>{togglingFeatured ? 'Saving...' : isFeatured ? 'Featured on /capsules' : 'Mark as Featured'}</span>
+              </button>
+            )}
+
             <div className="space-y-3">
               <button
                 onClick={() => {
                   setShowSuccessModal(false);
+                  setIsFeatured(false);
                   setIsCreateModalOpen(true);
                 }}
                 className="w-full text-black px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg"
@@ -1813,6 +1847,7 @@ export default function CapsuleEditor() {
               <button
                 onClick={() => {
                   setShowSuccessModal(false);
+                  setIsFeatured(false);
                   router.push('/dashboard');
                 }}
                 className="w-full bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-lg font-semibold transition-all"
@@ -1820,7 +1855,7 @@ export default function CapsuleEditor() {
                 Return to Dashboard
               </button>
               <button
-                onClick={() => setShowSuccessModal(false)}
+                onClick={() => { setShowSuccessModal(false); setIsFeatured(false); }}
                 className="w-full text-slate-400 hover:text-white px-6 py-2 text-sm transition-colors"
               >
                 Stay in Editor

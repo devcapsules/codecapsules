@@ -771,6 +771,109 @@ capsuleRoutes.delete('/:id', async (c) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
+// GET /capsules/featured — Public: list featured capsules (no auth required)
+// ══════════════════════════════════════════════════════════════════════════════
+
+capsuleRoutes.get('/featured', async (c) => {
+  const { language, difficulty, limit = '50', offset = '0' } = c.req.query();
+
+  let query = `
+    SELECT id, title, description, type, difficulty, language,
+           function_name, test_count, has_hints, tags, quality_score,
+           created_at
+    FROM capsules
+    WHERE is_published = 1 AND is_deleted = 0 AND tags LIKE '%"featured"%'
+  `;
+  const params: string[] = [];
+
+  if (language) {
+    query += ' AND language = ?';
+    params.push(language);
+  }
+  if (difficulty) {
+    query += ' AND difficulty = ?';
+    params.push(difficulty.toUpperCase());
+  }
+
+  query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+  params.push(limit, offset);
+
+  const capsules = await c.env.DB.prepare(query).bind(...params).all();
+
+  // Parse tags for each capsule
+  const parsed = (capsules.results || []).map((row: any) => {
+    let tags: string[] = [];
+    if (typeof row.tags === 'string') {
+      try { tags = JSON.parse(row.tags); } catch { tags = []; }
+    }
+    return { ...row, tags };
+  });
+
+  return c.json({
+    success: true,
+    data: parsed,
+    meta: {
+      requestId: c.get('requestId'),
+      timestamp: Date.now(),
+      version: c.env.API_VERSION,
+      pagination: {
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        total: parsed.length,
+      },
+    },
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PATCH /capsules/:id/tags — Update tags (owner only)
+// ══════════════════════════════════════════════════════════════════════════════
+
+capsuleRoutes.patch('/:id/tags', async (c) => {
+  const auth = c.get('auth');
+  if (!auth) {
+    throw new ApiError(401, 'Authentication required');
+  }
+
+  const { id } = c.req.param();
+  const body = await c.req.json();
+  const { tags } = body;
+
+  if (!Array.isArray(tags)) {
+    throw new ApiError(400, 'tags must be an array of strings');
+  }
+
+  // Verify ownership
+  const existing = await c.env.DB.prepare(
+    'SELECT creator_id FROM capsules WHERE id = ? AND is_deleted = 0'
+  ).bind(id).first<{ creator_id: string }>();
+
+  if (!existing) {
+    throw new ApiError(404, 'Capsule not found');
+  }
+  if (existing.creator_id !== auth.userId) {
+    throw new ApiError(403, 'Access denied');
+  }
+
+  await c.env.DB.prepare(
+    'UPDATE capsules SET tags = ?, updated_at = datetime(\'now\') WHERE id = ?'
+  ).bind(JSON.stringify(tags), id).run();
+
+  // Invalidate cache
+  await c.env.CACHE.delete(`capsule:${id}`);
+
+  return c.json({
+    success: true,
+    data: { id, tags },
+    meta: {
+      requestId: c.get('requestId'),
+      timestamp: Date.now(),
+      version: c.env.API_VERSION,
+    },
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Helper: Track analytics event
 // ══════════════════════════════════════════════════════════════════════════════
 
