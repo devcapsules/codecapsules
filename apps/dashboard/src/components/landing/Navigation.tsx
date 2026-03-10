@@ -21,6 +21,9 @@ export function Navigation() {
           {/* Desktop Menu */}
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-6">
+              <Link href="/capsules" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
+                Capsules
+              </Link>
               <a href="#edge-assistant" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
                 EdGE Assistant
               </a>
@@ -33,9 +36,6 @@ export function Navigation() {
               <a href="#pricing" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
                 Pricing
               </a>
-              <Link href="/capsules" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
-                Capsules
-              </Link>
               {user ? (
                 <Link href="/dashboard" className="text-[#00ff87] hover:text-green-300 px-3 py-2 text-sm font-medium transition-colors">
                   Dashboard
@@ -89,6 +89,9 @@ export function Navigation() {
       {isMenuOpen && (
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 bg-gray-950 border-t border-gray-800">
+            <Link href="/capsules" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium" onClick={() => setIsMenuOpen(false)}>
+              Capsules
+            </Link>
             <a href="#edge-assistant" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium" onClick={() => setIsMenuOpen(false)}>
               EdGE Assistant
             </a>
@@ -101,9 +104,6 @@ export function Navigation() {
             <a href="#pricing" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium" onClick={() => setIsMenuOpen(false)}>
               Pricing
             </a>
-            <Link href="/capsules" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium" onClick={() => setIsMenuOpen(false)}>
-              Capsules
-            </Link>
             {user ? (
               <Link href="/dashboard" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium">
                 Dashboard

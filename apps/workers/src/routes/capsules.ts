@@ -390,6 +390,61 @@ capsuleRoutes.get('/', async (c) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
+// GET /capsules/featured — Public: list featured capsules (no auth required)
+// ══════════════════════════════════════════════════════════════════════════════
+
+capsuleRoutes.get('/featured', async (c) => {
+  const { language, difficulty, limit = '50', offset = '0' } = c.req.query();
+
+  let query = `
+    SELECT id, title, description, type, difficulty, language,
+           function_name, test_count, has_hints, tags, quality_score,
+           created_at
+    FROM capsules
+    WHERE is_published = 1 AND is_deleted = 0 AND tags LIKE '%"featured"%'
+  `;
+  const params: string[] = [];
+
+  if (language) {
+    query += ' AND language = ?';
+    params.push(language);
+  }
+  if (difficulty) {
+    query += ' AND difficulty = ?';
+    params.push(difficulty.toUpperCase());
+  }
+
+  query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+  params.push(limit, offset);
+
+  const capsules = await c.env.DB.prepare(query).bind(...params).all();
+
+  // Parse tags for each capsule
+  const parsed = (capsules.results || []).map((row: any) => {
+    let tags: string[] = [];
+    if (typeof row.tags === 'string') {
+      try { tags = JSON.parse(row.tags); } catch { tags = []; }
+    }
+    return { ...row, tags };
+  });
+
+  return c.json({
+    success: true,
+    data: parsed,
+    meta: {
+      requestId: c.get('requestId'),
+      timestamp: Date.now(),
+      version: c.env.API_VERSION,
+      pagination: {
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        total: parsed.length,
+      },
+    },
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
 // GET /capsules/:id — Get single capsule
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -766,61 +821,6 @@ capsuleRoutes.delete('/:id', async (c) => {
       requestId: c.get('requestId'),
       timestamp: Date.now(),
       version: c.env.API_VERSION,
-    },
-  });
-});
-
-// ══════════════════════════════════════════════════════════════════════════════
-// GET /capsules/featured — Public: list featured capsules (no auth required)
-// ══════════════════════════════════════════════════════════════════════════════
-
-capsuleRoutes.get('/featured', async (c) => {
-  const { language, difficulty, limit = '50', offset = '0' } = c.req.query();
-
-  let query = `
-    SELECT id, title, description, type, difficulty, language,
-           function_name, test_count, has_hints, tags, quality_score,
-           created_at
-    FROM capsules
-    WHERE is_published = 1 AND is_deleted = 0 AND tags LIKE '%"featured"%'
-  `;
-  const params: string[] = [];
-
-  if (language) {
-    query += ' AND language = ?';
-    params.push(language);
-  }
-  if (difficulty) {
-    query += ' AND difficulty = ?';
-    params.push(difficulty.toUpperCase());
-  }
-
-  query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-  params.push(limit, offset);
-
-  const capsules = await c.env.DB.prepare(query).bind(...params).all();
-
-  // Parse tags for each capsule
-  const parsed = (capsules.results || []).map((row: any) => {
-    let tags: string[] = [];
-    if (typeof row.tags === 'string') {
-      try { tags = JSON.parse(row.tags); } catch { tags = []; }
-    }
-    return { ...row, tags };
-  });
-
-  return c.json({
-    success: true,
-    data: parsed,
-    meta: {
-      requestId: c.get('requestId'),
-      timestamp: Date.now(),
-      version: c.env.API_VERSION,
-      pagination: {
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        total: parsed.length,
-      },
     },
   });
 });
