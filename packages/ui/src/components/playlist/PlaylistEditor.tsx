@@ -17,7 +17,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { 
   Plus, Save, Eye, Play, Trash2, GripVertical, Wand2, 
   Code, Database, Terminal, BookOpen, Clock, Users,
-  ArrowUp, ArrowDown, Copy, Settings, Lightbulb, Search, X
+  ArrowUp, ArrowDown, Copy, Settings, Lightbulb, Search, X,
+  FolderPlus, ChevronDown, ChevronRight, Pencil
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -30,6 +31,13 @@ import type {
 } from '@codecapsule/core'
 
 // ===== EDITOR INTERFACES =====
+
+interface CourseModule {
+  id: string
+  title: string
+  description: string
+  position: number
+}
 
 interface PlaylistEditorProps {
   playlistId?: string // If editing existing playlist
@@ -52,6 +60,8 @@ interface EditorState {
   }
   capsules: BaseCapsule[]
   availableCapsules: BaseCapsule[]
+  modules: CourseModule[]
+  capsuleModuleMap: Record<string, string | null> // capsule_id -> module_id
   isLoading: boolean
   isSaving: boolean
   isDirty: boolean
@@ -391,6 +401,8 @@ export function PlaylistEditor({
     },
     capsules: [], // Will be populated from initialPlaylist.items
     availableCapsules: [],
+    modules: [],
+    capsuleModuleMap: {},
     isLoading: true,
     isSaving: false,
     isDirty: false,
@@ -459,12 +471,24 @@ export function PlaylistEditor({
           const availableCapsules: BaseCapsule[] = capsulesJson.data || capsulesJson
 
           // Extract capsules from loaded playlist items
-          const playlistCapsules: BaseCapsule[] = loadedPlaylist?.items
-            ? loadedPlaylist.items
-                .sort((a: any, b: any) => (a.order ?? a.position ?? 0) - (b.order ?? b.position ?? 0))
-                .map((item: any) => item.capsule)
-                .filter(Boolean)
+          const sortedItems = loadedPlaylist?.items
+            ? [...loadedPlaylist.items].sort((a: any, b: any) => (a.order ?? a.position ?? 0) - (b.order ?? b.position ?? 0))
             : []
+
+          const playlistCapsules: BaseCapsule[] = sortedItems
+            .map((item: any) => item.capsule)
+            .filter(Boolean)
+          
+          // Build capsule -> module mapping
+          const moduleMap: Record<string, string | null> = {}
+          sortedItems.forEach((item: any) => {
+            if (item.capsule?.id) {
+              moduleMap[item.capsule.id] = item.module_id || null
+            }
+          })
+
+          // Load modules from the playlist response
+          const loadedModules: CourseModule[] = (loadedPlaylist as any)?.modules || []
           
           setState(prev => ({
             ...prev,
@@ -475,6 +499,8 @@ export function PlaylistEditor({
             },
             availableCapsules,
             capsules: playlistCapsules,
+            modules: loadedModules,
+            capsuleModuleMap: moduleMap,
             isLoading: false
           }))
         } else {
@@ -540,6 +566,128 @@ export function PlaylistEditor({
     }
   }, [state.capsules])
 
+  // ===== MODULE MANAGEMENT =====
+
+  const [editingModuleId, setEditingModuleId] = useState<string | null>(null)
+  const [editingModuleTitle, setEditingModuleTitle] = useState('')
+  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set())
+
+  const addModule = useCallback(async () => {
+    if (!playlistId) return
+    try {
+      const newPosition = state.modules.length + 1
+      const response = await fetch(`${apiBaseUrl}/playlists/${playlistId}/modules`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: `Module ${newPosition}`,
+          description: '',
+          position: newPosition
+        })
+      })
+      if (response.ok) {
+        const json = await response.json()
+        const mod = json.data || json
+        setState(prev => ({
+          ...prev,
+          modules: [...prev.modules, mod],
+          isDirty: true
+        }))
+      }
+    } catch (error) {
+      setState(prev => ({ ...prev, error: 'Failed to create module' }))
+    }
+  }, [playlistId, state.modules.length, apiBaseUrl])
+
+  const updateModule = useCallback(async (moduleId: string, title: string) => {
+    if (!playlistId) return
+    try {
+      const response = await fetch(`${apiBaseUrl}/playlists/${playlistId}/modules/${moduleId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title })
+      })
+      if (response.ok) {
+        setState(prev => ({
+          ...prev,
+          modules: prev.modules.map(m => m.id === moduleId ? { ...m, title } : m),
+          isDirty: true
+        }))
+      }
+    } catch (error) {
+      setState(prev => ({ ...prev, error: 'Failed to update module' }))
+    }
+  }, [playlistId, apiBaseUrl])
+
+  const deleteModule = useCallback(async (moduleId: string) => {
+    if (!playlistId) return
+    try {
+      const response = await fetch(`${apiBaseUrl}/playlists/${playlistId}/modules/${moduleId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      if (response.ok) {
+        setState(prev => ({
+          ...prev,
+          modules: prev.modules.filter(m => m.id !== moduleId),
+          capsuleModuleMap: Object.fromEntries(
+            Object.entries(prev.capsuleModuleMap).map(([k, v]) => [k, v === moduleId ? null : v])
+          ),
+          isDirty: true
+        }))
+      }
+    } catch (error) {
+      setState(prev => ({ ...prev, error: 'Failed to delete module' }))
+    }
+  }, [playlistId, apiBaseUrl])
+
+  const assignCapsuleToModule = useCallback((capsuleId: string, moduleId: string | null) => {
+    setState(prev => ({
+      ...prev,
+      capsuleModuleMap: { ...prev.capsuleModuleMap, [capsuleId]: moduleId },
+      isDirty: true
+    }))
+  }, [])
+
+  const toggleModuleCollapse = useCallback((moduleId: string) => {
+    setCollapsedModules(prev => {
+      const next = new Set(prev)
+      if (next.has(moduleId)) next.delete(moduleId)
+      else next.add(moduleId)
+      return next
+    })
+  }, [])
+
+  // Group capsules by module for display
+  const capsulesByModule = useMemo(() => {
+    const groups: Record<string, { module: CourseModule | null; capsules: { capsule: BaseCapsule; globalIndex: number }[] }> = {}
+    
+    // Create a group for each module (in position order)
+    const sortedModules = [...state.modules].sort((a, b) => a.position - b.position)
+    for (const mod of sortedModules) {
+      groups[mod.id] = { module: mod, capsules: [] }
+    }
+    // Unassigned group
+    groups['__unassigned__'] = { module: null, capsules: [] }
+
+    state.capsules.forEach((capsule, index) => {
+      const modId = state.capsuleModuleMap[capsule.id]
+      const key = modId && groups[modId] ? modId : '__unassigned__'
+      groups[key].capsules.push({ capsule, globalIndex: index })
+    })
+
+    return groups
+  }, [state.capsules, state.modules, state.capsuleModuleMap])
+
   // ===== AI GENERATION =====
   
   const handleAIGeneration = useCallback(async (prompt: string, type: 'CODE' | 'DATABASE' | 'TERMINAL') => {
@@ -585,7 +733,8 @@ export function PlaylistEditor({
 
       const capsuleItems = state.capsules.map((capsule, index) => ({
         capsule_id: capsule.id,
-        order: index + 1
+        order: index + 1,
+        module_id: state.capsuleModuleMap[capsule.id] || null
       }))
 
       if (playlistId) {
@@ -645,7 +794,7 @@ export function PlaylistEditor({
     } finally {
       setState(prev => ({ ...prev, isSaving: false }))
     }
-  }, [state.playlist, state.capsules, playlistId, organizationId, apiBaseUrl, onSave])
+  }, [state.playlist, state.capsules, state.capsuleModuleMap, playlistId, organizationId, apiBaseUrl, onSave])
 
   // ===== RENDER =====
   
@@ -781,6 +930,10 @@ export function PlaylistEditor({
                   <div className="flex justify-between">
                     <dt className="text-sm text-gray-400">Exercises</dt>
                     <dd className="text-sm font-medium text-white">{state.capsules.length}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-sm text-gray-400">Modules</dt>
+                    <dd className="text-sm font-medium text-white">{state.modules.length}</dd>
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-sm text-gray-400">Est. Duration</dt>
@@ -949,34 +1102,211 @@ export function PlaylistEditor({
                 {/* ==== COURSE CONTENT TAB ==== */}
                 {activeTab === 'content' && (
                   <>
-                    {state.capsules.length > 0 ? (
-                      <div className="space-y-4">
-                        {state.capsules.map((capsule, index) => (
-                          <CapsuleListItem
-                            key={capsule.id}
-                            capsule={capsule}
-                            index={index}
-                            isSelected={selectedCapsules.has(capsule.id)}
-                            onSelect={(selected) => {
-                              const newSelected = new Set(selectedCapsules)
-                              if (selected) {
-                                newSelected.add(capsule.id)
-                              } else {
-                                newSelected.delete(capsule.id)
-                              }
-                              setSelectedCapsules(newSelected)
-                            }}
-                            onEdit={() => {
-                              console.log('Edit capsule:', capsule.id)
-                            }}
-                            onDelete={() => removeCapsule(index)}
-                            onMoveUp={() => index > 0 && moveCapsule(index, index - 1)}
-                            onMoveDown={() => index < state.capsules.length - 1 && moveCapsule(index, index + 1)}
-                            onDuplicate={() => duplicateCapsule(index)}
-                            canMoveUp={index > 0}
-                            canMoveDown={index < state.capsules.length - 1}
-                          />
-                        ))}
+                    {/* Module management toolbar */}
+                    {playlistId && (
+                      <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-600">
+                        <span className="text-sm text-gray-400">
+                          {state.modules.length} module{state.modules.length !== 1 ? 's' : ''}
+                        </span>
+                        <button
+                          onClick={addModule}
+                          className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-purple-200 bg-purple-900 rounded-md hover:bg-purple-800 transition-colors"
+                        >
+                          <FolderPlus className="w-4 h-4 mr-1" />
+                          Add Module
+                        </button>
+                      </div>
+                    )}
+
+                    {state.capsules.length > 0 || state.modules.length > 0 ? (
+                      <div className="space-y-2">
+                        {/* Render by modules if modules exist */}
+                        {state.modules.length > 0 ? (
+                          <>
+                            {[...state.modules].sort((a, b) => a.position - b.position).map(mod => {
+                              const group = capsulesByModule[mod.id]
+                              const isCollapsed = collapsedModules.has(mod.id)
+                              const isEditing = editingModuleId === mod.id
+
+                              return (
+                                <div key={mod.id} className="rounded-lg border border-slate-600 overflow-hidden">
+                                  {/* Module Header */}
+                                  <div className="flex items-center bg-slate-700/50 px-4 py-2.5">
+                                    <button
+                                      onClick={() => toggleModuleCollapse(mod.id)}
+                                      className="text-gray-400 hover:text-white mr-2"
+                                    >
+                                      {isCollapsed
+                                        ? <ChevronRight className="w-4 h-4" />
+                                        : <ChevronDown className="w-4 h-4" />
+                                      }
+                                    </button>
+
+                                    {isEditing ? (
+                                      <input
+                                        autoFocus
+                                        value={editingModuleTitle}
+                                        onChange={(e) => setEditingModuleTitle(e.target.value)}
+                                        onBlur={() => {
+                                          if (editingModuleTitle.trim()) {
+                                            updateModule(mod.id, editingModuleTitle.trim())
+                                          }
+                                          setEditingModuleId(null)
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            if (editingModuleTitle.trim()) {
+                                              updateModule(mod.id, editingModuleTitle.trim())
+                                            }
+                                            setEditingModuleId(null)
+                                          }
+                                          if (e.key === 'Escape') setEditingModuleId(null)
+                                        }}
+                                        className="flex-1 px-2 py-0.5 bg-slate-600 border border-slate-500 rounded text-sm text-white focus:ring-blue-500 focus:border-blue-500"
+                                      />
+                                    ) : (
+                                      <span className="flex-1 text-sm font-medium text-white">
+                                        {mod.title}
+                                        <span className="ml-2 text-xs text-gray-500">
+                                          ({group?.capsules.length || 0} capsules)
+                                        </span>
+                                      </span>
+                                    )}
+
+                                    <div className="flex items-center space-x-1 ml-2">
+                                      <button
+                                        onClick={() => {
+                                          setEditingModuleId(mod.id)
+                                          setEditingModuleTitle(mod.title)
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-white rounded"
+                                        title="Rename module"
+                                      >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        onClick={() => deleteModule(mod.id)}
+                                        className="p-1 text-gray-400 hover:text-red-400 rounded"
+                                        title="Delete module"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Module Capsule List */}
+                                  {!isCollapsed && (
+                                    <div className="p-3 space-y-3">
+                                      {group?.capsules.length ? (
+                                        group.capsules.map(({ capsule, globalIndex }) => (
+                                          <CapsuleListItem
+                                            key={capsule.id}
+                                            capsule={capsule}
+                                            index={globalIndex}
+                                            isSelected={selectedCapsules.has(capsule.id)}
+                                            onSelect={(selected) => {
+                                              const newSelected = new Set(selectedCapsules)
+                                              if (selected) newSelected.add(capsule.id)
+                                              else newSelected.delete(capsule.id)
+                                              setSelectedCapsules(newSelected)
+                                            }}
+                                            onEdit={() => console.log('Edit capsule:', capsule.id)}
+                                            onDelete={() => removeCapsule(globalIndex)}
+                                            onMoveUp={() => globalIndex > 0 && moveCapsule(globalIndex, globalIndex - 1)}
+                                            onMoveDown={() => globalIndex < state.capsules.length - 1 && moveCapsule(globalIndex, globalIndex + 1)}
+                                            onDuplicate={() => duplicateCapsule(globalIndex)}
+                                            canMoveUp={globalIndex > 0}
+                                            canMoveDown={globalIndex < state.capsules.length - 1}
+                                          />
+                                        ))
+                                      ) : (
+                                        <p className="text-xs text-gray-500 text-center py-4">
+                                          No capsules in this module yet. Drag capsules here or use the assign dropdown.
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+
+                            {/* Unassigned capsules */}
+                            {capsulesByModule['__unassigned__']?.capsules.length > 0 && (
+                              <div className="rounded-lg border border-dashed border-slate-600 overflow-hidden">
+                                <div className="flex items-center bg-slate-700/30 px-4 py-2.5">
+                                  <span className="flex-1 text-sm font-medium text-gray-400">
+                                    Unassigned Capsules
+                                    <span className="ml-2 text-xs text-gray-500">
+                                      ({capsulesByModule['__unassigned__'].capsules.length})
+                                    </span>
+                                  </span>
+                                </div>
+                                <div className="p-3 space-y-3">
+                                  {capsulesByModule['__unassigned__'].capsules.map(({ capsule, globalIndex }) => (
+                                    <div key={capsule.id} className="relative">
+                                      <CapsuleListItem
+                                        capsule={capsule}
+                                        index={globalIndex}
+                                        isSelected={selectedCapsules.has(capsule.id)}
+                                        onSelect={(selected) => {
+                                          const newSelected = new Set(selectedCapsules)
+                                          if (selected) newSelected.add(capsule.id)
+                                          else newSelected.delete(capsule.id)
+                                          setSelectedCapsules(newSelected)
+                                        }}
+                                        onEdit={() => console.log('Edit capsule:', capsule.id)}
+                                        onDelete={() => removeCapsule(globalIndex)}
+                                        onMoveUp={() => globalIndex > 0 && moveCapsule(globalIndex, globalIndex - 1)}
+                                        onMoveDown={() => globalIndex < state.capsules.length - 1 && moveCapsule(globalIndex, globalIndex + 1)}
+                                        onDuplicate={() => duplicateCapsule(globalIndex)}
+                                        canMoveUp={globalIndex > 0}
+                                        canMoveDown={globalIndex < state.capsules.length - 1}
+                                      />
+                                      {/* Module assign dropdown */}
+                                      {state.modules.length > 0 && (
+                                        <select
+                                          value=""
+                                          onChange={(e) => assignCapsuleToModule(capsule.id, e.target.value || null)}
+                                          className="absolute top-2 right-2 text-[10px] bg-slate-600 border border-slate-500 text-gray-300 rounded px-1 py-0.5"
+                                        >
+                                          <option value="">→ Assign to module…</option>
+                                          {state.modules.map(m => (
+                                            <option key={m.id} value={m.id}>{m.title}</option>
+                                          ))}
+                                        </select>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          /* Flat list when no modules exist */
+                          <div className="space-y-4">
+                            {state.capsules.map((capsule, index) => (
+                              <CapsuleListItem
+                                key={capsule.id}
+                                capsule={capsule}
+                                index={index}
+                                isSelected={selectedCapsules.has(capsule.id)}
+                                onSelect={(selected) => {
+                                  const newSelected = new Set(selectedCapsules)
+                                  if (selected) newSelected.add(capsule.id)
+                                  else newSelected.delete(capsule.id)
+                                  setSelectedCapsules(newSelected)
+                                }}
+                                onEdit={() => console.log('Edit capsule:', capsule.id)}
+                                onDelete={() => removeCapsule(index)}
+                                onMoveUp={() => index > 0 && moveCapsule(index, index - 1)}
+                                onMoveDown={() => index < state.capsules.length - 1 && moveCapsule(index, index + 1)}
+                                onDuplicate={() => duplicateCapsule(index)}
+                                canMoveUp={index > 0}
+                                canMoveDown={index < state.capsules.length - 1}
+                              />
+                            ))}
+                          </div>
+                        )}
 
                         {/* Add more button at bottom */}
                         <button

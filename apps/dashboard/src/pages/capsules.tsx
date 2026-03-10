@@ -1,5 +1,5 @@
 /**
- * Public Capsules Catalog — Browse featured capsules without login
+ * Public Capsules Catalog — Browse featured courses & capsules without login
  */
 
 import React, { useState, useEffect } from 'react'
@@ -8,6 +8,23 @@ import Head from 'next/head'
 import { useAuth } from '../contexts/AuthContext'
 
 const API_URL = process.env.NEXT_PUBLIC_WORKERS_API_URL || 'https://devcapsules-api.devleep-edu.workers.dev'
+
+interface CourseModule {
+  id: string
+  title: string
+  description: string
+  position: number
+}
+
+interface FeaturedCourse {
+  id: string
+  title: string
+  description: string
+  tags: string[]
+  total_items: number
+  modules: CourseModule[]
+  created_at: string
+}
 
 interface FeaturedCapsule {
   id: string
@@ -40,39 +57,51 @@ const DIFFICULTY_COLORS: Record<string, string> = {
 export default function CapsulesCatalog() {
   const router = useRouter()
   const { user } = useAuth()
+  const [courses, setCourses] = useState<FeaturedCourse[]>([])
   const [capsules, setCapsules] = useState<FeaturedCapsule[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [filterLang, setFilterLang] = useState<string>('')
-  const [filterDiff, setFilterDiff] = useState<string>('')
+  const [expandedCourse, setExpandedCourse] = useState<string | null>(null)
 
   useEffect(() => {
     fetchFeatured()
-  }, [filterLang, filterDiff])
+  }, [])
 
   const fetchFeatured = async () => {
     setLoading(true)
     setError('')
     try {
-      const params = new URLSearchParams()
-      if (filterLang)  params.set('language', filterLang)
-      if (filterDiff)  params.set('difficulty', filterDiff)
-      params.set('limit', '100')
+      // Fetch featured courses and standalone capsules in parallel
+      const [coursesRes, capsulesRes] = await Promise.all([
+        fetch(`${API_URL}/api/v1/playlists/featured?limit=50`),
+        fetch(`${API_URL}/api/v1/capsules/featured?limit=100`),
+      ])
 
-      const res = await fetch(`${API_URL}/api/v1/capsules/featured?${params}`)
-      const json = await res.json()
+      const coursesJson = await coursesRes.json()
+      const capsulesJson = await capsulesRes.json()
 
-      if (json.success) {
-        // Parse tags if they're still strings
-        const parsed = (json.data || []).map((c: any) => ({
-          ...c,
-          tags: Array.isArray(c.tags) ? c.tags : (() => {
-            try { return JSON.parse(c.tags || '[]'); } catch { return []; }
-          })(),
-        }))
-        setCapsules(parsed)
-      } else {
-        setError('Failed to load capsules')
+      if (coursesJson.success) {
+        setCourses(
+          (coursesJson.data || []).map((c: any) => ({
+            ...c,
+            tags: Array.isArray(c.tags) ? c.tags : (() => {
+              try { return JSON.parse(c.tags || '[]') } catch { return [] }
+            })(),
+          }))
+        )
+      }
+      if (capsulesJson.success) {
+        setCapsules(
+          (capsulesJson.data || []).map((c: any) => ({
+            ...c,
+            tags: Array.isArray(c.tags) ? c.tags : (() => {
+              try { return JSON.parse(c.tags || '[]') } catch { return [] }
+            })(),
+          }))
+        )
+      }
+      if (!coursesJson.success && !capsulesJson.success) {
+        setError('Failed to load content')
       }
     } catch {
       setError('Could not connect to the server')
@@ -81,28 +110,22 @@ export default function CapsulesCatalog() {
     }
   }
 
-  // Group capsules by tag categories
-  const groupedByCategory = () => {
-    const groups: Record<string, FeaturedCapsule[]> = {}
-    capsules.forEach(c => {
-      const categoryTag = c.tags.find(t => t !== 'featured' && t !== 'generated') || 'General'
-      if (!groups[categoryTag]) groups[categoryTag] = []
-      groups[categoryTag].push(c)
-    })
-    return groups
-  }
-
   const handleCapsuleClick = (capsuleId: string) => {
     if (user) {
-      // Logged in → open solver embed
       window.open(`https://embed.codecapsule.dev/?id=${capsuleId}`, '_blank')
     } else {
       router.push('/login')
     }
   }
 
-  const groups = groupedByCategory()
-  const allLanguages = [...new Set(capsules.map(c => c.language))]
+  // Infer language from course tags
+  const courseLanguage = (tags: string[]) => {
+    for (const t of tags) {
+      const lower = t.toLowerCase()
+      if (lower in LANGUAGE_META) return lower
+    }
+    return null
+  }
 
   return (
     <>
@@ -119,58 +142,8 @@ export default function CapsulesCatalog() {
               Learn <span style={{ color: '#00ff87' }}>AI Engineering</span> by Building
             </h2>
             <p className="text-slate-400 text-lg">
-              Master LLM pipelines, agent patterns, and data engineering — one hands-on capsule at a time. No libraries, no boilerplate. Just you and pure code.
+              Master LLM pipelines, agent patterns, and data engineering — structured courses with hands-on coding exercises. No libraries, no boilerplate. Just you and pure code.
             </p>
-          </div>
-
-          {/* ─── Filters ─── */}
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            {/* Language filter */}
-            <button
-              onClick={() => setFilterLang('')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                !filterLang ? 'bg-white/10 text-white border-white/20' : 'text-slate-500 border-transparent hover:text-slate-300'
-              }`}
-            >
-              All Languages
-            </button>
-            {allLanguages.map(lang => {
-              const meta = LANGUAGE_META[lang] || { icon: lang.slice(0,2).toUpperCase(), label: lang, color: 'bg-white/5 text-slate-400 border-white/10' }
-              return (
-                <button
-                  key={lang}
-                  onClick={() => setFilterLang(lang === filterLang ? '' : lang)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                    filterLang === lang ? meta.color : 'text-slate-500 border-transparent hover:text-slate-300'
-                  }`}
-                >
-                  {meta.icon} {meta.label}
-                </button>
-              )
-            })}
-
-            <div className="w-px h-5 bg-white/10" />
-
-            {/* Difficulty filter */}
-            <button
-              onClick={() => setFilterDiff('')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                !filterDiff ? 'bg-white/10 text-white border-white/20' : 'text-slate-500 border-transparent hover:text-slate-300'
-              }`}
-            >
-              All Levels
-            </button>
-            {['EASY', 'MEDIUM', 'HARD'].map(d => (
-              <button
-                key={d}
-                onClick={() => setFilterDiff(d === filterDiff ? '' : d)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                  filterDiff === d ? DIFFICULTY_COLORS[d] : 'text-slate-500 border-transparent hover:text-slate-300'
-                }`}
-              >
-                {d.charAt(0) + d.slice(1).toLowerCase()}
-              </button>
-            ))}
           </div>
         </section>
 
@@ -185,81 +158,219 @@ export default function CapsulesCatalog() {
               <p className="text-red-400">{error}</p>
               <button onClick={fetchFeatured} className="mt-4 text-sm text-slate-400 hover:text-white underline">Retry</button>
             </div>
-          ) : capsules.length === 0 ? (
-            <div className="text-center py-20">
-              <p className="text-slate-500 text-lg">No capsules yet. Check back soon!</p>
-            </div>
           ) : (
-            Object.entries(groups).map(([category, items]) => (
-              <div key={category} className="mb-12">
-                <h3 className="text-lg font-bold text-white/90 mb-4 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#00ff87' }} />
-                  {category.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                  <span className="text-xs text-slate-600 font-normal ml-1">({items.length} capsules)</span>
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {items.map(capsule => {
-                    const langMeta = LANGUAGE_META[capsule.language] || { icon: '??', label: capsule.language, color: 'bg-white/5 text-slate-400 border-white/10' }
-                    const diffColor = DIFFICULTY_COLORS[capsule.difficulty] || DIFFICULTY_COLORS.MEDIUM
-                    return (
-                      <button
-                        key={capsule.id}
-                        onClick={() => handleCapsuleClick(capsule.id)}
-                        className="group text-left rounded-xl p-5 transition-all duration-200 hover:scale-[1.02]"
-                        style={{
-                          background: 'rgba(255,255,255,0.02)',
-                          border: '1px solid rgba(255,255,255,0.06)',
-                        }}
-                        onMouseEnter={e => {
-                          (e.currentTarget as HTMLElement).style.borderColor = 'rgba(0,255,135,0.2)'
-                          ;(e.currentTarget as HTMLElement).style.background = 'rgba(0,255,135,0.03)'
-                        }}
-                        onMouseLeave={e => {
-                          (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.06)'
-                          ;(e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.02)'
-                        }}
-                      >
-                        {/* Top row: language + difficulty */}
-                        <div className="flex items-center justify-between mb-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${langMeta.color}`}>
-                            {langMeta.icon}
-                          </span>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${diffColor}`}>
-                            {capsule.difficulty}
-                          </span>
+            <>
+              {/* ─── Featured Courses ─── */}
+              {courses.length > 0 && (
+                <div className="mb-16">
+                  <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full" style={{ background: '#00ff87' }} />
+                    Featured Courses
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {courses.map(course => {
+                      const lang = courseLanguage(course.tags)
+                      const langMeta = lang ? LANGUAGE_META[lang] : null
+                      const isExpanded = expandedCourse === course.id
+
+                      return (
+                        <div
+                          key={course.id}
+                          className="rounded-xl transition-all duration-200"
+                          style={{
+                            background: 'rgba(255,255,255,0.02)',
+                            border: isExpanded
+                              ? '1px solid rgba(0,255,135,0.25)'
+                              : '1px solid rgba(255,255,255,0.06)',
+                          }}
+                        >
+                          {/* Course Header */}
+                          <button
+                            onClick={() => setExpandedCourse(isExpanded ? null : course.id)}
+                            className="w-full text-left p-6"
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                {langMeta && (
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${langMeta.color}`}>
+                                    {langMeta.icon}
+                                  </span>
+                                )}
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold border bg-[#00ff87]/10 text-[#00ff87] border-[#00ff87]/30">
+                                  COURSE
+                                </span>
+                              </div>
+                              <span className="text-xs text-slate-500">
+                                {course.total_items} exercises · {course.modules.length} modules
+                              </span>
+                            </div>
+
+                            <h4 className="text-lg font-semibold text-white mb-2 group-hover:text-[#00ff87]">
+                              {course.title}
+                            </h4>
+                            <p className="text-sm text-slate-400 line-clamp-2">
+                              {course.description || 'Hands-on coding course'}
+                            </p>
+
+                            {/* Expand indicator */}
+                            <div className="mt-4 flex items-center gap-1 text-xs text-[#00ff87]/60">
+                              <svg
+                                className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                              </svg>
+                              {isExpanded ? 'Hide modules' : 'View modules'}
+                            </div>
+                          </button>
+
+                          {/* Expanded Modules */}
+                          {isExpanded && course.modules.length > 0 && (
+                            <div className="px-6 pb-6 border-t border-white/5 pt-4">
+                              <div className="space-y-3">
+                                {course.modules.map((mod, i) => (
+                                  <div
+                                    key={mod.id}
+                                    className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]"
+                                  >
+                                    <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
+                                      style={{ background: 'rgba(0,255,135,0.1)', color: '#00ff87' }}
+                                    >
+                                      {i + 1}
+                                    </span>
+                                    <div>
+                                      <p className="text-sm font-medium text-white">{mod.title}</p>
+                                      {mod.description && (
+                                        <p className="text-xs text-slate-500 mt-0.5">{mod.description}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* CTA */}
+                              <button
+                                onClick={() => {
+                                  if (user) {
+                                    router.push(`/courses/detail/?id=${course.id}`)
+                                  } else {
+                                    router.push('/login')
+                                  }
+                                }}
+                                className="mt-4 w-full py-2.5 rounded-lg text-sm font-semibold transition-all"
+                                style={{
+                                  background: 'rgba(0,255,135,0.1)',
+                                  border: '1px solid rgba(0,255,135,0.3)',
+                                  color: '#00ff87',
+                                }}
+                                onMouseEnter={e => {
+                                  (e.currentTarget as HTMLElement).style.background = 'rgba(0,255,135,0.2)'
+                                }}
+                                onMouseLeave={e => {
+                                  (e.currentTarget as HTMLElement).style.background = 'rgba(0,255,135,0.1)'
+                                }}
+                              >
+                                {user ? 'Start Course →' : 'Sign in to Start →'}
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Collapsed module preview for courses without modules */}
+                          {isExpanded && course.modules.length === 0 && (
+                            <div className="px-6 pb-6 border-t border-white/5 pt-4">
+                              <p className="text-sm text-slate-500">
+                                {course.total_items} exercises — no modules defined yet
+                              </p>
+                              <button
+                                onClick={() => {
+                                  if (user) {
+                                    router.push(`/courses/detail/?id=${course.id}`)
+                                  } else {
+                                    router.push('/login')
+                                  }
+                                }}
+                                className="mt-4 w-full py-2.5 rounded-lg text-sm font-semibold transition-all"
+                                style={{
+                                  background: 'rgba(0,255,135,0.1)',
+                                  border: '1px solid rgba(0,255,135,0.3)',
+                                  color: '#00ff87',
+                                }}
+                              >
+                                {user ? 'Start Course →' : 'Sign in to Start →'}
+                              </button>
+                            </div>
+                          )}
                         </div>
-
-                        {/* Title */}
-                        <h4 className="text-sm font-semibold text-white group-hover:text-[#00ff87] transition-colors line-clamp-2 mb-2">
-                          {capsule.title}
-                        </h4>
-
-                        {/* Description */}
-                        <p className="text-xs text-slate-500 line-clamp-2 mb-3">
-                          {capsule.description || 'Practice problem'}
-                        </p>
-
-                        {/* Footer meta */}
-                        <div className="flex items-center gap-3 text-[10px] text-slate-600">
-                          {capsule.test_count > 0 && (
-                            <span>{capsule.test_count} tests</span>
-                          )}
-                          {capsule.has_hints > 0 && (
-                            <span>Hints</span>
-                          )}
-                          {!user && (
-                            <span className="ml-auto text-[#00ff87]/60">Sign in to solve →</span>
-                          )}
-                        </div>
-                      </button>
-                    )
-                  })}
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))
+              )}
+
+              {/* ─── Standalone Featured Capsules ─── */}
+              {capsules.length > 0 && (
+                <div>
+                  <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full" style={{ background: '#00ff87' }} />
+                    Practice Capsules
+                    <span className="text-xs text-slate-600 font-normal ml-1">({capsules.length})</span>
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {capsules.map(capsule => {
+                      const langMeta = LANGUAGE_META[capsule.language] || { icon: '??', label: capsule.language, color: 'bg-white/5 text-slate-400 border-white/10' }
+                      const diffColor = DIFFICULTY_COLORS[capsule.difficulty] || DIFFICULTY_COLORS.MEDIUM
+                      return (
+                        <button
+                          key={capsule.id}
+                          onClick={() => handleCapsuleClick(capsule.id)}
+                          className="group text-left rounded-xl p-5 transition-all duration-200 hover:scale-[1.02]"
+                          style={{
+                            background: 'rgba(255,255,255,0.02)',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                          }}
+                          onMouseEnter={e => {
+                            (e.currentTarget as HTMLElement).style.borderColor = 'rgba(0,255,135,0.2)'
+                            ;(e.currentTarget as HTMLElement).style.background = 'rgba(0,255,135,0.03)'
+                          }}
+                          onMouseLeave={e => {
+                            (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.06)'
+                            ;(e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.02)'
+                          }}
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${langMeta.color}`}>
+                              {langMeta.icon}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${diffColor}`}>
+                              {capsule.difficulty}
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-semibold text-white group-hover:text-[#00ff87] transition-colors line-clamp-2 mb-2">
+                            {capsule.title}
+                          </h4>
+                          <p className="text-xs text-slate-500 line-clamp-2 mb-3">
+                            {capsule.description || 'Practice problem'}
+                          </p>
+                          <div className="flex items-center gap-3 text-[10px] text-slate-600">
+                            {capsule.test_count > 0 && <span>{capsule.test_count} tests</span>}
+                            {capsule.has_hints > 0 && <span>Hints</span>}
+                            {!user && <span className="ml-auto text-[#00ff87]/60">Sign in to solve →</span>}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {courses.length === 0 && capsules.length === 0 && (
+                <div className="text-center py-20">
+                  <p className="text-slate-500 text-lg">No content published yet. Check back soon!</p>
+                </div>
+              )}
+            </>
           )}
         </section>
-
       </div>
     </>
   )

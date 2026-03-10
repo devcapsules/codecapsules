@@ -1,21 +1,27 @@
 /**
  * Playlist / Course Routes
  *
- * CRUD for courses (DB table: courses + course_capsules + user_progress).
+ * CRUD for courses (DB table: courses + course_modules + course_capsules + user_progress).
  * The UI components call these as "playlists" so the route path is /playlists.
  *
  * Endpoints:
- *   GET    /playlists                -> list creator's courses
- *   GET    /playlists/:id            -> single course with capsule details
- *   GET    /playlists/:id/embed      -> public course data for embed widget
- *   POST   /playlists                -> create course
- *   PUT    /playlists/:id            -> update course + reorder items (batched txn)
- *   DELETE /playlists/:id            -> soft-delete course
- *   POST   /playlists/:id/duplicate  -> clone a course
- *   POST   /playlists/:id/publish    -> toggle publish status
- *   GET    /playlists/:id/analytics  -> engagement analytics
- *   GET    /playlists/:id/progress   -> learner progress
- *   POST   /playlists/:id/progress   -> update learner progress
+ *   GET    /playlists/featured           -> public: list featured courses (no auth)
+ *   GET    /playlists                    -> list creator's courses
+ *   GET    /playlists/:id                -> single course with modules + capsule details
+ *   GET    /playlists/:id/embed          -> public course data for embed widget
+ *   POST   /playlists                    -> create course
+ *   PUT    /playlists/:id                -> update course + reorder items (batched txn)
+ *   DELETE /playlists/:id                -> soft-delete course
+ *   POST   /playlists/:id/duplicate      -> clone a course
+ *   POST   /playlists/:id/publish        -> toggle publish status
+ *   PATCH  /playlists/:id/tags           -> update course tags (featured toggle)
+ *   GET    /playlists/:id/analytics      -> engagement analytics
+ *   GET    /playlists/:id/progress       -> learner progress
+ *   POST   /playlists/:id/progress       -> update learner progress
+ *   POST   /playlists/:id/modules        -> create module
+ *   PUT    /playlists/:id/modules/:modId -> update module
+ *   DELETE /playlists/:id/modules/:modId -> delete module
+ *   PUT    /playlists/:id/modules/reorder -> reorder modules
  */
 
 import { Hono } from 'hono';
@@ -64,6 +70,61 @@ function normaliseCourse(row: Record<string, any>) {
     updated_at: row.updated_at,
   };
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GET /playlists/featured — Public: list featured courses (no auth required)
+// ══════════════════════════════════════════════════════════════════════════════
+
+playlistRoutes.get('/featured', async (c) => {
+  const { language, limit = '50', offset = '0' } = c.req.query();
+
+  let query = `
+    SELECT c.*, COUNT(cc.capsule_id) as total_items
+    FROM courses c
+    LEFT JOIN course_capsules cc ON c.id = cc.course_id
+    WHERE c.is_published = 1 AND c.is_deleted = 0 AND c.tags LIKE '%"featured"%'
+  `;
+  const params: any[] = [];
+
+  if (language) {
+    // Filter courses that contain capsules in this language
+    query = `
+      SELECT c.*, COUNT(cc.capsule_id) as total_items
+      FROM courses c
+      LEFT JOIN course_capsules cc ON c.id = cc.course_id
+      LEFT JOIN capsules cap ON cc.capsule_id = cap.id
+      WHERE c.is_published = 1 AND c.is_deleted = 0 AND c.tags LIKE '%"featured"%'
+        AND cap.language = ?
+    `;
+    params.push(language);
+  }
+
+  query += ` GROUP BY c.id ORDER BY c.created_at DESC LIMIT ? OFFSET ?`;
+  params.push(parseInt(limit as string), parseInt(offset as string));
+
+  const result = await c.env.DB.prepare(query).bind(...params).all();
+
+  // For each course, also fetch modules
+  const courses = [];
+  for (const row of (result.results || []) as any[]) {
+    const modules = await c.env.DB.prepare(`
+      SELECT * FROM course_modules WHERE course_id = ? ORDER BY position ASC
+    `).bind(row.id).all();
+
+    courses.push({
+      ...normaliseCourse(row),
+      total_items: row.total_items || 0,
+      modules: (modules.results || []).map((m: any) => ({
+        id: m.id,
+        title: m.title,
+        description: m.description || '',
+        position: m.position,
+      })),
+    });
+  }
+
+  return c.json({ success: true, data: courses, meta: meta(c) });
+});
 
 // ══════════════════════════════════════════════════════════════════════════════
 // GET /playlists — List creator's courses
@@ -125,9 +186,9 @@ playlistRoutes.get('/:id', async (c) => {
     throw new ApiError(403, 'Access denied');
   }
 
-  // Fetch ordered items with full capsule data
+  // Fetch ordered items with full capsule data (including module_id)
   const items = await c.env.DB.prepare(`
-    SELECT cc.position, cc.is_gate, cc.is_optional,
+    SELECT cc.position, cc.is_gate, cc.is_optional, cc.module_id,
            cap.id as capsule_id, cap.title, cap.description, cap.type,
            cap.difficulty, cap.language, cap.function_name, cap.test_count,
            cap.has_hints, cap.content, cap.tags, cap.is_published as capsule_published
@@ -137,6 +198,11 @@ playlistRoutes.get('/:id', async (c) => {
     ORDER BY cc.position ASC
   `).bind(id).all();
 
+  // Fetch modules for this course
+  const modules = await c.env.DB.prepare(`
+    SELECT * FROM course_modules WHERE course_id = ? ORDER BY position ASC
+  `).bind(id).all();
+
   const normalizedItems = (items.results || []).map((row: any) => ({
     item_id: `${id}_${row.capsule_id}`,
     playlist_id: id,
@@ -144,6 +210,7 @@ playlistRoutes.get('/:id', async (c) => {
     order: row.position,
     is_gate: !!row.is_gate,
     is_optional: !!row.is_optional,
+    module_id: row.module_id || null,
     created_at: course.created_at,
     capsule: {
       id: row.capsule_id,
@@ -161,9 +228,17 @@ playlistRoutes.get('/:id', async (c) => {
     },
   }));
 
+  const normalizedModules = (modules.results || []).map((m: any) => ({
+    id: m.id,
+    title: m.title,
+    description: m.description || '',
+    position: m.position,
+  }));
+
   const data = {
     ...normaliseCourse(course as any),
     items: normalizedItems,
+    modules: normalizedModules,
     total_items: normalizedItems.length,
   };
 
@@ -351,7 +426,7 @@ playlistRoutes.put('/:id', async (c) => {
   if (Array.isArray(items)) {
     // Fetch existing items to diff
     const existing = await c.env.DB.prepare(`
-      SELECT capsule_id, position, is_gate, is_optional FROM course_capsules WHERE course_id = ?
+      SELECT capsule_id, position, is_gate, is_optional, module_id FROM course_capsules WHERE course_id = ?
     `).bind(id).all();
     const existingMap = new Map<string, any>();
     for (const row of (existing.results || []) as any[]) {
@@ -370,21 +445,22 @@ playlistRoutes.put('/:id', async (c) => {
         // Existing item — update position + merge flags (preserve if not sent)
         const gate = item.is_gate !== undefined ? (item.is_gate ? 1 : 0) : prev.is_gate;
         const optional = item.is_optional !== undefined ? (item.is_optional ? 1 : 0) : prev.is_optional;
-        if (prev.position !== position || prev.is_gate !== gate || prev.is_optional !== optional) {
+        const modId = item.module_id !== undefined ? item.module_id : prev.module_id;
+        if (prev.position !== position || prev.is_gate !== gate || prev.is_optional !== optional || prev.module_id !== modId) {
           statements.push(
             c.env.DB.prepare(`
-              UPDATE course_capsules SET position = ?, is_gate = ?, is_optional = ?
+              UPDATE course_capsules SET position = ?, is_gate = ?, is_optional = ?, module_id = ?
               WHERE course_id = ? AND capsule_id = ?
-            `).bind(position, gate, optional, id, capsuleId)
+            `).bind(position, gate, optional, modId || null, id, capsuleId)
           );
         }
       } else {
         // New item
         statements.push(
           c.env.DB.prepare(`
-            INSERT INTO course_capsules (course_id, capsule_id, position, is_gate, is_optional)
-            VALUES (?, ?, ?, ?, ?)
-          `).bind(id, capsuleId, position, item.is_gate ? 1 : 0, item.is_optional ? 1 : 0)
+            INSERT INTO course_capsules (course_id, capsule_id, position, is_gate, is_optional, module_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `).bind(id, capsuleId, position, item.is_gate ? 1 : 0, item.is_optional ? 1 : 0, item.module_id || null)
         );
       }
     }
@@ -752,4 +828,178 @@ playlistRoutes.post('/:id/progress', async (c) => {
     },
     meta: meta(c),
   });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PATCH /playlists/:id/tags — Update course tags (featured toggle)
+// ══════════════════════════════════════════════════════════════════════════════
+
+playlistRoutes.patch('/:id/tags', async (c) => {
+  const auth = c.get('auth');
+  if (!auth) throw new ApiError(401, 'Authentication required');
+
+  const { id } = c.req.param();
+  const body = await c.req.json();
+  const { tags } = body;
+
+  if (!Array.isArray(tags)) throw new ApiError(400, 'tags must be an array');
+
+  // Verify ownership
+  const course = await c.env.DB.prepare(`
+    SELECT id FROM courses WHERE id = ? AND creator_id = ? AND is_deleted = 0
+  `).bind(id, auth.userId).first();
+
+  if (!course) throw new ApiError(404, 'Course not found');
+
+  await c.env.DB.prepare(`
+    UPDATE courses SET tags = ?, updated_at = datetime('now') WHERE id = ?
+  `).bind(JSON.stringify(tags), id).run();
+
+  return c.json({ success: true, data: { id, tags }, meta: meta(c) });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// POST /playlists/:id/modules — Create a module in a course
+// ══════════════════════════════════════════════════════════════════════════════
+
+playlistRoutes.post('/:id/modules', async (c) => {
+  const auth = c.get('auth');
+  if (!auth) throw new ApiError(401, 'Authentication required');
+
+  const { id } = c.req.param();
+
+  // Verify ownership
+  const course = await c.env.DB.prepare(`
+    SELECT id FROM courses WHERE id = ? AND creator_id = ? AND is_deleted = 0
+  `).bind(id, auth.userId).first();
+  if (!course) throw new ApiError(404, 'Course not found');
+
+  const body = await c.req.json();
+  const { title, description, position } = body;
+  if (!title) throw new ApiError(400, 'title is required');
+
+  // Auto-position: if not provided, append after last module
+  let pos = position;
+  if (pos === undefined || pos === null) {
+    const last = await c.env.DB.prepare(`
+      SELECT MAX(position) as max_pos FROM course_modules WHERE course_id = ?
+    `).bind(id).first();
+    pos = ((last as any)?.max_pos ?? -1) + 1;
+  }
+
+  const moduleId = crypto.randomUUID().replace(/-/g, '').slice(0, 24);
+
+  await c.env.DB.prepare(`
+    INSERT INTO course_modules (id, course_id, title, description, position, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  `).bind(moduleId, id, title, description || '', pos).run();
+
+  return c.json({
+    success: true,
+    data: { id: moduleId, course_id: id, title, description: description || '', position: pos },
+    meta: meta(c),
+  }, 201);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PUT /playlists/:id/modules/reorder — Reorder modules
+// ══════════════════════════════════════════════════════════════════════════════
+
+playlistRoutes.put('/:id/modules/reorder', async (c) => {
+  const auth = c.get('auth');
+  if (!auth) throw new ApiError(401, 'Authentication required');
+
+  const { id } = c.req.param();
+
+  const course = await c.env.DB.prepare(`
+    SELECT id FROM courses WHERE id = ? AND creator_id = ? AND is_deleted = 0
+  `).bind(id, auth.userId).first();
+  if (!course) throw new ApiError(404, 'Course not found');
+
+  const body = await c.req.json();
+  const { module_ids } = body; // Ordered array of module IDs
+
+  if (!Array.isArray(module_ids)) throw new ApiError(400, 'module_ids must be an array');
+
+  const statements: D1PreparedStatement[] = [];
+  for (let i = 0; i < module_ids.length; i++) {
+    statements.push(
+      c.env.DB.prepare(`
+        UPDATE course_modules SET position = ?, updated_at = datetime('now')
+        WHERE id = ? AND course_id = ?
+      `).bind(i, module_ids[i], id)
+    );
+  }
+
+  if (statements.length > 0) await c.env.DB.batch(statements);
+
+  return c.json({ success: true, meta: meta(c) });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PUT /playlists/:id/modules/:moduleId — Update a module
+// ══════════════════════════════════════════════════════════════════════════════
+
+playlistRoutes.put('/:id/modules/:moduleId', async (c) => {
+  const auth = c.get('auth');
+  if (!auth) throw new ApiError(401, 'Authentication required');
+
+  const { id, moduleId } = c.req.param();
+
+  const course = await c.env.DB.prepare(`
+    SELECT id FROM courses WHERE id = ? AND creator_id = ? AND is_deleted = 0
+  `).bind(id, auth.userId).first();
+  if (!course) throw new ApiError(404, 'Course not found');
+
+  const body = await c.req.json();
+  const { title, description, position } = body;
+
+  const sets: string[] = [];
+  const params: any[] = [];
+
+  if (title !== undefined) { sets.push('title = ?'); params.push(title); }
+  if (description !== undefined) { sets.push('description = ?'); params.push(description); }
+  if (position !== undefined) { sets.push('position = ?'); params.push(position); }
+
+  if (sets.length === 0) throw new ApiError(400, 'Nothing to update');
+
+  sets.push("updated_at = datetime('now')");
+  params.push(moduleId, id);
+
+  const result = await c.env.DB.prepare(`
+    UPDATE course_modules SET ${sets.join(', ')} WHERE id = ? AND course_id = ?
+  `).bind(...params).run();
+
+  if (!result.meta.changes) throw new ApiError(404, 'Module not found');
+
+  return c.json({ success: true, meta: meta(c) });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DELETE /playlists/:id/modules/:moduleId — Delete a module
+// Capsules in this module get their module_id set to NULL (orphaned into course root)
+// ══════════════════════════════════════════════════════════════════════════════
+
+playlistRoutes.delete('/:id/modules/:moduleId', async (c) => {
+  const auth = c.get('auth');
+  if (!auth) throw new ApiError(401, 'Authentication required');
+
+  const { id, moduleId } = c.req.param();
+
+  const course = await c.env.DB.prepare(`
+    SELECT id FROM courses WHERE id = ? AND creator_id = ? AND is_deleted = 0
+  `).bind(id, auth.userId).first();
+  if (!course) throw new ApiError(404, 'Course not found');
+
+  // Unlink capsules first (set module_id to NULL), then delete module
+  await c.env.DB.batch([
+    c.env.DB.prepare(`
+      UPDATE course_capsules SET module_id = NULL WHERE module_id = ? AND course_id = ?
+    `).bind(moduleId, id),
+    c.env.DB.prepare(`
+      DELETE FROM course_modules WHERE id = ? AND course_id = ?
+    `).bind(moduleId, id),
+  ]);
+
+  return c.json({ success: true, meta: meta(c) });
 });
