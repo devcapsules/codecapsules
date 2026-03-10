@@ -112,41 +112,6 @@ export default function CapsulesCatalog() {
       </Head>
 
       <div className="min-h-screen bg-[#04040a] text-white">
-        {/* ─── Header ─── */}
-        <header className="border-b border-white/5">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold"
-                style={{ background: 'linear-gradient(135deg, #00ff87, #00c96b)' }}>
-                <span style={{ color: '#04040a' }}>CC</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">Practice Capsules</h1>
-                <p className="text-xs text-slate-500">Hands-on coding labs for the AI era</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {user ? (
-                <button
-                  onClick={() => router.push('/dashboard')}
-                  className="px-4 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-                >
-                  Dashboard
-                </button>
-              ) : (
-                <button
-                  onClick={() => router.push('/login')}
-                  className="px-4 py-2 rounded-lg text-sm font-bold transition-all"
-                  style={{ background: 'linear-gradient(135deg, #00ff87, #00c96b)', color: '#04040a' }}
-                >
-                  Sign In
-                </button>
-              )}
-            </div>
-          </div>
-        </header>
-
         {/* ─── Hero ─── */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
           <div className="text-center max-w-2xl mx-auto space-y-4">
@@ -295,12 +260,6 @@ export default function CapsulesCatalog() {
           )}
         </section>
 
-        {/* ─── Footer ─── */}
-        <footer className="border-t border-white/5 py-8">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-600">
-            <p>Built with CodeCapsule — AI-powered coding labs</p>
-          </div>
-        </footer>
       </div>
     </>
   )

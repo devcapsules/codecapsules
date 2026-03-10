@@ -33,6 +33,9 @@ export function Navigation() {
               <a href="#pricing" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
                 Pricing
               </a>
+              <Link href="/capsules" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
+                Capsules
+              </Link>
               {user ? (
                 <Link href="/dashboard" className="text-[#00ff87] hover:text-green-300 px-3 py-2 text-sm font-medium transition-colors">
                   Dashboard
@@ -98,6 +101,9 @@ export function Navigation() {
             <a href="#pricing" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium" onClick={() => setIsMenuOpen(false)}>
               Pricing
             </a>
+            <Link href="/capsules" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium" onClick={() => setIsMenuOpen(false)}>
+              Capsules
+            </Link>
             {user ? (
               <Link href="/dashboard" className="text-gray-300 hover:text-white block px-3 py-2 text-sm font-medium">
                 Dashboard
