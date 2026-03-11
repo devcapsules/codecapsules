@@ -489,6 +489,14 @@ export function PlaylistEditor({
 
           // Load modules from the playlist response
           const loadedModules: CourseModule[] = (loadedPlaylist as any)?.modules || []
+
+          // Check if course is featured
+          const tags: string[] = (() => {
+            const t = (loadedPlaylist as any)?.tags
+            if (Array.isArray(t)) return t
+            try { return JSON.parse(t || '[]') } catch { return [] }
+          })()
+          setIsFeatured(tags.includes('featured'))
           
           setState(prev => ({
             ...prev,
@@ -575,6 +583,8 @@ export function PlaylistEditor({
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null)
   const [editingModuleTitle, setEditingModuleTitle] = useState('')
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set())
+  const [isFeatured, setIsFeatured] = useState(false)
+  const [togglingFeatured, setTogglingFeatured] = useState(false)
 
   const addModule = useCallback(async () => {
     if (!playlistId) return
@@ -670,6 +680,28 @@ export function PlaylistEditor({
       return next
     })
   }, [])
+
+  const toggleFeatured = useCallback(async () => {
+    if (!playlistId || togglingFeatured) return
+    setTogglingFeatured(true)
+    try {
+      const response = await fetch(`${apiBaseUrl}/playlists/${playlistId}/tags`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ tag: 'featured' })
+      })
+      if (response.ok) {
+        setIsFeatured(prev => !prev)
+      }
+    } catch {
+      // silent fail
+    } finally {
+      setTogglingFeatured(false)
+    }
+  }, [playlistId, togglingFeatured, apiBaseUrl])
 
   // Group capsules by module for display
   const capsulesByModule = useMemo(() => {
@@ -925,6 +957,31 @@ export function PlaylistEditor({
                     Make this course publicly discoverable
                   </label>
                 </div>
+
+                {/* Featured toggle */}
+                {playlistId && (
+                  <div className="flex items-center">
+                    <button
+                      onClick={toggleFeatured}
+                      disabled={togglingFeatured}
+                      className={clsx(
+                        'relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none',
+                        isFeatured ? 'bg-emerald-500' : 'bg-slate-600',
+                        togglingFeatured && 'opacity-50 cursor-not-allowed'
+                      )}
+                    >
+                      <span
+                        className={clsx(
+                          'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                          isFeatured ? 'translate-x-4' : 'translate-x-0'
+                        )}
+                      />
+                    </button>
+                    <span className="ml-2 text-sm text-gray-300">
+                      Feature on public catalog
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Course Stats */}
