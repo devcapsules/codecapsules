@@ -103,6 +103,10 @@ Return JSON with this exact structure:
 {
   "title": "Short, descriptive title",
   "description": "2-3 sentence problem description",
+  "context": "1-2 sentence real-world motivation. Why a working engineer would need this skill.",
+  "task": "Direct, actionable build instruction. What the learner must do.",
+  "insight": "The aha-moment revealed AFTER the learner passes all tests.",
+  "real_world_usage": "Where this pattern appears in production.",
   "learning_objectives": ["What will students learn?", "What skills will they practice?"],
   "prerequisites": ["What should they know first?"],
   "difficulty_rationale": "Explain how this problem fits the ${context.difficulty} difficulty spec above",
@@ -110,7 +114,9 @@ Return JSON with this exact structure:
   "estimated_time_minutes": ${context.difficulty === 'easy' ? 10 : context.difficulty === 'medium' ? 25 : 45},
   "target_audience": "${context.difficulty === 'easy' ? 'beginner' : context.difficulty === 'medium' ? 'intermediate' : 'advanced'} ${context.language} learners",
   "key_concepts": ["main concept 1"${context.difficulty !== 'easy' ? ', "main concept 2"' : ''}${context.difficulty === 'hard' ? ', "main concept 3"' : ''}]
-}`
+}
+
+IMPORTANT: Do NOT embed Learning Objectives or Prerequisites as sections in the description.`
 
     try {
       const messages = [{ role: 'user' as const, content: prompt }]

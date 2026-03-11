@@ -159,7 +159,7 @@ app.post('/internal/generate', async (req, res) => {
     );
 
     // Convert BaseCapsule → Universal format (dashboard expects this shape)
-    let capsule = convertBaseCapsuleToUniversalFormat(result.capsule, context.difficulty);
+    let capsule = convertBaseCapsuleToUniversalFormat(result.capsule, context.difficulty, result.pedagogical_idea);
 
     // ══════════════════════════════════════════════════════════════════════
     // POST-PIPELINE VALIDATION: Run solution against tests via Piston
@@ -773,7 +773,7 @@ app.get('/internal/health', (_req, res) => {
 // The dashboard/frontend expects this shape; the pipeline returns raw BaseCapsule.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function convertBaseCapsuleToUniversalFormat(baseCapsule: any, difficulty: string = 'medium'): any {
+function convertBaseCapsuleToUniversalFormat(baseCapsule: any, difficulty: string = 'medium', idea?: any): any {
   const configData = baseCapsule.config_data || {};
   const capsuleType = baseCapsule.capsule_type || 'CODE';
   const language = baseCapsule.runtime_config?.language || 'javascript';
@@ -781,6 +781,10 @@ function convertBaseCapsuleToUniversalFormat(baseCapsule: any, difficulty: strin
   let content: any = {
     primary: {
       problemStatement: baseCapsule.problem_statement_md || baseCapsule.title || '',
+      context: idea?.context || '',
+      task: idea?.task || '',
+      insight: idea?.insight || '',
+      realWorldUsage: idea?.real_world_usage || '',
     },
   };
 
@@ -843,6 +847,10 @@ function convertBaseCapsuleToUniversalFormat(baseCapsule: any, difficulty: strin
     language,
     title: baseCapsule.title,
     description: baseCapsule.problem_statement_md,
+    context: idea?.context || '',
+    task: idea?.task || '',
+    insight: idea?.insight || '',
+    realWorldUsage: idea?.real_world_usage || '',
     content,
     difficulty,
     // Top-level fields (modal reads these directly)
