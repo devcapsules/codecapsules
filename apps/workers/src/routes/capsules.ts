@@ -504,12 +504,13 @@ capsuleRoutes.get('/:id', async (c) => {
   capsule.createdAt = capsule.created_at;
   capsule.updatedAt = capsule.updated_at;
 
-  // Extract context/task/insight from content.primary for embed compatibility
-  if (capsule.content?.primary) {
-    capsule.context = capsule.context || capsule.content.primary.context || '';
-    capsule.task = capsule.task || capsule.content.primary.task || '';
-    capsule.insight = capsule.insight || capsule.content.primary.insight || '';
-    capsule.realWorldUsage = capsule.realWorldUsage || capsule.content.primary.realWorldUsage || '';
+  // Extract context/task/insight/pedagogy from content blob for compatibility
+  capsule.context = capsule.content?.primary?.context || capsule.content?.context || '';
+  capsule.task = capsule.content?.primary?.task || capsule.content?.task || '';
+  capsule.insight = capsule.content?.primary?.insight || capsule.content?.insight || '';
+  capsule.realWorldUsage = capsule.content?.primary?.realWorldUsage || capsule.content?.realWorldUsage || '';
+  if (!capsule.pedagogy && capsule.content?.pedagogy) {
+    capsule.pedagogy = capsule.content.pedagogy;
   }
 
   // Cache if published (1 hour TTL)
@@ -628,11 +629,28 @@ capsuleRoutes.post('/', async (c) => {
 
   const id = crypto.randomUUID().replace(/-/g, '').slice(0, 24);
   
+  // Merge pedagogy, context/task/insight into content blob for D1 persistence
+  const pedagogy = body.pedagogy || {};
+  const storageContent = {
+    ...content,
+    pedagogy,
+    context: capsuleContext,
+    task: capsuleTask,
+    insight: capsuleInsight,
+    realWorldUsage: capsuleRealWorldUsage,
+  };
+  if (storageContent.primary) {
+    storageContent.primary.context = capsuleContext;
+    storageContent.primary.task = capsuleTask;
+    storageContent.primary.insight = capsuleInsight;
+    storageContent.primary.realWorldUsage = capsuleRealWorldUsage;
+  }
+
   // Extract metadata from content
   const functionName = content?.primary?.code?.wasmVersion?.solution?.match(/def (\w+)/)?.[1] ||
                        content?.primary?.code?.wasmVersion?.solution?.match(/function (\w+)/)?.[1];
   const testCount = content?.testCases?.length || 0;
-  const hasHints = content?.pedagogy?.hints?.length > 0 ? 1 : 0;
+  const hasHints = (pedagogy?.hints?.sequence?.length > 0 || content?.pedagogy?.hints?.length > 0) ? 1 : 0;
 
   await c.env.DB.prepare(`
     INSERT INTO capsules (id, creator_id, title, description, type, difficulty, language, 
@@ -649,7 +667,7 @@ capsuleRoutes.post('/', async (c) => {
     functionName || null,
     testCount,
     hasHints,
-    JSON.stringify(content),
+    JSON.stringify(storageContent),
     tags ? JSON.stringify(tags) : null
   ).run();
 
@@ -666,8 +684,8 @@ capsuleRoutes.post('/', async (c) => {
       type: type || 'CODE',
       difficulty: normalizedDifficulty,
       language,
-      content,
-      pedagogy: body.pedagogy || {},
+      content: storageContent,
+      pedagogy,
       created_at: new Date().toISOString(),
     };
     await c.env.CDN.put(
@@ -766,14 +784,20 @@ capsuleRoutes.put('/:id', async (c) => {
       ).bind(id).first<{ id: string; title: string; description: string | null; type: string; difficulty: string; language: string; content: string }>();
       
       if (updated) {
+        const parsedContent = JSON.parse(updated.content);
         const cdnPayload = {
           id: updated.id,
           title: updated.title,
           description: updated.description,
+          context: parsedContent?.primary?.context || parsedContent?.context || '',
+          task: parsedContent?.primary?.task || parsedContent?.task || '',
+          insight: parsedContent?.primary?.insight || parsedContent?.insight || '',
+          realWorldUsage: parsedContent?.primary?.realWorldUsage || parsedContent?.realWorldUsage || '',
           type: updated.type,
           difficulty: updated.difficulty,
           language: updated.language,
-          content: JSON.parse(updated.content),
+          content: parsedContent,
+          pedagogy: parsedContent?.pedagogy || {},
           updated_at: new Date().toISOString(),
         };
         await c.env.CDN.put(
