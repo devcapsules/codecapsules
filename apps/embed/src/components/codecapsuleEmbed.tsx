@@ -488,6 +488,12 @@ function DevcapsulesEmbedInner({ widgetId, capsuleData, courseId }: CapsuleEmbed
         if (allPassed) {
           embedAnalytics.trackTestPassed(widget.id, widgetId, widget.language, executionTime, totalCount)
           showTestPass(passedCount, totalCount, `${(executionTime / 1000).toFixed(2)}s`)
+          // Show insight toast on success
+          if (widget.insight) {
+            setTimeout(() => {
+              toast('success', '💡 Insight', widget.insight)
+            }, 1500)
+          }
           // Show leaderboard name toast on first success (if not already named)
           if (embedAnalytics.shouldPromptForName()) {
             // Delay slightly so the success overlay gets attention first
@@ -816,7 +822,7 @@ function DevcapsulesEmbedInner({ widgetId, capsuleData, courseId }: CapsuleEmbed
 
               {widget.tags.length > 0 && (
                 <div className="instructions-section">
-                  <h3 className="section-label">Concepts</h3>
+                  <h3 className="section-label">Concepts Used</h3>
                   <div className="concept-tags">
                     {widget.tags.map((tag, idx) => (
                       <span key={idx} className="concept-tag">{tag}</span>

@@ -16,6 +16,7 @@ interface SQLCapsule {
   task: string
   insight: string
   realWorldUsage: string
+  tags: string[]
   problemStatement: string
   boilerplateCode: string
   schemaInfo: {
@@ -255,6 +256,17 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
             task: capsuleData.task || capsuleData.content?.primary?.task || '',
             insight: capsuleData.insight || capsuleData.content?.primary?.insight || '',
             realWorldUsage: capsuleData.realWorldUsage || capsuleData.content?.primary?.realWorldUsage || '',
+            tags: (() => {
+              const rawConcepts =
+                capsuleData.content?.pedagogy?.concepts ||
+                capsuleData.pedagogy?.concepts ||
+                []
+              const fromConcepts = Array.isArray(rawConcepts)
+                ? rawConcepts.map((c: any) => (typeof c === 'string' ? c : c?.concept || c?.name || '')).filter(Boolean)
+                : []
+              if (fromConcepts.length > 0) return fromConcepts
+              return Array.isArray(capsuleData.tags) ? capsuleData.tags : []
+            })(),
             // Fix: Use proper path for problem statement
             problemStatement: capsuleData.content?.primary?.problemStatement || capsuleData.problem_statement_md || capsuleData.description || '',
             // Fix: Use proper path for starter query from DATABASE type capsules
@@ -981,6 +993,18 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
                       .trim()
                   }}
                 />
+              )}
+
+              {/* Concepts Used */}
+              {capsule.tags && capsule.tags.length > 0 && (
+                <div className="instructions-section" style={{ marginTop: '12px' }}>
+                  <h3 className="section-label">Concepts Used</h3>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {capsule.tags.map((tag: string, idx: number) => (
+                      <span key={idx} style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.3)' }}>{tag}</span>
+                    ))}
+                  </div>
+                </div>
               )}
 
               {/* Insight — revealed after successful query */}

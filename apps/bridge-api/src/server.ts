@@ -859,16 +859,17 @@ function convertBaseCapsuleToUniversalFormat(baseCapsule: any, difficulty: strin
     solution: configData.reference_solution || '',
     testCases: content.testCases || [],
     // Pedagogy structure (modal reads capsuleData.pedagogy.hints.sequence)
+    tags: idea?.key_concepts || [],
     pedagogy: {
       hints: {
         sequence: hints.map((h: string) => ({ content: h })),
       },
       learningObjectives: [],
-      concepts: [],
+      concepts: idea?.key_concepts || [],
     },
     learning: {
       objectives: [],
-      concepts: [],
+      concepts: idea?.key_concepts || [],
     },
   };
 }

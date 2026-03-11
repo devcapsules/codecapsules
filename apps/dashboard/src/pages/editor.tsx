@@ -232,6 +232,7 @@ function LivePreview({ capsuleData }: { capsuleData: any }) {
   const [output, setOutput] = useState('');
   const [showHints, setShowHints] = useState(false);
   const [showSchema, setShowSchema] = useState(false);
+  const [allPassed, setAllPassed] = useState(false);
 
   // Update userCode when capsuleData changes (e.g., after loading from DB)
   useEffect(() => {
@@ -288,8 +289,10 @@ function LivePreview({ capsuleData }: { capsuleData: any }) {
           
           if (summary.allPassed) {
             outputText += '\nAll tests passed.';
+            setAllPassed(true);
           } else {
             outputText += '\nSome tests failed. Check your logic and try again.';
+            setAllPassed(false);
           }
         } else {
           outputText = 'Code executed successfully (no test cases to run)';
@@ -342,10 +345,21 @@ function LivePreview({ capsuleData }: { capsuleData: any }) {
               <div className="text-slate-400 text-xs uppercase tracking-wide mb-1">Context</div>
               <div className="text-slate-300 text-xs mb-2">{capsuleData.context}</div>
               <div className="text-slate-400 text-xs uppercase tracking-wide mb-1">Task</div>
-              <div className="text-slate-300 text-xs">{(capsuleData.task || capsuleData.problemStatement || '').substring(0, 200)}</div>
+              <div className="text-slate-300 text-xs mb-2">{capsuleData.task || capsuleData.problemStatement || ''}</div>
             </>
           ) : (
-            <div className="text-slate-300 text-xs line-clamp-2">{capsuleData.problemStatement.substring(0, 150)}...</div>
+            <div className="text-slate-300 text-xs">{capsuleData.problemStatement}</div>
+          )}
+          {/* Concepts Used */}
+          {capsuleData.concepts && capsuleData.concepts.length > 0 && (
+            <div className="mt-2">
+              <div className="text-slate-400 text-xs uppercase tracking-wide mb-1">Concepts Used</div>
+              <div className="flex flex-wrap gap-1">
+                {capsuleData.concepts.map((c: string, i: number) => (
+                  <span key={i} className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">{c}</span>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -482,6 +496,17 @@ function LivePreview({ capsuleData }: { capsuleData: any }) {
           <div className="rounded-lg p-3 mb-3" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <h4 className="text-slate-400 text-sm font-medium mb-2">Output:</h4>
             <pre className="text-sm text-green-400 whitespace-pre-wrap font-mono">{output}</pre>
+          </div>
+        )}
+
+        {/* Insight — revealed after all tests pass */}
+        {allPassed && capsuleData.insight && (
+          <div className="rounded-lg p-3 mb-3" style={{ background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.3)' }}>
+            <h4 className="text-green-400 text-sm font-medium mb-2">💡 Insight</h4>
+            <p className="text-green-300 text-sm">{capsuleData.insight}</p>
+            {capsuleData.realWorldUsage && (
+              <p className="text-slate-400 text-xs mt-2">🌍 {capsuleData.realWorldUsage}</p>
+            )}
           </div>
         )}
       </div>
@@ -852,6 +877,10 @@ export default function CapsuleEditor() {
         const editorCapsule: any = {
           id: dbCapsule.id,
           title: dbCapsule.title,
+          context: primary.context || dbCapsule.context || '',
+          task: primary.task || dbCapsule.task || '',
+          insight: primary.insight || dbCapsule.insight || '',
+          realWorldUsage: primary.realWorldUsage || dbCapsule.realWorldUsage || '',
           problemStatement: primary.problemStatement || dbCapsule.description || '',
           hints: extractedHints,
           solutionStub: isSQL ? (database.starterQuery || '-- Write your SQL query\nSELECT -- Add your query here') : (wasmVersion.starterCode || code.starterCode || '// Your code here'),
@@ -900,6 +929,18 @@ export default function CapsuleEditor() {
 
   const updateProblemStatement = (value: string) => {
     setCapsuleData(prev => ({ ...prev, problemStatement: value }));
+  };
+
+  const updateContext = (value: string) => {
+    setCapsuleData(prev => ({ ...prev, context: value }));
+  };
+
+  const updateTask = (value: string) => {
+    setCapsuleData(prev => ({ ...prev, task: value }));
+  };
+
+  const updateInsight = (value: string) => {
+    setCapsuleData(prev => ({ ...prev, insight: value }));
   };
 
   const updateSolutionStub = (value: string) => {
@@ -1458,37 +1499,116 @@ export default function CapsuleEditor() {
               )}
             </div>
 
-            {/* ------ 1. PROBLEM STATEMENT ------ */}
+            {/* ------ 1. CONTEXT ------ */}
             <div className="rounded-lg p-4" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
               <SectionHeader
-                label="Problem Statement"
-                isEditing={isEditing('problem')}
-                onToggleEdit={() => toggleEdit('problem')}
-                isCollapsed={isCollapsed('problem')}
-                onToggleCollapse={() => toggleCollapse('problem')}
+                label="Context"
+                isEditing={isEditing('context')}
+                onToggleEdit={() => toggleEdit('context')}
+                isCollapsed={isCollapsed('context')}
+                onToggleCollapse={() => toggleCollapse('context')}
               />
-              {!isCollapsed('problem') && (
-                isEditing('problem') ? (
+              {!isCollapsed('context') && (
+                isEditing('context') ? (
                   <textarea
-                    ref={problemStatementRef}
-                    value={capsuleData.problemStatement}
-                    onChange={(e) => {
-                      updateProblemStatement(e.target.value);
-                      autoResizeTextarea(e.target);
-                    }}
-                    className="w-full min-h-40 border rounded-lg p-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#00ff87]/40 resize-y"
-                    placeholder="Describe the coding challenge in detail..."
-                    style={{ borderColor: "rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", height: 'auto' }}
+                    value={capsuleData.context || ''}
+                    onChange={(e) => updateContext(e.target.value)}
+                    className="w-full min-h-24 border rounded-lg p-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#00ff87]/40 resize-y"
+                    placeholder="Why does this problem exist? What real-world scenario motivates it?"
+                    style={{ borderColor: "rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)" }}
                   />
                 ) : (
-                <div className="bg-slate-900/40 rounded-lg p-4" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
-                    {renderMarkdown(capsuleData.problemStatement)}
+                  <div className="bg-slate-900/40 rounded-lg p-4" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+                    {capsuleData.context ? renderMarkdown(capsuleData.context) : <p className="text-slate-500 text-sm italic">No context set.</p>}
                   </div>
                 )
               )}
             </div>
 
-            {/* ------ 2. HINTS ------ */}
+            {/* ------ 2. TASK ------ */}
+            <div className="rounded-lg p-4" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <SectionHeader
+                label="Task"
+                isEditing={isEditing('task')}
+                onToggleEdit={() => toggleEdit('task')}
+                isCollapsed={isCollapsed('task')}
+                onToggleCollapse={() => toggleCollapse('task')}
+              />
+              {!isCollapsed('task') && (
+                isEditing('task') ? (
+                  <textarea
+                    value={capsuleData.task || ''}
+                    onChange={(e) => updateTask(e.target.value)}
+                    className="w-full min-h-40 border rounded-lg p-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#00ff87]/40 resize-y"
+                    placeholder="Clear instructions: function signature, requirements, example input/output..."
+                    style={{ borderColor: "rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)" }}
+                  />
+                ) : (
+                  <div className="bg-slate-900/40 rounded-lg p-4" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+                    {(capsuleData.task || capsuleData.problemStatement) ? renderMarkdown(capsuleData.task || capsuleData.problemStatement) : <p className="text-slate-500 text-sm italic">No task set.</p>}
+                  </div>
+                )
+              )}
+            </div>
+
+            {/* ------ 3. CONCEPTS ------ */}
+            <div className="rounded-lg p-4" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <SectionHeader
+                label="Concepts"
+                count={capsuleData.concepts?.length || 0}
+                isEditing={isEditing('concepts')}
+                onToggleEdit={() => toggleEdit('concepts')}
+                isCollapsed={isCollapsed('concepts')}
+                onToggleCollapse={() => toggleCollapse('concepts')}
+              />
+              {!isCollapsed('concepts') && (
+                isEditing('concepts') ? (
+                  <div className="space-y-2">
+                    {(capsuleData.concepts || []).map((concept: string, index: number) => (
+                      <div key={index} className="flex space-x-3 items-center">
+                        <input
+                          type="text"
+                          value={concept}
+                          onChange={(e) => {
+                            const newConcepts = [...(capsuleData.concepts || [])];
+                            newConcepts[index] = e.target.value;
+                            setCapsuleData(prev => ({ ...prev, concepts: newConcepts }));
+                          }}
+                          className="flex-1 border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#00ff87]/40"
+                          style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.1)" }}
+                        />
+                        <button
+                          onClick={() => {
+                            const newConcepts = (capsuleData.concepts || []).filter((_: string, i: number) => i !== index);
+                            setCapsuleData(prev => ({ ...prev, concepts: newConcepts }));
+                          }}
+                          className="text-red-400 hover:text-red-300 p-1 rounded hover:bg-red-500/10 transition-colors"
+                        >
+                          <XIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => setCapsuleData(prev => ({ ...prev, concepts: [...(prev.concepts || []), 'New concept'] }))}
+                      className="text-xs px-2.5 py-1 rounded transition-colors font-bold"
+                      style={{ color: "#00ff87", background: "rgba(0,255,135,0.08)" }}
+                    >
+                      + Add Concept
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {(capsuleData.concepts || []).length > 0 ? (capsuleData.concepts || []).map((concept: string, index: number) => (
+                      <span key={index} className="text-xs px-2.5 py-1 rounded-md bg-slate-700/60 text-slate-300">{concept}</span>
+                    )) : (
+                      <p className="text-slate-500 text-sm italic">No concepts tagged.</p>
+                    )}
+                  </div>
+                )
+              )}
+            </div>
+
+            {/* ------ 4. HINTS ------ */}
             <div className="rounded-lg p-4" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
               <SectionHeader
                 label="Hints"
@@ -1549,7 +1669,7 @@ export default function CapsuleEditor() {
               )}
             </div>
 
-            {/* ------ 3. STARTER CODE ------ */}
+            {/* ------ 5. STARTER CODE ------ */}
             <div className="rounded-lg p-4" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
               <SectionHeader
                 label="Starter Code"
@@ -1723,6 +1843,41 @@ export default function CapsuleEditor() {
                     <p className="text-slate-500 text-sm italic">No test cases yet.</p>
                   )}
                 </div>
+              )}
+            </div>
+
+            {/* ------ 8. INSIGHT ------ */}
+            <div className="rounded-lg p-4" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <SectionHeader
+                label="Insight"
+                isEditing={isEditing('insight')}
+                onToggleEdit={() => toggleEdit('insight')}
+                isCollapsed={isCollapsed('insight')}
+                onToggleCollapse={() => toggleCollapse('insight')}
+              />
+              {!isCollapsed('insight') && (
+                isEditing('insight') ? (
+                  <textarea
+                    value={capsuleData.insight || ''}
+                    onChange={(e) => updateInsight(e.target.value)}
+                    className="w-full min-h-24 border rounded-lg p-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#00ff87]/40 resize-y"
+                    placeholder="The 'aha' moment — what deeper understanding should the student gain?"
+                    style={{ borderColor: "rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)" }}
+                  />
+                ) : (
+                  <div className="bg-slate-900/40 rounded-lg p-4" style={{ border: '1px solid rgba(34,197,94,0.15)', background: 'rgba(34,197,94,0.03)' }}>
+                    {capsuleData.insight ? (
+                      <>
+                        <p className="text-green-300 text-sm leading-relaxed">💡 {capsuleData.insight}</p>
+                        {capsuleData.realWorldUsage && (
+                          <p className="text-slate-400 text-xs mt-2">🌍 {capsuleData.realWorldUsage}</p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-slate-500 text-sm italic">No insight set. This is shown to students after they pass all tests.</p>
+                    )}
+                  </div>
+                )
               )}
             </div>
 
