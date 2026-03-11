@@ -73,7 +73,6 @@ export class CodeChallengeGenerator {
     const promptContext: PromptContext = {
       ...context,
       capsuleType: 'code',
-      learningObjectives: this.deriveCodeLearningObjectives(context.userPrompt, context.difficulty)
     };
     
     // Generate specialized prompts for code challenges
@@ -617,7 +616,6 @@ export class QuizGenerator {
     const promptContext: PromptContext = {
       ...context,
       capsuleType: 'quiz',
-      learningObjectives: this.deriveQuizLearningObjectives(context.userPrompt)
     };
     
     const prompts = this.generateQuizPrompts(promptContext);
@@ -917,7 +915,6 @@ export class TerminalGenerator {
     const promptContext: PromptContext = {
       ...context,
       capsuleType: 'terminal',
-      learningObjectives: ['Master command-line skills', 'Understand system administration', 'Practice DevOps workflows']
     };
     
     const prompts = this.generateTerminalPrompts(promptContext);
@@ -1239,7 +1236,6 @@ export class DatabaseGenerator {
     const promptContext: PromptContext = {
       ...context,
       capsuleType: 'database',
-      learningObjectives: ['Master database queries', 'Understand data modeling', 'Practice database design']
     };
     
     const prompts = this.generateDatabasePrompts(promptContext);

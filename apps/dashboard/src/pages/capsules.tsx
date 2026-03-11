@@ -54,6 +54,72 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   HARD:   'bg-red-500/15 text-red-400 border-red-500/30',
 }
 
+// Rich marketing metadata for courses — keyed by title substring match
+const COURSE_META: Record<string, {
+  project: string
+  outcome: string
+  level: string
+  hours: string
+  skills: string[]
+}> = {
+  'Foundations': {
+    project: 'Mini AI Prompt Engine',
+    outcome: 'Build a working prompt pipeline from scratch — input validation, token estimation, conversation management, and query routing — the foundation every AI engineer needs.',
+    level: 'Beginner',
+    hours: '~4 hrs',
+    skills: ['Python Fundamentals', 'Prompt Templates', 'Conversation History', 'Input Validation', 'Pipeline Design'],
+  },
+  'LLM Engineering': {
+    project: 'LLM Toolkit Library',
+    outcome: 'Build a reusable JavaScript library for tokenization, prompt templating, structured output parsing, and cost tracking — the primitives behind every LLM application.',
+    level: 'Intermediate',
+    hours: '~5 hrs',
+    skills: ['Tokenization', 'Prompt Engineering', 'JSON Schema Validation', 'Cost Optimization'],
+  },
+  'Agentic Pipeline': {
+    project: 'Multi-Agent Pipeline Engine',
+    outcome: 'Build a Python agent orchestrator with tool routing, memory management, RAG retrieval, and guardrail enforcement — a mini LangChain you understand end-to-end.',
+    level: 'Intermediate',
+    hours: '~10 hrs',
+    skills: ['Agent Loops', 'Tool Routing', 'RAG Retrieval', 'Guardrails', 'Memory Systems'],
+  },
+  'Supervising AI': {
+    project: 'AI Code Reviewer',
+    outcome: 'Build a complete AI code supervision pipeline that detects security issues, measures complexity, and enforces quality gates — the system behind every AI coding assistant\'s safety layer.',
+    level: 'Intermediate–Advanced',
+    hours: '~12 hrs',
+    skills: ['AST Analysis', 'Security Scanning', 'Complexity Metrics', 'Quality Gates'],
+  },
+  'Customer Support': {
+    project: 'AI Support Agent',
+    outcome: 'Build a production-ready customer support agent with intent classification, knowledge retrieval, escalation logic, and conversation analytics — ready to demo on GitHub.',
+    level: 'Intermediate–Advanced',
+    hours: '~12 hrs',
+    skills: ['Intent Classification', 'Knowledge Base', 'Escalation Routing', 'Conversation Analytics'],
+  },
+  'Reliable AI': {
+    project: 'AI Reliability Dashboard',
+    outcome: 'Build a monitoring and observability system for AI pipelines — drift detection, hallucination scoring, circuit breakers, and automated alerts for production LLM systems.',
+    level: 'Advanced',
+    hours: '~12 hrs',
+    skills: ['Drift Detection', 'Hallucination Scoring', 'Circuit Breakers', 'SLA Monitoring'],
+  },
+  'Infrastructure': {
+    project: 'AI Cost & Scaling Monitor',
+    outcome: 'Build the infrastructure layer for AI systems — token budgets, model routing, auto-scaling policies, and cost dashboards that keep LLM spend under control.',
+    level: 'Advanced',
+    hours: '~12 hrs',
+    skills: ['Token Budgeting', 'Model Routing', 'Auto-Scaling', 'Cost Analytics'],
+  },
+}
+
+function getCourseMetadata(title: string) {
+  for (const [key, meta] of Object.entries(COURSE_META)) {
+    if (title.includes(key)) return meta
+  }
+  return null
+}
+
 export default function CapsulesCatalog() {
   const router = useRouter()
   const { user } = useAuth()
@@ -138,11 +204,20 @@ export default function CapsulesCatalog() {
         {/* ─── Hero ─── */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
           <div className="text-center max-w-2xl mx-auto space-y-4">
+            <span
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase"
+              style={{ background: 'rgba(0,255,135,0.07)', border: '1px solid rgba(0,255,135,0.18)', color: '#00ff87' }}
+            >
+              For developers &amp; engineers
+            </span>
             <h2 className="text-3xl sm:text-4xl font-extrabold">
               Learn <span style={{ color: '#00ff87' }}>AI Engineering</span> by Building
             </h2>
             <p className="text-slate-400 text-lg">
-              Master LLM pipelines, agent patterns, and data engineering — structured courses with hands-on coding exercises. No libraries, no boilerplate. Just you and pure code.
+              Production-grade courses where every exercise is a working component you can ship. Build LLM pipelines, agent orchestrators, and reliability systems — pure code, no wrappers.
+            </p>
+            <p className="text-slate-500 text-sm">
+              Each course produces a <span className="text-slate-300">portfolio-ready project</span> you can demo and push to GitHub.
             </p>
           </div>
         </section>
@@ -172,6 +247,7 @@ export default function CapsulesCatalog() {
                       const lang = courseLanguage(course.tags)
                       const langMeta = lang ? LANGUAGE_META[lang] : null
                       const isExpanded = expandedCourse === course.id
+                      const meta = getCourseMetadata(course.title)
 
                       return (
                         <div
@@ -199,28 +275,58 @@ export default function CapsulesCatalog() {
                                 <span className="px-2 py-0.5 rounded text-[10px] font-bold border bg-[#00ff87]/10 text-[#00ff87] border-[#00ff87]/30">
                                   COURSE
                                 </span>
+                                {meta && (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold border bg-white/5 text-slate-400 border-white/10">
+                                    {meta.level}
+                                  </span>
+                                )}
                               </div>
                               <span className="text-xs text-slate-500">
-                                {course.total_items} exercises · {course.modules.length} modules
+                                {course.total_items} exercises · {meta?.hours || `${course.modules.length} modules`}
                               </span>
                             </div>
 
-                            <h4 className="text-lg font-semibold text-white mb-2 group-hover:text-[#00ff87]">
+                            <h4 className="text-lg font-semibold text-white mb-2">
                               {course.title}
                             </h4>
-                            <p className="text-sm text-slate-400 line-clamp-2">
-                              {course.description || 'Hands-on coding course'}
-                            </p>
+
+                            {/* What you'll build — visible without expanding */}
+                            {meta && (
+                              <div className="mb-3 p-3 rounded-lg" style={{ background: 'rgba(0,255,135,0.04)', border: '1px solid rgba(0,255,135,0.08)' }}>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-[#00ff87]/60 mb-1">
+                                  What you'll build
+                                </p>
+                                <p className="text-sm font-medium text-white">{meta.project}</p>
+                                <p className="text-xs text-slate-400 mt-1">{meta.outcome}</p>
+                              </div>
+                            )}
+
+                            {!meta && (
+                              <p className="text-sm text-slate-400 line-clamp-2 mb-3">
+                                {course.description || 'Hands-on coding course'}
+                              </p>
+                            )}
+
+                            {/* Skill tags */}
+                            {meta && (
+                              <div className="flex flex-wrap gap-1.5 mb-3">
+                                {meta.skills.map(skill => (
+                                  <span key={skill} className="px-2 py-0.5 rounded text-[10px] font-medium bg-white/5 text-slate-400 border border-white/8">
+                                    {skill}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
 
                             {/* Expand indicator */}
-                            <div className="mt-4 flex items-center gap-1 text-xs text-[#00ff87]/60">
+                            <div className="flex items-center gap-1 text-xs text-[#00ff87]/60">
                               <svg
                                 className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
                                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
                               >
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                               </svg>
-                              {isExpanded ? 'Hide modules' : 'View modules'}
+                              {isExpanded ? 'Hide curriculum' : `View ${course.modules.length} modules`}
                             </div>
                           </button>
 

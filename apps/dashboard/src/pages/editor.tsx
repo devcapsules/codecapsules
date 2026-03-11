@@ -117,6 +117,10 @@ const mockCapsuleData = {
   id: '123',
   title: 'Python: Two-Sum Problem',
   language: 'python',
+  context: 'Your payment service needs to find two transaction amounts that sum to a refund total for reconciliation.',
+  task: 'Given an array of integers `nums` and an integer `target`, return indices of the two numbers that add up to target. Each input has exactly one solution and you may not use the same element twice.',
+  insight: 'Hash maps turn O(n²) brute-force pair searches into O(n) lookups — this is how payment reconciliation engines match transactions at scale.',
+  realWorldUsage: 'Used in payment reconciliation, inventory matching, and constraint satisfaction solvers.',
   problemStatement: `Two Sum Problem
 
 Given an array of integers \`nums\` and an integer \`target\`, return indices of the two numbers such that they add up to target.
@@ -333,7 +337,16 @@ function LivePreview({ capsuleData }: { capsuleData: any }) {
       <div className="flex-shrink-0 p-3 border-b border-slate-600/30">
         <div className="text-sm text-slate-200 leading-relaxed">
           <div className="font-medium mb-2">{capsuleData.title || "Coding Exercise"}</div>
-          <div className="text-slate-300 text-xs line-clamp-2">{capsuleData.problemStatement.substring(0, 150)}...</div>
+          {capsuleData.context ? (
+            <>
+              <div className="text-slate-400 text-xs uppercase tracking-wide mb-1">Context</div>
+              <div className="text-slate-300 text-xs mb-2">{capsuleData.context}</div>
+              <div className="text-slate-400 text-xs uppercase tracking-wide mb-1">Task</div>
+              <div className="text-slate-300 text-xs">{(capsuleData.task || capsuleData.problemStatement || '').substring(0, 200)}</div>
+            </>
+          ) : (
+            <div className="text-slate-300 text-xs line-clamp-2">{capsuleData.problemStatement.substring(0, 150)}...</div>
+          )}
         </div>
       </div>
 
@@ -735,6 +748,10 @@ export default function CapsuleEditor() {
           ...mockCapsuleData,
           id: `generated_${Date.now()}`,
           title: capsuleJson.title || 'Generated Code Challenge',
+          context: capsuleJson.context || '',
+          task: capsuleJson.task || '',
+          insight: capsuleJson.insight || '',
+          realWorldUsage: capsuleJson.realWorldUsage || '',
           problemStatement: capsuleJson.content?.primary?.problemStatement || capsuleJson.problemStatement || capsuleJson.description || 'Complete the function below.',
           hints: transformedHints,
           solutionStub: isSQL ? (database.starterQuery || capsuleJson.starterCode) : (capsuleJson.starterCode || capsuleJson.code || '// Your code here'),

@@ -32,11 +32,6 @@ export const generateFreeTierPrompt = () => {
     capsuleType: 'code',
     difficulty: 'beginner',
     userPrompt: "Create a function to check if a number is prime",
-    learningObjectives: [
-      "Understand basic algorithms",
-      "Practice function creation",
-      "Learn about mathematical concepts in programming"
-    ]
   };
   
   const prompts = engineer.generatePrompts(context);
@@ -75,12 +70,6 @@ export const generateProTierPrompt = () => {
     capsuleType: 'code',
     difficulty: 'advanced',
     userPrompt: "Build a microservice that processes user authentication with JWT tokens and rate limiting",
-    learningObjectives: [
-      "Implement enterprise authentication patterns",
-      "Handle security best practices",
-      "Build scalable microservice architecture",
-      "Integrate with external systems"
-    ]
   };
   
   const prompts = engineer.generatePrompts(context);
@@ -157,12 +146,6 @@ export const generateEducationalQuizPrompt = () => {
     difficulty: 'intermediate',
     userPrompt: "Create an interactive quiz about JavaScript closures with practical examples",
     creatorFeedback: mockFeedback,
-    learningObjectives: [
-      "Understand closure concepts deeply",
-      "Apply closures in practical scenarios",
-      "Recognize common closure patterns",
-      "Debug closure-related issues"
-    ]
   };
   
   const prompts = engineer.generatePrompts(context);
@@ -201,12 +184,6 @@ export const generateTerminalPrompt = () => {
     capsuleType: 'terminal',
     difficulty: 'intermediate',
     userPrompt: "Teach Docker container management through hands-on CLI exercises",
-    learningObjectives: [
-      "Master Docker CLI commands",
-      "Understand container lifecycle",
-      "Practice troubleshooting techniques",
-      "Learn best practices for production"
-    ]
   };
   
   const prompts = engineer.generatePrompts(context);

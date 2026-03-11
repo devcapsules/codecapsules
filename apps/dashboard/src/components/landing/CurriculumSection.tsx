@@ -4,6 +4,29 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 const TRACKS = [
   {
+    id: 'ai',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v2a4 4 0 0 0 4 4h1v2a4 4 0 0 0 8 0v-2h1a4 4 0 0 0 4-4v-2a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z" />
+        <circle cx="9" cy="10" r="1" /><circle cx="15" cy="10" r="1" />
+      </svg>
+    ),
+    title: 'AI Engineering',
+    badge: '7 Courses',
+    badgeNote: '180 exercises · Python & JavaScript',
+    copy: 'Build the systems behind AI products — not just API wrappers. Each course produces a portfolio-ready project: agent orchestrators, code reviewers, reliability dashboards, and cost monitors. Pure logic, no external libraries.',
+    tags: ['LLM Pipelines', 'Agent Systems', 'RAG', 'Guardrails', 'Cost Optimization', 'Monitoring'],
+    example: {
+      text: '# Build a tool-calling agent loop that:\n# 1. Parses structured LLM output\n# 2. Routes to the correct tool\n# 3. Feeds results back for next iteration\n# 4. Enforces a token budget ceiling',
+      note: 'From Course 2: Python Agentic Pipeline — one of 25 exercises that build a working agent engine.',
+    },
+    accentColor: '#00ff87',
+    accentBg: 'rgba(0,255,135,0.07)',
+    accentBorder: 'rgba(0,255,135,0.2)',
+    badgeColor: '#00ff87',
+    badgeBg: 'rgba(0,255,135,0.1)',
+  },
+  {
     id: 'data',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

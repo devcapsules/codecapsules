@@ -250,13 +250,17 @@ Generate an educational problem that:
 1. Addresses the user's request while maximizing learning value
 2. Follows sound pedagogical principles
 3. Is appropriate for the target difficulty level
-4. Includes clear learning objectives
-5. Provides proper context and motivation
+4. Provides real-world context and motivation (why an engineer needs this skill)
+5. Has a clear, actionable task
 
 Return JSON matching this exact structure:
 {
   "title": "Clear, specific title (max 60 chars)",
   "description": "Problem description that motivates and contextualizes the challenge",
+  "context": "1-2 sentence real-world motivation. Why a working engineer would need this skill.",
+  "task": "Direct, actionable build instruction. What the learner must do.",
+  "insight": "The aha-moment revealed AFTER the learner passes all tests. A concise takeaway.",
+  "real_world_usage": "Where this pattern appears in production.",
   "learning_objectives": [
     "Students will be able to...",
     "Students will understand..."
@@ -275,11 +279,17 @@ Return JSON matching this exact structure:
   ]
 }
 
+IMPORTANT RULES:
+- Do NOT include "Learning Objectives" or "Prerequisites" as sections in the description text
+- The "context" field should read like a real engineering scenario, not an academic objective
+- The "task" field should be a direct instruction ("Build...", "Implement...", "Write...")
+- The "insight" field should be an engineering takeaway, not a learning objective
+
 Focus on creating problems that are:
-- Practical and applicable to real-world scenarios
+- Practical and applicable to real-world engineering scenarios
 - Scaffolded appropriately for the difficulty level
 - Engaging and motivating for learners
-- Clear in their learning objectives
+- Clear in their engineering context and task
 `
   }
 
@@ -408,7 +418,7 @@ Educational priorities:
   private getPedagogicalPrinciples(): string {
     return `
 CORE PEDAGOGICAL PRINCIPLES:
-1. Learning Objectives: Every problem must have clear, measurable learning goals
+1. Engineering Context: Every problem must have a real-world motivation
 2. Scaffolding: Provide appropriate support and progression
 3. Authentic Context: Use real-world, meaningful scenarios
 4. Active Learning: Require learners to construct knowledge through practice

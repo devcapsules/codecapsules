@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Sparkles, Code2, Zap, LayoutTemplate } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCodeGeneration } from '../hooks/useCodeGeneration';
 import { useAPI } from '../contexts/APIContext';
 import { useAnimation } from '../context/AnimationContext';
+import { useAuth } from '../contexts/AuthContext';
+
+const API_URL = process.env.NEXT_PUBLIC_WORKERS_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8787';
 
 interface CreateCapsuleModalProps {
   isOpen: boolean;
@@ -46,6 +49,9 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
   const [difficulty, setDifficulty] = useState('Medium');
   const [mode, setMode] = useState<'prompt' | 'template'>('prompt');
   const [localError, setLocalError] = useState<string>('');
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
+  const [generationsRemaining, setGenerationsRemaining] = useState<number | null>(null);
+  const [generationsLimit, setGenerationsLimit] = useState<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -53,6 +59,36 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
   const { generateAndExecute, isCombinedProcessing, combinedError: generationError, clearErrors, currentStep, progress } = useCodeGeneration();
   const { isConnected } = useAPI();
   const { toast } = useAnimation();
+  const { session } = useAuth();
+
+  // Fetch quota info when modal opens
+  const fetchQuota = useCallback(async () => {
+    if (!session?.access_token) return;
+    try {
+      const res = await fetch(`${API_URL}/api/v1/payments/subscription`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          const gen = json.data?.quotas?.generations;
+          if (gen) {
+            setGenerationsRemaining(gen.remaining);
+            setGenerationsLimit(gen.limit);
+            setQuotaExceeded(gen.remaining <= 0);
+          }
+        }
+      }
+    } catch {}
+  }, [session?.access_token]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchQuota();
+      setQuotaExceeded(false);
+      setLocalError('');
+    }
+  }, [isOpen, fetchQuota]);
 
   // Track elapsed time during generation
   useEffect(() => {
@@ -103,6 +139,10 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
         const customCapsuleData = {
           title: capsuleData?.title || 'Generated Code Challenge',
           description: capsuleData?.description || prompt,
+          context: capsuleData?.context || '',
+          task: capsuleData?.task || '',
+          insight: capsuleData?.insight || '',
+          realWorldUsage: capsuleData?.realWorldUsage || '',
           problemStatement: capsuleData?.content?.primary?.problemStatement || capsuleData?.description || prompt,
           starterCode: isSQL ? (database.starterQuery || '') : (code.starterCode || ''),
           solution: isSQL ? (database.solution || '') : (code.solution || ''),
@@ -126,10 +166,18 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
         window.location.href = `/editor?generated=true&key=${storageKey}`;
       } else {
         const errorMsg = result?.error || generationError || 'Generation failed. Please try again.';
+        if (errorMsg.includes('limit reached') || errorMsg.includes('QUOTA_EXCEEDED') || errorMsg.includes('limit exceeded')) {
+          setQuotaExceeded(true);
+          setGenerationsRemaining(0);
+        }
         setLocalError(errorMsg);
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.';
+      if (errorMsg.includes('limit reached') || errorMsg.includes('QUOTA_EXCEEDED') || errorMsg.includes('limit exceeded') || errorMsg.includes('429')) {
+        setQuotaExceeded(true);
+        setGenerationsRemaining(0);
+      }
       console.error('Generation error:', error);
       setLocalError(errorMsg);
     }
@@ -295,14 +343,36 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
                     <Sparkles className="w-4 h-4 text-purple-400" />
                     Create New Capsule
                   </h2>
-                  <button
-                    onClick={onClose}
-                    className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors"
-                    onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'}
-                    onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}
-                  >
-                    <XMarkIcon className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {generationsRemaining !== null && (
+                      <span
+                        className="text-xs font-mono px-2.5 py-1 rounded-full"
+                        style={{
+                          background: generationsRemaining <= 0
+                            ? 'rgba(239,68,68,0.12)'
+                            : generationsRemaining <= 2
+                            ? 'rgba(245,158,11,0.12)'
+                            : 'rgba(0,255,135,0.08)',
+                          color: generationsRemaining <= 0
+                            ? '#f87171'
+                            : generationsRemaining <= 2
+                            ? '#fbbf24'
+                            : '#00ff87',
+                          border: `1px solid ${generationsRemaining <= 0 ? 'rgba(239,68,68,0.25)' : generationsRemaining <= 2 ? 'rgba(245,158,11,0.25)' : 'rgba(0,255,135,0.2)'}`,
+                        }}
+                      >
+                        {generationsRemaining}/{generationsLimit} generations left
+                      </span>
+                    )}
+                    <button
+                      onClick={onClose}
+                      className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors"
+                      onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'}
+                      onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}
+                    >
+                      <XMarkIcon className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="p-6 space-y-6">
@@ -379,8 +449,29 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
                     </div>
                   </div>
 
-                  {/* Error Display */}
-                  {combinedError && (
+                  {/* Quota Exceeded — Upgrade CTA */}
+                  {quotaExceeded && (
+                    <div className="rounded-xl p-5 text-center" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.08), rgba(59,130,246,0.06))', border: '1px solid rgba(139,92,246,0.2)' }}>
+                      <div className="text-3xl mb-2">🚀</div>
+                      <h3 className="text-white font-bold text-base mb-1">Generation Limit Reached</h3>
+                      <p className="text-slate-400 text-sm mb-4">
+                        You've used all your free AI generations this month. Upgrade to Creator for 50 generations/month.
+                      </p>
+                      <a
+                        href="/account"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm text-white transition-all"
+                        style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', boxShadow: '0 0 20px rgba(139,92,246,0.3)' }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.boxShadow = '0 0 32px rgba(139,92,246,0.5)'}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.boxShadow = '0 0 20px rgba(139,92,246,0.3)'}
+                      >
+                        <Zap className="w-4 h-4" />
+                        Upgrade to Creator — ₹2,499/mo
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Error Display (non-quota errors) */}
+                  {combinedError && !quotaExceeded && (
                     <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
                       <div className="flex items-center gap-2 text-red-400">
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -400,20 +491,22 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
                   )}
 
                   {/* Generate Button */}
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleGenerate}
-                    disabled={isCombinedProcessing || !isConnected || !prompt.trim()}
-                    className="w-full py-4 rounded-xl text-[#04040a] font-bold shadow-lg transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ background: 'linear-gradient(135deg, #00ff87, #00c96b)', boxShadow: '0 0 24px rgba(0,255,135,0.25)' }}
-                    onMouseEnter={e=>{ if (!(e.currentTarget as HTMLElement).closest('button')?.disabled) (e.currentTarget as HTMLElement).style.boxShadow='0 0 40px rgba(0,255,135,0.45)'; }}
-                    onMouseLeave={e=>(e.currentTarget as HTMLElement).style.boxShadow='0 0 24px rgba(0,255,135,0.25)'}
-                  >
-                    <Zap className="w-5 h-5 fill-white group-hover:text-yellow-300 transition-colors" />
-                    <span>Generate Capsule</span>
-                    <span className="text-blue-200 text-sm font-normal ml-1">(~30s)</span>
-                  </motion.button>
+                  {!quotaExceeded && (
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleGenerate}
+                      disabled={isCombinedProcessing || !isConnected || !prompt.trim()}
+                      className="w-full py-4 rounded-xl text-[#04040a] font-bold shadow-lg transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ background: 'linear-gradient(135deg, #00ff87, #00c96b)', boxShadow: '0 0 24px rgba(0,255,135,0.25)' }}
+                      onMouseEnter={e=>{ if (!(e.currentTarget as HTMLElement).closest('button')?.disabled) (e.currentTarget as HTMLElement).style.boxShadow='0 0 40px rgba(0,255,135,0.45)'; }}
+                      onMouseLeave={e=>(e.currentTarget as HTMLElement).style.boxShadow='0 0 24px rgba(0,255,135,0.25)'}
+                    >
+                      <Zap className="w-5 h-5 fill-white group-hover:text-yellow-300 transition-colors" />
+                      <span>Generate Capsule</span>
+                      <span className="text-blue-200 text-sm font-normal ml-1">(~30s)</span>
+                    </motion.button>
+                  )}
                 </div>
               </motion.div>
             )}

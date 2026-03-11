@@ -22,6 +22,10 @@ interface Widget {
   description: string
   language: string
   difficulty: string
+  context: string
+  task: string
+  insight: string
+  realWorldUsage: string
   problemStatement: string
   starterCode: string
   testCases: TestCase[]
@@ -187,6 +191,10 @@ function mapCapsuleToWidget(capsule: any): Widget {
     description: capsule.description || '',
     language: capsule.language || 'python',
     difficulty: capsule.difficulty?.toLowerCase() || 'medium',
+    context: capsule.context || capsule.content?.primary?.context || '',
+    task: capsule.task || capsule.content?.primary?.task || '',
+    insight: capsule.insight || capsule.content?.primary?.insight || '',
+    realWorldUsage: capsule.realWorldUsage || capsule.content?.primary?.realWorldUsage || '',
     problemStatement:
       capsule.content?.primary?.problemStatement ||
       capsule.problem_statement_md ||
@@ -787,10 +795,35 @@ function DevcapsulesEmbedInner({ widgetId, capsuleData, courseId }: CapsuleEmbed
               </button>
             </div>
             <div className="instructions-content">
-              <div className="instructions-section">
-                <h3 className="section-label">Problem</h3>
-                {renderMarkdown(widget.problemStatement)}
-              </div>
+              {/* Context — why this matters */}
+              {widget.context ? (
+                <>
+                  <div className="instructions-section">
+                    <h3 className="section-label">Context</h3>
+                    {renderMarkdown(widget.context)}
+                  </div>
+                  <div className="instructions-section">
+                    <h3 className="section-label">Task</h3>
+                    {renderMarkdown(widget.task || widget.problemStatement)}
+                  </div>
+                </>
+              ) : (
+                <div className="instructions-section">
+                  <h3 className="section-label">Problem</h3>
+                  {renderMarkdown(widget.problemStatement)}
+                </div>
+              )}
+
+              {widget.tags.length > 0 && (
+                <div className="instructions-section">
+                  <h3 className="section-label">Concepts</h3>
+                  <div className="concept-tags">
+                    {widget.tags.map((tag, idx) => (
+                      <span key={idx} className="concept-tag">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {widget.testCases.length > 0 && (
                 <div className="instructions-section">
@@ -841,13 +874,15 @@ function DevcapsulesEmbedInner({ widgetId, capsuleData, courseId }: CapsuleEmbed
                 </div>
               )}
 
-              {widget.tags.length > 0 && (
+              {/* Insight — revealed after all tests pass */}
+              {executionResult?.success && widget.insight && (
                 <div className="instructions-section">
-                  <h3 className="section-label">Concepts</h3>
-                  <div className="concept-tags">
-                    {widget.tags.map((tag, idx) => (
-                      <span key={idx} className="concept-tag">{tag}</span>
-                    ))}
+                  <h3 className="section-label" style={{ color: '#22c55e' }}>💡 Insight</h3>
+                  <div className="hint-card" style={{ borderColor: 'rgba(34, 197, 94, 0.3)', background: 'rgba(34, 197, 94, 0.05)' }}>
+                    <div className="hint-text" style={{ color: '#86efac' }}>{widget.insight}</div>
+                    {widget.realWorldUsage && (
+                      <div className="hint-text" style={{ color: 'var(--dc-text-muted)', marginTop: '8px', fontSize: '12px' }}>🌍 {widget.realWorldUsage}</div>
+                    )}
                   </div>
                 </div>
               )}

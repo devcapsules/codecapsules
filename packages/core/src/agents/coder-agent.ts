@@ -1118,12 +1118,6 @@ ADDITIONAL PREFERENCES:
 
 ${idea.description}
 
-## Learning Objectives
-${idea.learning_objectives.map(obj => `- ${obj}`).join('\n')}
-
-${idea.prerequisites.length > 0 ? `## Prerequisites
-${idea.prerequisites.map(req => `- ${req}`).join('\n')}` : ''}
-
 ## Key Concepts
 ${idea.key_concepts.map(concept => `- ${concept}`).join('\n')}
 

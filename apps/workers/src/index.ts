@@ -3,7 +3,7 @@
  * 
  * Main router handling all API requests at the edge.
  * Uses Hono for routing with middleware chain:
- * [CORS] → [Request ID] → [Logger] → [Rate Limit] → [Auth] → [Route]
+ * [CORS] → [Request ID] → [Logger] → [Auth] → [Rate Limit] → [Route]
  */
 
 import { Hono } from 'hono';
@@ -197,14 +197,14 @@ app.route('/supabase', supabaseProxy);
 
 const api = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-// Rate limiting (before auth to prevent auth abuse)
-api.use('*', rateLimiter);
+// Authentication first — rateLimiter needs auth context for monthly quota tracking
+api.use('*', authMiddleware);
 
 // Body size limit (Hono native stream-safe — counts actual bytes, not Content-Length)
 api.use('*', defaultBodyLimit);
 
-// Authentication (optional for some routes)
-api.use('*', authMiddleware);
+// Rate limiting (per-minute edge + monthly quota pre-check)
+api.use('*', rateLimiter);
 
 // Mount route handlers
 api.route('/capsules', capsuleRoutes);

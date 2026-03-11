@@ -12,6 +12,10 @@ interface SQLCapsule {
   description: string
   type: 'SQL'
   difficulty: string
+  context: string
+  task: string
+  insight: string
+  realWorldUsage: string
   problemStatement: string
   boilerplateCode: string
   schemaInfo: {
@@ -247,6 +251,10 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
             description: capsuleData.description || '',
             type: 'SQL',
             difficulty: capsuleData.difficulty?.toLowerCase() || 'medium',
+            context: capsuleData.context || capsuleData.content?.primary?.context || '',
+            task: capsuleData.task || capsuleData.content?.primary?.task || '',
+            insight: capsuleData.insight || capsuleData.content?.primary?.insight || '',
+            realWorldUsage: capsuleData.realWorldUsage || capsuleData.content?.primary?.realWorldUsage || '',
             // Fix: Use proper path for problem statement
             problemStatement: capsuleData.content?.primary?.problemStatement || capsuleData.problem_statement_md || capsuleData.description || '',
             // Fix: Use proper path for starter query from DATABASE type capsules
@@ -923,26 +931,70 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
               </button>
             </div>
             <div className="instructions-content">
-              <div 
-                className="problem-statement"
-                dangerouslySetInnerHTML={{ 
-                  __html: capsule.problemStatement
-                    .trim()
-                    .replace(/^# (.*$)/gm, '<h1 class="problem-h1">$1</h1>')
-                    .replace(/^## (.*$)/gm, '<h2 class="problem-h2">$1</h2>')
-                    .replace(/^### (.*$)/gm, '<h3 class="problem-h3">$1</h3>')
-                    .replace(/^- (.*$)/gm, '<li class="problem-li">$1</li>')
-                    .replace(/(\n|^)([^#\-\n][^\n]*$)/gm, '$1<p class="problem-p">$2</p>')
-                    .replace(/\n+/g, ' ')
-                    .replace(/(<li[^>]*>.*<\/li>)/g, '<ul class="problem-ul">$1</ul>')
-                    .replace(/<\/li><ul[^>]*><li/g, '</li><li')
-                    .replace(/<\/ul><ul[^>]*>/g, '')
-                    .replace(/<p class="problem-p">\s*<\/p>/g, '')
-                    .replace(/\s+/g, ' ')
-                    .trim()
-                }}
-              />
-              
+              {/* Context/Task split for 4-stage capsules, fallback to Problem */}
+              {capsule.context ? (
+                <>
+                  <div className="instructions-section">
+                    <h3 className="section-label">Context</h3>
+                    <p className="problem-p" style={{ color: 'var(--dc-text-secondary, #94a3b8)', fontSize: '13px', lineHeight: '1.6' }}>{capsule.context}</p>
+                  </div>
+                  <div className="instructions-section">
+                    <h3 className="section-label">Task</h3>
+                    <div 
+                      className="problem-statement"
+                      dangerouslySetInnerHTML={{ 
+                        __html: (capsule.task || capsule.problemStatement)
+                          .trim()
+                          .replace(/^# (.*$)/gm, '<h1 class="problem-h1">$1</h1>')
+                          .replace(/^## (.*$)/gm, '<h2 class="problem-h2">$1</h2>')
+                          .replace(/^### (.*$)/gm, '<h3 class="problem-h3">$1</h3>')
+                          .replace(/^- (.*$)/gm, '<li class="problem-li">$1</li>')
+                          .replace(/(\n|^)([^#\-\n][^\n]*$)/gm, '$1<p class="problem-p">$2</p>')
+                          .replace(/\n+/g, ' ')
+                          .replace(/(<li[^>]*>.*<\/li>)/g, '<ul class="problem-ul">$1</ul>')
+                          .replace(/<\/li><ul[^>]*><li/g, '</li><li')
+                          .replace(/<\/ul><ul[^>]*>/g, '')
+                          .replace(/<p class="problem-p">\s*<\/p>/g, '')
+                          .replace(/\s+/g, ' ')
+                          .trim()
+                      }}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div 
+                  className="problem-statement"
+                  dangerouslySetInnerHTML={{ 
+                    __html: capsule.problemStatement
+                      .trim()
+                      .replace(/^# (.*$)/gm, '<h1 class="problem-h1">$1</h1>')
+                      .replace(/^## (.*$)/gm, '<h2 class="problem-h2">$1</h2>')
+                      .replace(/^### (.*$)/gm, '<h3 class="problem-h3">$1</h3>')
+                      .replace(/^- (.*$)/gm, '<li class="problem-li">$1</li>')
+                      .replace(/(\n|^)([^#\-\n][^\n]*$)/gm, '$1<p class="problem-p">$2</p>')
+                      .replace(/\n+/g, ' ')
+                      .replace(/(<li[^>]*>.*<\/li>)/g, '<ul class="problem-ul">$1</ul>')
+                      .replace(/<\/li><ul[^>]*><li/g, '</li><li')
+                      .replace(/<\/ul><ul[^>]*>/g, '')
+                      .replace(/<p class="problem-p">\s*<\/p>/g, '')
+                      .replace(/\s+/g, ' ')
+                      .trim()
+                  }}
+                />
+              )}
+
+              {/* Insight — revealed after successful query */}
+              {queryResult?.success && capsule.insight && (
+                <div className="instructions-section" style={{ marginTop: '16px' }}>
+                  <h3 className="section-label" style={{ color: '#22c55e' }}>💡 Insight</h3>
+                  <div style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.3)', background: 'rgba(34, 197, 94, 0.05)' }}>
+                    <p style={{ color: '#86efac', fontSize: '13px', lineHeight: '1.6', margin: 0 }}>{capsule.insight}</p>
+                    {capsule.realWorldUsage && (
+                      <p style={{ color: 'var(--dc-text-muted, #64748b)', fontSize: '12px', marginTop: '8px', marginBottom: 0 }}>🌍 {capsule.realWorldUsage}</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               
 

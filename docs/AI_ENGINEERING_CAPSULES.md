@@ -1,6 +1,166 @@
 # AI Engineering Capsules — Course Catalog
 
-> 160 hands-on coding capsules across 6 courses. No external libraries. Pure code. Piston sandbox compatible.
+> 180 hands-on coding capsules across 7 courses. No external libraries. Pure code. Piston sandbox compatible.
+
+---
+
+## Course 0: AI Engineering Foundations (20 Capsules)
+
+**Environment:** Pure Python (Piston)
+**Constraints:** No external libraries. No network. Build the logic from scratch.
+**Portfolio Project:** Mini AI Prompt Engine
+**Target Audience:** Bootcamp students, career switchers, junior devs who know basic syntax but haven't touched AI systems
+**Duration:** ~4–6 hours
+
+---
+
+### Module 1: Python Essentials for AI (Capsules 1–5)
+
+**Focus:** Functions, strings, and basic I/O — all framed through AI system concepts.
+
+#### Capsule 1: Your First AI Function
+- **Difficulty:** Easy
+- **Prompt:** Write a function `greet_user(name)` that returns `"Hello {name}, welcome to the AI system."` using Python string formatting. This is the simplest unit of an AI pipeline: a function that takes input and returns structured output.
+- **Function:** `greet_user(name: str) -> str`
+- **Tests:** `greet_user("Alice")` → `"Hello Alice, welcome to the AI system."`, `greet_user("")` → `"Hello , welcome to the AI system."`
+
+#### Capsule 2: Prompt Template Builder
+- **Difficulty:** Easy
+- **Prompt:** Write a function `build_prompt(user_question)` that returns a formatted prompt string: `"Answer the following question clearly: {user_question}"`. Every LLM call starts with a prompt template — this is the pattern behind every AI application.
+- **Function:** `build_prompt(user_question: str) -> str`
+- **Tests:** `build_prompt("What is Python?")` → `"Answer the following question clearly: What is Python?"`, `build_prompt("How do I sort a list?")` → `"Answer the following question clearly: How do I sort a list?"`
+
+#### Capsule 3: Token Length Estimator
+- **Difficulty:** Easy
+- **Prompt:** Create a function `estimate_tokens(text)`. LLM APIs charge by token. A simple approximation: 1 token ≈ 4 characters. Return `len(text) // 4`. This is how cost calculators work before you call the real tokenizer.
+- **Function:** `estimate_tokens(text: str) -> int`
+- **Tests:** `estimate_tokens("Hello world")` → `2`, `estimate_tokens("")` → `0`, `estimate_tokens("This is a test of token estimation")` → `8`
+
+#### Capsule 4: Input Type Validator
+- **Difficulty:** Easy
+- **Prompt:** Create a function `validate_input(value)`. AI systems must validate input before processing. If `value` is not a string, return `"Invalid input"`. Otherwise return the string unchanged. Use `isinstance()` for type checking.
+- **Function:** `validate_input(value) -> str`
+- **Tests:** `validate_input("hello")` → `"hello"`, `validate_input(123)` → `"Invalid input"`, `validate_input(None)` → `"Invalid input"`
+
+#### Capsule 5: Clean User Prompt
+- **Difficulty:** Easy
+- **Prompt:** Create a function `clean_prompt(text)`. Before sending user input to an LLM, you must sanitize it: remove leading/trailing whitespace with `.strip()`, convert to lowercase with `.lower()`. Return the cleaned string.
+- **Function:** `clean_prompt(text: str) -> str`
+- **Tests:** `clean_prompt("  Hello World  ")` → `"hello world"`, `clean_prompt("AI")` → `"ai"`, `clean_prompt("  ")` → `""`
+
+---
+
+### Module 2: Data Structures for AI (Capsules 6–10)
+
+**Focus:** Lists, dictionaries, and sets — the data containers every AI system uses.
+
+#### Capsule 6: Store Conversation Messages
+- **Difficulty:** Easy
+- **Prompt:** Create a function `add_message(history, role, content)`. LLM APIs use a messages array where each message is `{"role": role, "content": content}`. Append the new message dict to `history` and return the updated list. This is exactly the OpenAI chat format.
+- **Function:** `add_message(history: list, role: str, content: str) -> list`
+- **Tests:** `add_message([], "user", "Hi")` → `[{"role": "user", "content": "Hi"}]`, `add_message([{"role": "system", "content": "You are helpful"}], "user", "Hello")` → `[{"role": "system", "content": "You are helpful"}, {"role": "user", "content": "Hello"}]`
+
+#### Capsule 7: Retrieve Last Messages
+- **Difficulty:** Easy
+- **Prompt:** Create a function `get_recent(history, n)`. When conversation history gets too long, you must truncate it to fit the model's context window. Return the last `n` items from the `history` list using slicing. If `n` is greater than the list length, return the entire list.
+- **Function:** `get_recent(history: list, n: int) -> list`
+- **Tests:** `get_recent([1,2,3,4,5,6,7], 5)` → `[3,4,5,6,7]`, `get_recent([1,2], 5)` → `[1,2]`, `get_recent([], 3)` → `[]`
+
+#### Capsule 8: Count User Messages
+- **Difficulty:** Easy
+- **Prompt:** Create a function `count_user_messages(history)`. For analytics, you need to know how many messages came from the user vs. the assistant. Loop through the `history` list and count how many messages have `role == "user"`. Return the count.
+- **Function:** `count_user_messages(history: list) -> int`
+- **Tests:** `count_user_messages([{"role":"user","content":"hi"},{"role":"assistant","content":"hello"},{"role":"user","content":"bye"}])` → `2`, `count_user_messages([])` → `0`
+
+#### Capsule 9: Extract Tool Name
+- **Difficulty:** Easy
+- **Prompt:** Create a function `extract_tool(action)`. AI agents call tools by name. Given a dictionary like `{"tool": "calculator", "args": {"a": 1}}`, return the value of the `"tool"` key. If the key doesn't exist, return `"unknown"`.
+- **Function:** `extract_tool(action: dict) -> str`
+- **Tests:** `extract_tool({"tool": "calculator", "args": {}})` → `"calculator"`, `extract_tool({"args": {}})` → `"unknown"`, `extract_tool({"tool": "search"})` → `"search"`
+
+#### Capsule 10: Unique Knowledge Sources
+- **Difficulty:** Easy
+- **Prompt:** Create a function `deduplicate(sources)`. RAG systems retrieve documents from many sources — often with duplicates. Given a list of URL strings, return a sorted list of unique URLs. Use a `set` for deduplication.
+- **Function:** `deduplicate(sources: list) -> list`
+- **Tests:** `deduplicate(["a.com","b.com","a.com"])` → `["a.com","b.com"]`, `deduplicate([])` → `[]`, `deduplicate(["x","x","x"])` → `["x"]`
+
+---
+
+### Module 3: Control Flow for AI Systems (Capsules 11–14)
+
+**Focus:** Conditionals, loops, and error handling — the logic that controls AI pipelines.
+
+#### Capsule 11: Simple Intent Router
+- **Difficulty:** Medium
+- **Prompt:** Create a function `route_intent(question)`. AI agents decide which tool to call based on the user's intent. If the question (lowercased) contains `"weather"`, return `"weather_tool"`. If it contains `"calculate"`, return `"calculator_tool"`. Otherwise return `"general_assistant"`. This is a simplified version of intent classification.
+- **Function:** `route_intent(question: str) -> str`
+- **Tests:** `route_intent("What's the weather?")` → `"weather_tool"`, `route_intent("Calculate 5+3")` → `"calculator_tool"`, `route_intent("Tell me a joke")` → `"general_assistant"`
+
+#### Capsule 12: Retry Delay Generator
+- **Difficulty:** Medium
+- **Prompt:** Create a function `retry_delays(max_retries)`. AI API calls fail regularly. Production systems use exponential backoff: each retry waits longer. Return a list of delays where each delay is `2^i` seconds for `i` in `range(max_retries)`. Example: `retry_delays(4)` → `[1, 2, 4, 8]`.
+- **Function:** `retry_delays(max_retries: int) -> list`
+- **Tests:** `retry_delays(4)` → `[1, 2, 4, 8]`, `retry_delays(1)` → `[1]`, `retry_delays(0)` → `[]`
+
+#### Capsule 13: Safe Division
+- **Difficulty:** Medium
+- **Prompt:** Create a function `safe_divide(a, b)`. When computing metrics (accuracy, cost-per-token), division by zero crashes the pipeline. Return `a / b` as a float. If `b == 0`, return the string `"Error: division by zero"`. Use try/except for safety.
+- **Function:** `safe_divide(a: float, b: float) -> float | str`
+- **Tests:** `safe_divide(10, 2)` → `5.0`, `safe_divide(10, 0)` → `"Error: division by zero"`, `safe_divide(0, 5)` → `0.0`
+
+#### Capsule 14: Process Task Queue
+- **Difficulty:** Medium
+- **Prompt:** Create a function `process_queue(tasks)`. AI pipelines process tasks from a queue until empty. Given a list of task strings, process each by removing it from the front (`.pop(0)`) and collecting it into a `processed` list. Return the `processed` list. The input list should be empty when done.
+- **Function:** `process_queue(tasks: list) -> list`
+- **Tests:** `process_queue(["embed","classify","store"])` → `["embed","classify","store"]`, `process_queue([])` → `[]`
+
+---
+
+### Module 4: AI Data Handling (Capsules 15–17)
+
+**Focus:** Parsing, validation, and text processing — the data wrangling AI systems do constantly.
+
+#### Capsule 15: Parse Model Response
+- **Difficulty:** Medium
+- **Prompt:** Create a function `parse_response(raw)`. LLM APIs often return responses in custom formats. Given a string like `"ANSWER||Confidence:0.87"`, split on `"||"`, extract the answer text and parse the confidence as a float. Return a tuple `(answer, confidence)`. If the format is invalid (no `"||"`), return `("unknown", 0.0)`.
+- **Function:** `parse_response(raw: str) -> tuple`
+- **Tests:** `parse_response("Hello||Confidence:0.87")` → `("Hello", 0.87)`, `parse_response("bad format")` → `("unknown", 0.0)`, `parse_response("Yes||Confidence:0.50")` → `("Yes", 0.5)`
+
+#### Capsule 16: Validate JSON-like Response
+- **Difficulty:** Medium
+- **Prompt:** Create a function `looks_like_json(text)`. Before trying to parse an LLM response as JSON, do a quick check: does the trimmed string start with `{` and end with `}`? Return `True` if it does, `False` otherwise. This saves expensive parse attempts on plain text responses.
+- **Function:** `looks_like_json(text: str) -> bool`
+- **Tests:** `looks_like_json('{"key": "value"}')` → `True`, `looks_like_json("Hello world")` → `False`, `looks_like_json('  {"a":1}  ')` → `True`, `looks_like_json("")` → `False`
+
+#### Capsule 17: Extract Keywords
+- **Difficulty:** Medium
+- **Prompt:** Create a function `extract_keywords(text, min_length)`. Search and RAG systems need to extract meaningful keywords from queries. Split the text on spaces, filter to words with length >= `min_length`, convert each to lowercase, and return the list. No external NLP needed — just string ops.
+- **Function:** `extract_keywords(text: str, min_length: int) -> list`
+- **Tests:** `extract_keywords("How do I build an AI agent", 3)` → `["how", "build", "agent"]`, `extract_keywords("a b cd efgh", 2)` → `["cd", "efgh"]`, `extract_keywords("", 1)` → `[]`
+
+---
+
+### Module 5: Mini AI Pipeline (Capsules 18–20)
+
+**Focus:** Combining all previous skills into a working pipeline — the capstone.
+
+#### Capsule 18: Build Prompt Pipeline
+- **Difficulty:** Medium-Hard
+- **Prompt:** Create a function `prompt_pipeline(raw_input)`. Build a 3-step pipeline: (1) sanitize input using `.strip().lower()`, (2) build prompt as `"Answer clearly: {sanitized}"`, (3) estimate tokens as `len(prompt) // 4`. Return a dictionary `{"prompt": prompt, "tokens": tokens}`.
+- **Function:** `prompt_pipeline(raw_input: str) -> dict`
+- **Tests:** `prompt_pipeline("  What is AI?  ")` → `{"prompt": "Answer clearly: what is ai?", "tokens": 7}`, `prompt_pipeline("")` → `{"prompt": "Answer clearly: ", "tokens": 4}`
+
+#### Capsule 19: Conversation Engine
+- **Difficulty:** Medium-Hard
+- **Prompt:** Create a function `conversation_turn(history, user_input, max_history)`. Simulate a conversation turn: (1) clean the input (strip + lowercase), (2) add a user message `{"role": "user", "content": cleaned}` to history, (3) generate a mock assistant response `"I received: {cleaned}"` and add it as `{"role": "assistant", "content": response}`, (4) if history exceeds `max_history` messages, keep only the last `max_history`. Return the updated history.
+- **Function:** `conversation_turn(history: list, user_input: str, max_history: int) -> list`
+- **Tests:** `conversation_turn([], "Hello", 10)` → `[{"role":"user","content":"hello"},{"role":"assistant","content":"I received: hello"}]`, `len(conversation_turn([{"role":"user","content":"a"}]*9, "new", 10))` → `10`
+
+#### Capsule 20: Mini AI Query System (Capstone)
+- **Difficulty:** Medium-Hard
+- **Prompt:** Create a function `run_ai_pipeline(question, history)`. This is your complete AI pipeline: (1) clean input (strip + lowercase), (2) validate it's a non-empty string — if empty return `{"error": "Empty input"}`, (3) build prompt as `"Answer clearly: {cleaned}"`, (4) estimate tokens as `len(prompt) // 4`, (5) add user message to history, (6) return `{"prompt": prompt, "tokens": tokens, "history_length": len(history)}`.
+- **Function:** `run_ai_pipeline(question: str, history: list) -> dict`
+- **Tests:** `run_ai_pipeline("What is AI?", [])` → `{"prompt": "Answer clearly: what is ai?", "tokens": 7, "history_length": 1}`, `run_ai_pipeline("  ", [])` → `{"error": "Empty input"}`, `run_ai_pipeline("Test", [{"role":"user","content":"hi"}])["history_length"]` → `2`
 
 ---
 

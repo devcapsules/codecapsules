@@ -60,6 +60,10 @@ export interface RuntimeAwareCapsule {
   type: CapsuleType;
   title: string;
   description: string;
+  context?: string;
+  task?: string;
+  insight?: string;
+  realWorldUsage?: string;
   
   // CRITICAL: Runtime-first design
   runtime: RuntimeConfiguration;

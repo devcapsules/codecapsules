@@ -499,7 +499,11 @@ ${config.capsuleType === 'database' ? `
 For DATABASE problems, respond with this JSON structure:
 {
   "title": "Clear, engaging title",
-  "description": "Clean problem statement - Transform the user request into a proper learning scenario. DO NOT include generation instructions or requirements from the prompt.",
+  "context": "1-2 sentence real-world motivation. Why a working engineer would need this skill. Example: 'Your analytics dashboard needs to show monthly revenue trends. The finance team wants year-over-year comparisons.'",
+  "task": "Direct, actionable build instruction. What the learner must do. Example: 'Write a query that calculates monthly revenue and compares it to the same month last year.'",
+  "insight": "The aha-moment revealed AFTER the learner passes all tests. A concise takeaway connecting the exercise to production practice. Example: 'Window functions like LAG() let you compare rows across time periods without self-joins — this is how dashboards compute period-over-period metrics at scale.'",
+  "realWorldUsage": "Brief note on where this pattern appears in production. Example: 'Used in BI dashboards, financial reporting APIs, and data pipeline aggregations.'",
+  "description": "Full problem statement combining context and task for backward compatibility.",
   "content": {
     "schema": {
       "tables": [{"name": "table_name", "columns": ["column1 (TYPE)", "column2 (TYPE)"]}]
@@ -510,14 +514,15 @@ For DATABASE problems, respond with this JSON structure:
     "testCases": [{"input": "test setup", "expected": "expected result", "description": "Test description"}]
   },
   "pedagogicalData": {
-    "learningObjectives": ["objective1", "objective2"],
     "hints": [{"content": "hint text", "trigger": "on_request"}],
     "concepts": ["SQL fundamentals", "Database design"]
   }
 }
 
 CRITICAL DATABASE REQUIREMENTS:
-- description MUST be a clean learning scenario, NOT the generation instructions
+- context MUST be a real-world motivation, NOT the generation instructions
+- task MUST be a clear, actionable instruction
+- insight MUST be a genuine aha-moment, revealed only after success
 - Include realistic database schema and sample data
 - Provide progressive difficulty in queries
 - Focus on practical SQL skills
@@ -525,7 +530,11 @@ CRITICAL DATABASE REQUIREMENTS:
 For CODING problems, respond with this JSON structure:
 {
   "title": "Clear, engaging title",
-  "description": "Detailed problem statement with context and examples",
+  "context": "1-2 sentence real-world motivation. Why a working engineer would need this skill. Example: 'Your API rate limiter needs to track request counts per user within sliding time windows.'",
+  "task": "Direct, actionable build instruction. What the learner must do. Example: 'Implement a sliding window counter that tracks hits in the last N seconds and returns the count.'",
+  "insight": "The aha-moment revealed AFTER the learner passes all tests. A concise takeaway connecting the exercise to production practice. Example: 'Sliding window counters trade O(1) memory per fixed bucket for approximate counts — this is how Redis rate limiters and real-time analytics work at scale.'",
+  "realWorldUsage": "Brief note on where this pattern appears in production. Example: 'Used in API rate limiters, real-time analytics dashboards, and network traffic monitoring.'",
+  "description": "Full problem statement combining context and task for backward compatibility.",
   "content": {
     "starterCode": "// Incomplete template with function signature and TODO comments",
     "solution": "// Complete working solution with proper implementation",
@@ -534,7 +543,6 @@ For CODING problems, respond with this JSON structure:
     ]
   },
   "pedagogicalData": {
-    "learningObjectives": ["objective1", "objective2"],
     "hints": [{"content": "hint text", "trigger": "on_request"}],
     "concepts": ["concept1", "concept2"]
   }
@@ -555,12 +563,15 @@ CRITICAL CODING REQUIREMENTS:
 Respond with valid JSON matching this structure:
 {
   "title": "Clear, engaging title",
-  "description": "Detailed problem statement",
+  "context": "1-2 sentence real-world motivation for this exercise.",
+  "task": "Direct, actionable build instruction.",
+  "insight": "Aha-moment revealed after the learner passes all tests.",
+  "realWorldUsage": "Where this pattern appears in production.",
+  "description": "Full problem statement for backward compatibility.",
   "content": {
     // Type-specific content structure
   },
   "pedagogicalData": {
-    "learningObjectives": ["objective1", "objective2"],
     "hints": [{"content": "hint text", "trigger": "on_request"}],
     "concepts": ["concept1", "concept2"]
   }
@@ -668,6 +679,10 @@ Focus on creating pedagogically sound, engaging learning experiences that help l
         type: config.capsuleType,
         title: parsed.title,
         description: parsed.description,
+        context: parsed.context || '',
+        task: parsed.task || '',
+        insight: parsed.insight || '',
+        realWorldUsage: parsed.realWorldUsage || '',
         
         // Runtime configuration (your cost moat)
         runtime: {
@@ -688,7 +703,7 @@ Focus on creating pedagogically sound, engaging learning experiences that help l
         },
         
         // Adaptive content
-        content: this.transformContentForRuntime(parsed.content, config),
+        content: this.transformContentForRuntime(parsed.content, config, parsed),
         
         // Execution context
         execution: {},
@@ -795,10 +810,14 @@ PEDAGOGICAL FRAMEWORK:
     ];
   }
   
-  private transformContentForRuntime(content: any, config: GenerationConfig): any {
+  private transformContentForRuntime(content: any, config: GenerationConfig, parsed?: any): any {
     // Transform AI-generated content based on runtime target
     const primary: any = {
-      problemStatement: content.description || content.title || config.prompt
+      problemStatement: parsed?.description || content.description || content.title || config.prompt,
+      context: parsed?.context || content.context || '',
+      task: parsed?.task || content.task || '',
+      insight: parsed?.insight || content.insight || '',
+      realWorldUsage: parsed?.realWorldUsage || content.realWorldUsage || '',
     };
 
     // Handle code capsule content - check both direct and nested structures
@@ -872,7 +891,7 @@ PEDAGOGICAL FRAMEWORK:
     
     console.log(`🔍 Quality check - Title: "${capsule.title}" (${capsule.title?.length || 0} chars)`);
     console.log(`🔍 Quality check - Description: "${capsule.description?.substring(0, 50)}..." (${capsule.description?.length || 0} chars)`);
-    console.log(`🔍 Quality check - Learning objectives: ${capsule.pedagogy?.learningObjectives?.length || 0} items`);
+    console.log(`🔍 Quality check - Concepts: ${capsule.pedagogy?.concepts?.length || 0} items`);
     
     if (!capsule.title || capsule.title.length < 5) {
       console.log(`⚠️  Title too short: "${capsule.title}"`);
@@ -882,9 +901,9 @@ PEDAGOGICAL FRAMEWORK:
       console.log(`⚠️  Description too short: "${capsule.description}"`);
       score -= 0.3;
     }
-    // Make learning objectives optional for now - AI may not always provide them
-    if (capsule.pedagogy?.learningObjectives?.length === 0) {
-      console.log(`⚠️  No learning objectives provided (minor deduction)`);
+    // Concepts check (optional, minor deduction)
+    if (capsule.pedagogy?.concepts?.length === 0) {
+      console.log(`⚠️  No concepts provided (minor deduction)`);
       score -= 0.1; // Reduced penalty
     }
     

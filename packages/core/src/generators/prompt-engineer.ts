@@ -341,14 +341,9 @@ Apply these insights to enhance the learning experience.`;
    * Enhanced user prompt with context
    */
   private enhanceUserPrompt(context: PromptContext): string {
-    const { userPrompt, learningObjectives, runtimeTarget } = context;
+    const { userPrompt, runtimeTarget } = context;
     
     let enhanced = userPrompt;
-    
-    // Add learning objectives if provided
-    if (learningObjectives && learningObjectives.length > 0) {
-      enhanced += `\n\nLearning Objectives:\n${learningObjectives.map(obj => `- ${obj}`).join('\n')}`;
-    }
     
     // Add runtime context
     enhanced += `\n\nTarget Runtime: ${runtimeTarget.toUpperCase()}`;
@@ -364,7 +359,7 @@ Apply these insights to enhance the learning experience.`;
       'Content matches the specified difficulty level',
       'All code examples are tested and functional',
       'Explanations are clear and pedagogically sound',
-      'Learning objectives are met',
+      'Context motivates why this skill matters in production',
       'Content is engaging and interactive'
     ];
     
@@ -422,24 +417,15 @@ Apply these insights to enhance the learning experience.`;
   private getOutputFormatInstructions(): string {
     return `📋 OUTPUT FORMAT:
 
-Return your response as a JSON object with this exact structure:
-{
-  "title": "Clear, descriptive title",
-  "description": "Brief description of what learners will accomplish",
-  "content": {
-    "introduction": "Hook the learner with why this matters",
-    "explanation": "Core concept explanation",
-    "example": "Worked example with step-by-step breakdown",
-    "exercise": "Hands-on practice for the learner",
-    "solution": "Complete solution with explanations",
-    "conclusion": "Key takeaways and next steps"
-  },
-  "metadata": {
-    "estimatedTime": "X minutes",
-    "prerequisites": ["concept1", "concept2"],
-    "learningOutcomes": ["outcome1", "outcome2"]
-  }
-}
+Return your response as a JSON object. The exact structure will be specified in the output format section that follows.
+
+IMPORTANT CONTENT RULES:
+- "context" must be a 1-2 sentence real-world motivation (why a working engineer needs this skill)
+- "task" must be a direct, actionable build instruction (what the learner must do)
+- "insight" must be an aha-moment revealed only after the learner passes all tests
+- Do NOT include "Learning Objectives" or "Prerequisites" sections anywhere in the output
+- Do NOT embed academic-style headers in the problem description
+- Keep the tone practical and engineering-focused, not academic
 
 Ensure all JSON is valid and properly escaped.`;
   }
