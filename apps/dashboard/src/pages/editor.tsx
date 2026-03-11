@@ -1360,6 +1360,10 @@ export default function CapsuleEditor() {
       const capsuleData_ = {
         title: capsuleData.title,
         description: capsuleData.problemStatement,
+        context: (capsuleData as any).context || '',
+        task: (capsuleData as any).task || '',
+        insight: (capsuleData as any).insight || '',
+        realWorldUsage: (capsuleData as any).realWorldUsage || '',
         type: isSQL ? 'SQL' : 'CODE',
         language: language,
         difficulty: (capsuleData as any).difficulty || 'medium',
@@ -1367,6 +1371,10 @@ export default function CapsuleEditor() {
         content: {
           primary: isSQL ? {
             problemStatement: capsuleData.problemStatement,
+            context: (capsuleData as any).context || '',
+            task: (capsuleData as any).task || '',
+            insight: (capsuleData as any).insight || '',
+            realWorldUsage: (capsuleData as any).realWorldUsage || '',
             database: {
               schema: (capsuleData as any).schema_definition || '',
               seedData: (capsuleData as any).seed_data || [],
@@ -1385,7 +1393,11 @@ export default function CapsuleEditor() {
                 testCases: validationTestCases
               }
             },
-            problemStatement: capsuleData.problemStatement
+            problemStatement: capsuleData.problemStatement,
+            context: (capsuleData as any).context || '',
+            task: (capsuleData as any).task || '',
+            insight: (capsuleData as any).insight || '',
+            realWorldUsage: (capsuleData as any).realWorldUsage || '',
           }
         },
         pedagogy: {
