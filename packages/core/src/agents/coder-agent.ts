@@ -236,7 +236,7 @@ Return JSON with this exact structure:
 {
   "title": "${idea.title}",
   "capsule_type": "${context.type}",
-  "problem_statement_md": "# ${idea.title}\\n\\n${idea.description}\\n\\n## Learning Objectives\\n${idea.learning_objectives.map(obj => `- ${obj}`).join('\\n')}\\n\\n## Prerequisites\\n${idea.prerequisites.map(pre => `- ${pre}`).join('\\n')}",
+  "problem_statement_md": "# ${idea.title}\\n\\n${idea.description}",
   "runtime_config": {
     "language": "${context.language}",
     "runtime_tier": "basic"
