@@ -504,6 +504,14 @@ capsuleRoutes.get('/:id', async (c) => {
   capsule.createdAt = capsule.created_at;
   capsule.updatedAt = capsule.updated_at;
 
+  // Extract context/task/insight from content.primary for embed compatibility
+  if (capsule.content?.primary) {
+    capsule.context = capsule.context || capsule.content.primary.context || '';
+    capsule.task = capsule.task || capsule.content.primary.task || '';
+    capsule.insight = capsule.insight || capsule.content.primary.insight || '';
+    capsule.realWorldUsage = capsule.realWorldUsage || capsule.content.primary.realWorldUsage || '';
+  }
+
   // Cache if published (1 hour TTL)
   if (row.is_published) {
     await c.env.CACHE.put(cacheKey, JSON.stringify(capsule), {
@@ -549,6 +557,10 @@ capsuleRoutes.post('/', async (c) => {
 
   const body = await c.req.json();
   let { title, description, type, difficulty, language, content, tags } = body;
+  const capsuleContext = body.context || '';
+  const capsuleTask = body.task || '';
+  const capsuleInsight = body.insight || '';
+  const capsuleRealWorldUsage = body.realWorldUsage || '';
 
   if (!title || !language || !content) {
     throw new ApiError(400, 'title, language, and content are required');
@@ -647,10 +659,15 @@ capsuleRoutes.post('/', async (c) => {
       id,
       title,
       description: description || null,
+      context: capsuleContext,
+      task: capsuleTask,
+      insight: capsuleInsight,
+      realWorldUsage: capsuleRealWorldUsage,
       type: type || 'CODE',
       difficulty: normalizedDifficulty,
       language,
       content,
+      pedagogy: body.pedagogy || {},
       created_at: new Date().toISOString(),
     };
     await c.env.CDN.put(

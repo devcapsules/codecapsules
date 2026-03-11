@@ -789,7 +789,7 @@ export default function CapsuleEditor() {
           executionOutput: capsuleJson.executionOutput || '',
           executionSuccess: capsuleJson.executionSuccess || false,
           learningObjectives: capsuleJson.learningObjectives || [],
-          concepts: capsuleJson.concepts || [],
+          concepts: capsuleJson.pedagogy?.concepts || capsuleJson.content?.pedagogy?.concepts || capsuleJson.learning?.concepts || capsuleJson.concepts || [],
           // SQL-specific fields
           schema_setup: database.schema_setup || [],
           test_data_setup: database.test_data_setup || [],
@@ -891,7 +891,7 @@ export default function CapsuleEditor() {
           executionOutput: '',
           executionSuccess: false,
           learningObjectives: pedagogy.learningObjectives || [],
-          concepts: content.concepts || []
+          concepts: pedagogy.concepts || content.pedagogy?.concepts || content.concepts || []
         };
         
         // Add SQL-specific fields for database capsules
@@ -1266,6 +1266,10 @@ export default function CapsuleEditor() {
       const capsuleForPublish = {
         title: capsuleData.title,
         description: capsuleData.problemStatement,
+        context: (capsuleData as any).context || '',
+        task: (capsuleData as any).task || '',
+        insight: (capsuleData as any).insight || '',
+        realWorldUsage: (capsuleData as any).realWorldUsage || '',
         type: isSQL ? 'SQL' : 'CODE',
         language: language,
         difficulty: (capsuleData as any).difficulty || 'medium',
@@ -1273,6 +1277,10 @@ export default function CapsuleEditor() {
         content: {
           primary: isSQL ? {
             problemStatement: capsuleData.problemStatement,
+            context: (capsuleData as any).context || '',
+            task: (capsuleData as any).task || '',
+            insight: (capsuleData as any).insight || '',
+            realWorldUsage: (capsuleData as any).realWorldUsage || '',
             database: {
               schema: (capsuleData as any).schema_definition || '',
               seedData: (capsuleData as any).seed_data || [],
@@ -1285,6 +1293,10 @@ export default function CapsuleEditor() {
             }
           } : {
             problemStatement: capsuleData.problemStatement,
+            context: (capsuleData as any).context || '',
+            task: (capsuleData as any).task || '',
+            insight: (capsuleData as any).insight || '',
+            realWorldUsage: (capsuleData as any).realWorldUsage || '',
             code: {
               wasmVersion: {
                 solution: capsuleData.referenceSolution || capsuleData.solutionStub,
