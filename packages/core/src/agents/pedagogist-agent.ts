@@ -463,6 +463,14 @@ CORE PEDAGOGICAL PRINCIPLES:
       idea.prerequisites = [`Basic ${context.language} knowledge`]
     }
 
+    // Ensure key_concepts exist — LLM sometimes omits this field
+    if (!idea.key_concepts || !Array.isArray(idea.key_concepts) || idea.key_concepts.length === 0) {
+      // Extract from title/description as fallback
+      const fallbackConcepts: string[] = [context.type || 'programming']
+      if (context.language) fallbackConcepts.push(context.language as string)
+      idea.key_concepts = fallbackConcepts
+    }
+
     return idea
   }
 

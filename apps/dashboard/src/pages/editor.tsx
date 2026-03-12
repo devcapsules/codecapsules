@@ -789,7 +789,7 @@ export default function CapsuleEditor() {
           executionOutput: capsuleJson.executionOutput || '',
           executionSuccess: capsuleJson.executionSuccess || false,
           learningObjectives: capsuleJson.learningObjectives || [],
-          concepts: capsuleJson.pedagogy?.concepts || capsuleJson.content?.pedagogy?.concepts || capsuleJson.learning?.concepts || capsuleJson.concepts || [],
+          concepts: (capsuleJson.pedagogy?.concepts?.length ? capsuleJson.pedagogy.concepts : null) || (capsuleJson.content?.pedagogy?.concepts?.length ? capsuleJson.content.pedagogy.concepts : null) || (capsuleJson.learning?.concepts?.length ? capsuleJson.learning.concepts : null) || capsuleJson.concepts || [],
           // SQL-specific fields
           schema_setup: database.schema_setup || [],
           test_data_setup: database.test_data_setup || [],
@@ -891,7 +891,7 @@ export default function CapsuleEditor() {
           executionOutput: '',
           executionSuccess: false,
           learningObjectives: pedagogy.learningObjectives || [],
-          concepts: pedagogy.concepts || content.pedagogy?.concepts || content.concepts || []
+          concepts: (pedagogy.concepts?.length ? pedagogy.concepts : null) || (content.pedagogy?.concepts?.length ? content.pedagogy.concepts : null) || content.concepts || []
         };
         
         // Add SQL-specific fields for database capsules
@@ -1160,7 +1160,7 @@ export default function CapsuleEditor() {
           testCases: transformedTestCases.length > 0 ? transformedTestCases : prev.testCases,
           _rawTestCases: undefined, // Clear raw cache — use fresh transformed test cases
           learningObjectives: capsuleJson?.pedagogy?.learningObjectives || capsuleJson?.learningObjectives || prev.learningObjectives,
-          concepts: capsuleJson?.pedagogy?.concepts || capsuleJson?.concepts || prev.concepts,
+          concepts: (capsuleJson?.pedagogy?.concepts?.length ? capsuleJson.pedagogy.concepts : null) || (capsuleJson?.concepts?.length ? capsuleJson.concepts : null) || prev.concepts,
           // SQL-specific
           schema_setup: database.schema_setup || (prev as any).schema_setup || [],
           test_data_setup: database.test_data_setup || (prev as any).test_data_setup || [],
@@ -1273,7 +1273,7 @@ export default function CapsuleEditor() {
         type: isSQL ? 'SQL' : 'CODE',
         language: language,
         difficulty: (capsuleData as any).difficulty || 'medium',
-        tags: ['generated'],
+        tags: ((capsuleData as any).concepts?.length ? (capsuleData as any).concepts : ['generated']),
         content: {
           primary: isSQL ? {
             problemStatement: capsuleData.problemStatement,
@@ -1367,7 +1367,7 @@ export default function CapsuleEditor() {
         type: isSQL ? 'SQL' : 'CODE',
         language: language,
         difficulty: (capsuleData as any).difficulty || 'medium',
-        tags: ['generated'],
+        tags: ((capsuleData as any).concepts?.length ? (capsuleData as any).concepts : ['generated']),
         content: {
           primary: isSQL ? {
             problemStatement: capsuleData.problemStatement,
