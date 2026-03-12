@@ -99,10 +99,14 @@ paymentRoutes.post('/create-order', async (c) => {
   }
 
   // Create Razorpay order
+  // Receipt must be <= 40 chars (Razorpay constraint)
+  const shortUserId = auth.userId.slice(0, 16);
+  const shortTimestamp = Date.now().toString().slice(-8);
+  const receipt = `sub_${shortUserId}_${shortTimestamp}`;
   const order = await razorpayFetch(c.env, '/orders', 'POST', {
     amount: planConfig.amount,
     currency: planConfig.currency,
-    receipt: `sub_${auth.userId}_${Date.now()}`,
+    receipt,
     notes: {
       user_id: auth.userId,
       email: auth.email,
