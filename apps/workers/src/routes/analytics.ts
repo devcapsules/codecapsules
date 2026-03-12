@@ -264,20 +264,22 @@ analyticsRoutes.get('/command-center', async (c) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Map embed event types to canonical DB event types
+// Valid event_type values per CHECK constraint:
+//   impression, run, test_pass, test_fail, hint_viewed, solution_viewed, completed, abandoned
 const EMBED_EVENT_MAP: Record<string, string> = {
-  session_started: 'session_started',
-  session_completed: 'session_ended',
-  run_clicked: 'code_run',
-  test_failed: 'test_failed',
-  test_passed: 'test_passed',
+  session_started: 'impression',
+  session_completed: 'completed',
+  run_clicked: 'run',
+  test_failed: 'test_fail',
+  test_passed: 'test_pass',
   hint_viewed: 'hint_viewed',
   solution_viewed: 'solution_viewed',
-  learner_identified: 'learner_identified',
+  learner_identified: 'impression',
   // Legacy dashboard event names
   impression: 'impression',
-  run: 'code_run',
-  test_pass: 'test_passed',
-  test_fail: 'test_failed',
+  run: 'run',
+  test_pass: 'test_pass',
+  test_fail: 'test_fail',
   completed: 'completed',
   abandoned: 'abandoned',
 };
@@ -308,7 +310,7 @@ analyticsRoutes.post('/track', async (c) => {
         ).run();
 
         // When a learner self-identifies, backfill their name on past events
-        if (eventType === 'learner_identified' && evt.learnerId && evt.learnerName) {
+        if (evt.type === 'learner_identified' && evt.learnerId && evt.learnerName) {
           await c.env.DB.prepare(`
             UPDATE capsule_events SET learner_name = ? WHERE learner_id = ? AND (learner_name IS NULL OR learner_name = '')
           `).bind(evt.learnerName, evt.learnerId).run();
