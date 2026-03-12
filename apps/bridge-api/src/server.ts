@@ -774,6 +774,7 @@ app.get('/internal/health', (_req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function convertBaseCapsuleToUniversalFormat(baseCapsule: any, difficulty: string = 'medium', idea?: any): any {
+  console.log(`🔍 [convertFormat] idea.key_concepts=${JSON.stringify(idea?.key_concepts)}, idea.context=${(idea?.context || '').substring(0, 50)}`);
   const configData = baseCapsule.config_data || {};
   const capsuleType = baseCapsule.capsule_type || 'CODE';
   const language = baseCapsule.runtime_config?.language || 'javascript';
