@@ -139,7 +139,7 @@ app.use('*', async (c, next) => {
   
   return cors({
     origin: isEmbedRoute ? '*' : allowedOrigins,
-    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
     credentials: !isEmbedRoute,
     maxAge: 86400, // 24 hours
@@ -309,11 +309,12 @@ export default {
   async scheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext) {
     console.log('Running scheduled task:', event.cron);
     
-    // Every 15 minutes: aggregate analytics + flush event buffer
+    // Every 15 minutes: aggregate analytics + flush event buffer + downgrade expired subscriptions
     if (event.cron === '*/15 * * * *') {
       const { flushEventBuffer } = await import('./utils/analytics-buffer');
       await flushEventBuffer(env);
       await aggregateAnalytics(env);
+      await downgradeExpiredSubscriptions(env);
     }
   },
 
@@ -338,11 +339,11 @@ export default {
 async function aggregateAnalytics(env: Env): Promise<void> {
   try {
     // Aggregate ALL events (no time window) into capsule_stats.
-    // Event types match what is actually written:
-    //   impression        — capsule viewed (from capsules.ts trackEvent + embed)
-    //   code_run / run    — user clicked Run (embed maps run_clicked → code_run; legacy = run)
-    //   test_passed / test_pass — test passed (embed maps test_passed; legacy = test_pass)
-    //   test_failed / test_fail — test failed (embed maps test_failed; legacy = test_fail)
+    // Valid event_type values (per CHECK constraint):
+    //   impression — capsule viewed (embed session_started + capsules.ts trackEvent)
+    //   run        — user clicked Run (embed run_clicked)
+    //   test_pass  — test passed (embed test_passed)
+    //   test_fail  — test failed (embed test_failed)
     await env.DB.prepare(`
       INSERT OR REPLACE INTO capsule_stats (
         capsule_id, impressions, total_runs, total_passes,
@@ -351,12 +352,12 @@ async function aggregateAnalytics(env: Env): Promise<void> {
       SELECT
         capsule_id,
         SUM(CASE WHEN event_type = 'impression' THEN 1 ELSE 0 END) as impressions,
-        SUM(CASE WHEN event_type IN ('run', 'code_run') THEN 1 ELSE 0 END) as total_runs,
-        SUM(CASE WHEN event_type IN ('test_pass', 'test_passed') THEN 1 ELSE 0 END) as total_passes,
-        SUM(CASE WHEN event_type IN ('test_fail', 'test_failed') THEN 1 ELSE 0 END) as total_fails,
-        CAST(SUM(CASE WHEN event_type IN ('test_pass', 'test_passed') THEN 1 ELSE 0 END) AS REAL) /
-          NULLIF(SUM(CASE WHEN event_type IN ('run', 'code_run') THEN 1 ELSE 0 END), 0) as completion_rate,
-        CAST(SUM(CASE WHEN event_type IN ('run', 'code_run') THEN 1 ELSE 0 END) AS REAL) /
+        SUM(CASE WHEN event_type = 'run' THEN 1 ELSE 0 END) as total_runs,
+        SUM(CASE WHEN event_type = 'test_pass' THEN 1 ELSE 0 END) as total_passes,
+        SUM(CASE WHEN event_type = 'test_fail' THEN 1 ELSE 0 END) as total_fails,
+        CAST(SUM(CASE WHEN event_type = 'test_pass' THEN 1 ELSE 0 END) AS REAL) /
+          NULLIF(SUM(CASE WHEN event_type = 'run' THEN 1 ELSE 0 END), 0) as completion_rate,
+        CAST(SUM(CASE WHEN event_type = 'run' THEN 1 ELSE 0 END) AS REAL) /
           NULLIF(SUM(CASE WHEN event_type = 'impression' THEN 1 ELSE 0 END), 0) as engagement_rate,
         datetime('now') as last_computed
       FROM capsule_events
@@ -366,5 +367,39 @@ async function aggregateAnalytics(env: Env): Promise<void> {
     console.log('Analytics aggregation completed');
   } catch (error) {
     console.error('Analytics aggregation failed:', error);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Subscription Downgrade (Cron Job)
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function downgradeExpiredSubscriptions(env: Env): Promise<void> {
+  try {
+    // Find subscriptions that are past their period end and marked for cancellation
+    const expired = await env.DB.prepare(`
+      SELECT s.user_id FROM subscriptions s
+      WHERE s.cancel_at_period_end = 1
+        AND s.current_period_end < datetime('now')
+        AND s.status = 'active'
+    `).all<{ user_id: string }>();
+
+    if (!expired.results?.length) return;
+
+    for (const row of expired.results) {
+      // Downgrade user to free plan
+      await env.DB.prepare(
+        'UPDATE users SET plan = ?, execution_quota = 200, generation_quota = 5 WHERE id = ?'
+      ).bind('free', row.user_id).run();
+
+      // Mark subscription as canceled
+      await env.DB.prepare(
+        `UPDATE subscriptions SET status = 'canceled', plan = 'free' WHERE user_id = ?`
+      ).bind(row.user_id).run();
+    }
+
+    console.log(`Downgraded ${expired.results.length} expired subscription(s)`);
+  } catch (error) {
+    console.error('Subscription downgrade check failed:', error);
   }
 }
