@@ -85,7 +85,7 @@ export class PedagogistAgent {
     const difficultySpec = this.getDifficultySpec(context.difficulty)
 
     // Inject universal dataset catalog for data analysis capsules
-    const datasetBlock = isDataAnalysisContext(context.language, context.userPrompt)
+    const datasetBlock = isDataAnalysisContext(context.language, context.userPrompt, context.capsuleMode)
       ? `\n${buildDatasetCatalogPrompt()}\n`
       : ''
 

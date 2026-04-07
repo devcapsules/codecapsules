@@ -69,7 +69,50 @@ export default function LearnCoursePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showSoftLogin, setShowSoftLogin] = useState(false)
-  const [pendingCapsuleId, setPendingCapsuleId] = useState<string | null>(null)
+  const [pendingStartIndex, setPendingStartIndex] = useState(0)
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set())
+
+  // ── localStorage progress persistence ──
+  useEffect(() => {
+    if (!id) return
+    try {
+      const stored = localStorage.getItem(`dc_progress_${id}`)
+      if (stored) setCompletedIds(new Set(JSON.parse(stored)))
+    } catch {}
+  }, [id])
+
+  useEffect(() => {
+    if (!id || completedIds.size === 0) return
+    localStorage.setItem(`dc_progress_${id}`, JSON.stringify([...completedIds]))
+  }, [id, completedIds])
+
+  // ── Listen for postMessage from embed (Arcade / standalone) ──
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'dc-capsule-complete' && e.data?.capsuleId) {
+        setCompletedIds(prev => {
+          const next = new Set(prev)
+          next.add(e.data.capsuleId)
+          return next
+        })
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [])
+
+  // ── Re-read localStorage on window focus (user returning from Arcade tab) ──
+  useEffect(() => {
+    const handler = () => {
+      if (!id) return
+      try {
+        const stored = localStorage.getItem(`dc_progress_${id}`)
+        if (stored) setCompletedIds(new Set(JSON.parse(stored)))
+      } catch {}
+    }
+    window.addEventListener('focus', handler)
+    return () => window.removeEventListener('focus', handler)
+  }, [id])
 
   const fetchCourse = useCallback(async () => {
     if (!id) return
@@ -101,23 +144,19 @@ export default function LearnCoursePage() {
     if (router.isReady) fetchCourse()
   }, [router.isReady, fetchCourse])
 
-  const openCapsule = (capsuleId: string) => {
-    // Soft login: prompt name + phone if not already captured
+  const openArcade = (startIndex: number = 0) => {
     if (!user && !learner) {
-      setPendingCapsuleId(capsuleId)
+      setPendingStartIndex(startIndex)
       setShowSoftLogin(true)
       return
     }
-    window.open(`${EMBED_BASE}/?id=${capsuleId}`, '_blank')
+    window.open(`${EMBED_BASE}/?playlist=${id}&start=${startIndex}`, '_blank')
   }
 
   const handleSoftLoginSubmit = (name: string, phone: string) => {
     saveLearner(name, phone)
     setShowSoftLogin(false)
-    if (pendingCapsuleId) {
-      window.open(`${EMBED_BASE}/?id=${pendingCapsuleId}`, '_blank')
-      setPendingCapsuleId(null)
-    }
+    window.open(`${EMBED_BASE}/?playlist=${id}&start=${pendingStartIndex}`, '_blank')
   }
 
   // ── Loading ──
@@ -187,7 +226,38 @@ export default function LearnCoursePage() {
                 {course.published_at ? 'Published' : 'Preview'}
               </span>
               <span>{sortedItems.length} exercise{sortedItems.length !== 1 ? 's' : ''}</span>
+              {completedIds.size > 0 && (
+                <span style={{ color: '#00ff87' }}>{completedIds.size}/{sortedItems.length} completed</span>
+              )}
             </div>
+
+            {/* Progress bar */}
+            {sortedItems.length > 0 && (
+              <div className="w-full rounded-full h-1.5 mt-3" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                <div
+                  className="h-1.5 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${(completedIds.size / sortedItems.length) * 100}%`,
+                    background: '#00ff87',
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Start / Continue Course CTA */}
+            {(user || learner) && (
+              <button
+                onClick={() => openArcade(completedIds.size > 0 ? Math.max(0, sortedItems.findIndex(it => !completedIds.has(it.capsule_id))) : 0)}
+                className="mt-4 px-5 py-2.5 rounded-lg text-sm font-bold transition-all hover:brightness-110"
+                style={{
+                  background: 'rgba(0,255,135,0.1)',
+                  border: '1px solid rgba(0,255,135,0.3)',
+                  color: '#00ff87',
+                }}
+              >
+                {completedIds.size === 0 ? 'Start Course' : completedIds.size >= sortedItems.length ? 'Review Course' : 'Continue Learning'} →
+              </button>
+            )}
           </div>
         </div>
 
@@ -210,7 +280,7 @@ export default function LearnCoursePage() {
           {showSoftLogin && (
             <SoftLoginModal
               onSubmit={handleSoftLoginSubmit}
-              onClose={() => { setShowSoftLogin(false); setPendingCapsuleId(null); }}
+              onClose={() => { setShowSoftLogin(false) }}
             />
           )}
 
@@ -234,13 +304,24 @@ export default function LearnCoursePage() {
                       border: '1px solid rgba(255,255,255,0.06)',
                     }}
                   >
-                    {/* Index */}
-                    <span
-                      className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                      style={{ background: 'rgba(0,255,135,0.08)', color: '#00ff87', border: '1px solid rgba(0,255,135,0.2)' }}
-                    >
-                      {index + 1}
-                    </span>
+                    {/* Index / Checkmark */}
+                    {completedIds.has(item.capsule_id) ? (
+                      <span
+                        className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+                        style={{ background: 'rgba(0,255,135,0.15)', border: '1px solid rgba(0,255,135,0.3)' }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00ff87" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </span>
+                    ) : (
+                      <span
+                        className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                        style={{ background: 'rgba(0,255,135,0.08)', color: '#00ff87', border: '1px solid rgba(0,255,135,0.2)' }}
+                      >
+                        {index + 1}
+                      </span>
+                    )}
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
@@ -276,15 +357,23 @@ export default function LearnCoursePage() {
 
                     {/* CTA */}
                     <button
-                      onClick={() => openCapsule(item.capsule_id)}
+                      onClick={() => openArcade(index)}
                       className="flex-shrink-0 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
                       style={{
-                        background: (user || learner) ? 'rgba(0,255,135,0.1)' : 'rgba(255,255,255,0.05)',
-                        border: (user || learner) ? '1px solid rgba(0,255,135,0.3)' : '1px solid rgba(255,255,255,0.1)',
-                        color: (user || learner) ? '#00ff87' : '#94a3b8',
+                        background: (user || learner)
+                          ? completedIds.has(item.capsule_id) ? 'rgba(255,255,255,0.04)' : 'rgba(0,255,135,0.1)'
+                          : 'rgba(255,255,255,0.05)',
+                        border: (user || learner)
+                          ? completedIds.has(item.capsule_id) ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,255,135,0.3)'
+                          : '1px solid rgba(255,255,255,0.1)',
+                        color: (user || learner)
+                          ? completedIds.has(item.capsule_id) ? '#94a3b8' : '#00ff87'
+                          : '#94a3b8',
                       }}
                     >
-                      {(user || learner) ? 'Solve →' : 'Sign in'}
+                      {(user || learner)
+                        ? completedIds.has(item.capsule_id) ? 'Redo' : 'Solve →'
+                        : 'Sign in'}
                     </button>
                   </div>
                 )

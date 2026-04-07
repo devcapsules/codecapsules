@@ -209,10 +209,13 @@ export default function CourseDetailPage() {
     }
   }
 
-  const playlistEmbedCode = `<iframe src="${EMBED_BASE}/?playlist=${course.id}" width="100%" height="700px" frameborder="0" allow="clipboard-write" style="border-radius:8px;border:1px solid #1a1a2e"></iframe>`
+  const playlistDirectLink = `${EMBED_BASE}/?playlist=${course.id}`
+  const playlistEmbedCode = `<iframe src="${playlistDirectLink}" width="100%" height="700px" frameborder="0" allow="clipboard-write" style="border-radius:8px;border:1px solid #1a1a2e"></iframe>`
 
+  const getCapsuleDirectLink = (capsuleId: string) =>
+    `${EMBED_BASE}/?id=${capsuleId}&courseId=${course.id}`
   const getLmsEmbed = (capsuleId: string) =>
-    `<iframe src="${EMBED_BASE}/?id=${capsuleId}&courseId=${course.id}" width="100%" height="600px" frameborder="0" allow="clipboard-write" style="border-radius:8px;border:1px solid #1a1a2e"></iframe>`
+    `<iframe src="${getCapsuleDirectLink(capsuleId)}" width="100%" height="600px" frameborder="0" allow="clipboard-write" style="border-radius:8px;border:1px solid #1a1a2e"></iframe>`
 
   // ── Render ──
 
@@ -564,81 +567,95 @@ export default function CourseDetailPage() {
 
         {/* ── Embed Tab ── */}
         {activeTab === 'embed' && (
-          <div className="pb-12 space-y-6">
-            {/* Playlist Embed */}
+          <div className="pb-12 space-y-5">
+            {/* Full Course Embed */}
             <div className="bg-[#0a0a14] rounded-xl border border-slate-800 p-5">
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-sky-500/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm">🎮</span>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-white">Playlist Embed — Seamless Arcade</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Single iframe for the full course. Best for Notion, Substack, WordPress.
-                  </p>
-                </div>
-              </div>
-              <div className="relative">
-                <pre className="bg-[#04040a] rounded-lg p-3 text-xs text-emerald-300/80 font-mono overflow-x-auto border border-slate-800">{playlistEmbedCode}</pre>
+              <h3 className="text-sm font-semibold text-white mb-1">Full Course Embed</h3>
+              <p className="text-xs text-slate-500 mb-4">Single iframe for the entire course. Best for Notion, Substack, WordPress.</p>
+
+              <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1.5">Direct Link</label>
+              <div className="flex items-center gap-2 mb-4">
+                <input
+                  readOnly
+                  value={playlistDirectLink}
+                  className="flex-1 bg-[#04040a] border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 font-mono focus:outline-none focus:border-emerald-500/40"
+                  onClick={e => (e.target as HTMLInputElement).select()}
+                />
                 <button
-                  onClick={() => copyToClipboard(playlistEmbedCode, 'playlist')}
-                  className={`absolute top-2 right-2 px-2.5 py-1 text-xs font-medium rounded transition-colors ${
-                    copiedEmbed === 'playlist'
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                  }`}
-                >
-                  {copiedEmbed === 'playlist' ? 'Copied!' : 'Copy'}
-                </button>
+                  onClick={() => copyToClipboard(playlistDirectLink, 'playlist-link')}
+                  className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors flex-shrink-0 ${copiedEmbed === 'playlist-link' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                >{copiedEmbed === 'playlist-link' ? 'Copied!' : 'Copy'}</button>
+              </div>
+
+              <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1.5">Iframe Embed</label>
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={playlistEmbedCode}
+                  className="flex-1 bg-[#04040a] border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 font-mono focus:outline-none focus:border-emerald-500/40"
+                  onClick={e => (e.target as HTMLInputElement).select()}
+                />
+                <button
+                  onClick={() => copyToClipboard(playlistEmbedCode, 'playlist-embed')}
+                  className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors flex-shrink-0 ${copiedEmbed === 'playlist-embed' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                >{copiedEmbed === 'playlist-embed' ? 'Copied!' : 'Copy'}</button>
               </div>
             </div>
 
-            {/* Per-capsule LMS Embeds */}
+            {/* Per-Capsule Embeds */}
             <div className="bg-[#0a0a14] rounded-xl border border-slate-800 p-5">
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm">📚</span>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-white">LMS / Per-Capsule Embeds — Headless Playlist</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    One embed per exercise with courseId baked in. Paste each into its own Graphy / Thinkific lesson.
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {course.items.map((item, index) => {
-                  const embedId = `lms-${item.capsule_id}`
-                  const embedCode = getLmsEmbed(item.capsule_id)
-                  return (
-                    <div key={item.capsule_id} className="bg-[#04040a] rounded-lg border border-slate-800 p-3">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400">
+              <h3 className="text-sm font-semibold text-white mb-1">Per-Capsule Embeds</h3>
+              <p className="text-xs text-slate-500 mb-4">Individual embed for each exercise. Use for LMS platforms like Graphy or Thinkific.</p>
+
+              {course.items.length === 0 ? (
+                <p className="text-sm text-slate-500 text-center py-6">No exercises yet — add them in the editor.</p>
+              ) : (
+                <div className="space-y-3">
+                  {course.items.map((item, index) => {
+                    const directLink = getCapsuleDirectLink(item.capsule_id)
+                    const embedCode = getLmsEmbed(item.capsule_id)
+                    return (
+                      <div key={item.capsule_id} className="bg-[#04040a] rounded-lg border border-slate-800 p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[10px] font-bold text-emerald-400 flex-shrink-0">
                             {index + 1}
                           </span>
-                          <span className="text-sm text-white truncate">{item.capsule.title}</span>
-                          <span className="text-[11px] text-slate-600 flex-shrink-0">{item.capsule.language}</span>
+                          <span className="text-sm font-medium text-white truncate">{item.capsule.title}</span>
+                          <span className="text-[10px] text-slate-600 flex-shrink-0 uppercase">{item.capsule.language}</span>
                         </div>
-                        <button
-                          onClick={() => copyToClipboard(embedCode, embedId)}
-                          className={`px-2.5 py-1 text-xs font-medium rounded transition-colors flex-shrink-0 ${
-                            copiedEmbed === embedId
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                          }`}
-                        >
-                          {copiedEmbed === embedId ? 'Copied!' : 'Copy Embed'}
-                        </button>
+                        <div className="grid grid-cols-1 gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-slate-500 uppercase tracking-wider w-10 flex-shrink-0">Link</span>
+                            <input
+                              readOnly
+                              value={directLink}
+                              className="flex-1 bg-[#0a0a14] border border-slate-800/60 rounded px-2.5 py-1.5 text-[11px] text-slate-400 font-mono focus:outline-none focus:border-emerald-500/40"
+                              onClick={e => (e.target as HTMLInputElement).select()}
+                            />
+                            <button
+                              onClick={() => copyToClipboard(directLink, `link-${item.capsule_id}`)}
+                              className={`px-2 py-1.5 text-[11px] font-medium rounded transition-colors flex-shrink-0 ${copiedEmbed === `link-${item.capsule_id}` ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                            >{copiedEmbed === `link-${item.capsule_id}` ? 'Copied!' : 'Copy'}</button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-slate-500 uppercase tracking-wider w-10 flex-shrink-0">Iframe</span>
+                            <input
+                              readOnly
+                              value={embedCode}
+                              className="flex-1 bg-[#0a0a14] border border-slate-800/60 rounded px-2.5 py-1.5 text-[11px] text-slate-400 font-mono focus:outline-none focus:border-emerald-500/40"
+                              onClick={e => (e.target as HTMLInputElement).select()}
+                            />
+                            <button
+                              onClick={() => copyToClipboard(embedCode, `embed-${item.capsule_id}`)}
+                              className={`px-2 py-1.5 text-[11px] font-medium rounded transition-colors flex-shrink-0 ${copiedEmbed === `embed-${item.capsule_id}` ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                            >{copiedEmbed === `embed-${item.capsule_id}` ? 'Copied!' : 'Copy'}</button>
+                          </div>
+                        </div>
                       </div>
-                      <pre className="text-[10px] text-emerald-300/50 font-mono overflow-x-auto whitespace-nowrap">{embedCode}</pre>
-                    </div>
-                  )
-                })}
-                {course.items.length === 0 && (
-                  <p className="text-sm text-slate-500 text-center py-6">No exercises yet — add them in the editor.</p>
-                )}
-              </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}

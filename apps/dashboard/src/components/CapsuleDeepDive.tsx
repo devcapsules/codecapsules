@@ -86,8 +86,10 @@ export default function CapsuleDeepDive({ capsuleId, cohortId }: Props) {
       }
     } catch (error) {
       console.error('Failed to fetch capsule deep dive:', error);
-      // Mock data for demo - THE KILLER FEATURE
-      setData({
+      // No mock data — show real state
+      setData(null);
+      /* removed hardcoded mock data */
+      if (false) setData({
         capsule_id: capsuleId,
         capsule_title: 'Array Methods: map, filter, reduce',
         total_students: 45,

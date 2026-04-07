@@ -37,6 +37,13 @@ const widgetId = getWidgetId()
 const playlistId = getPlaylistId()
 const courseId = getCourseId()
 
+const getStartIndex = () => {
+  const urlParams = new URLSearchParams(window.location.search)
+  const s = urlParams.get('start')
+  return s ? Math.max(0, parseInt(s, 10) || 0) : 0
+}
+const startIndex = getStartIndex()
+
 // Attach courseId to analytics singleton so every event is tagged
 if (courseId) {
   embedAnalytics.courseId = courseId
@@ -50,7 +57,7 @@ if (playlistId) {
   root.render(
     <React.StrictMode>
       <DCAnimationProvider>
-        <PlaylistEmbed playlistId={playlistId} />
+        <PlaylistEmbed playlistId={playlistId} startIndex={startIndex} />
       </DCAnimationProvider>
     </React.StrictMode>,
   )

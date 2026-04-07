@@ -120,31 +120,17 @@ const DATA_ANALYSIS_LANGUAGES = ['python', 'sql'];
 
 /**
  * Check if a language/prompt combination should use universal datasets.
- * Returns true for Python (Pandas) and SQL capsules.
+ * Primary signal: capsuleMode === 'data-analysis' (explicit user selection).
+ * Fallback: SQL capsules always inject datasets.
  */
-export function isDataAnalysisContext(language: string, userPrompt?: string): boolean {
+export function isDataAnalysisContext(language: string, userPrompt?: string, capsuleMode?: string): boolean {
+  // Explicit mode selection — most reliable signal
+  if (capsuleMode === 'data-analysis') return true;
+
   const lang = language.toLowerCase();
 
   // Always inject for SQL
   if (lang === 'sql') return true;
-
-  // For Python, inject when prompt suggests data analysis
-  if (lang === 'python') {
-    if (!userPrompt) return false;
-    const lower = userPrompt.toLowerCase();
-    const dataKeywords = [
-      'pandas', 'dataframe', 'csv', 'data analysis', 'data science',
-      'dataset', 'columns', 'rows', 'filter', 'groupby', 'group by',
-      'aggregate', 'merge', 'join', 'pivot', 'correlation',
-      'statistics', 'mean', 'median', 'std', 'plot', 'chart',
-      'visualization', 'matplotlib', 'seaborn', 'numpy',
-      'sales', 'revenue', 'spotify', 'apple', 'tracks', 'songs',
-      'top-selling', 'top selling', 'analyze', 'analysis',
-      'ecommerce', 'e-commerce', 'demographics',
-      'data cleaning', 'data wrangling', 'exploratory',
-    ];
-    return dataKeywords.some(kw => lower.includes(kw));
-  }
 
   return false;
 }

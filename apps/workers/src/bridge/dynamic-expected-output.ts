@@ -46,26 +46,18 @@ interface DEOResult {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Data Analysis Detection (mirrors packages/core universal-datasets.ts)
+// Data Analysis Detection
 // ══════════════════════════════════════════════════════════════════════════════
-
-const DATA_KEYWORDS = [
-  'pandas', 'dataframe', 'csv', 'data analysis', 'data science',
-  'dataset', 'columns', 'rows', 'filter', 'groupby', 'group by',
-  'aggregate', 'merge', 'join', 'pivot', 'correlation',
-  'statistics', 'mean', 'median', 'std', 'plot', 'chart',
-  'visualization', 'matplotlib', 'seaborn', 'numpy',
-  'sales', 'revenue', 'spotify', 'apple', 'tracks', 'songs',
-  'top-selling', 'top selling', 'analyze', 'analysis',
-  'ecommerce', 'e-commerce', 'demographics',
-  'data cleaning', 'data wrangling', 'exploratory',
-];
 
 /**
  * Check if a capsule is a data-analysis capsule that needs DEO calibration.
- * Mirrors the logic from packages/core/src/datasets/universal-datasets.ts
+ * Primary signal: capsuleMode === 'data-analysis' (explicit user selection).
+ * Fallback: solution code references .csv files.
  */
-export function needsDEO(language: string, prompt?: string, capsule?: any): boolean {
+export function needsDEO(language: string, prompt?: string, capsule?: any, capsuleMode?: string): boolean {
+  // Explicit mode selection — most reliable signal
+  if (capsuleMode === 'data-analysis') return true;
+
   const lang = (language || '').toLowerCase();
 
   // SQL capsules always need DEO if they reference CSV datasets
@@ -74,15 +66,9 @@ export function needsDEO(language: string, prompt?: string, capsule?: any): bool
   // Only Python data analysis capsules need DEO
   if (lang !== 'python') return false;
 
-  // Check if the solution code references .csv files
+  // Check if the solution code references .csv files (strong signal independent of prompt)
   const solutionCode = extractSolutionCode(capsule);
   if (solutionCode && solutionCode.includes('.csv')) return true;
-
-  // Check if the prompt suggests data analysis
-  if (prompt) {
-    const lower = prompt.toLowerCase();
-    return DATA_KEYWORDS.some(kw => lower.includes(kw));
-  }
 
   return false;
 }

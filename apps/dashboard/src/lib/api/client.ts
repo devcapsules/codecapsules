@@ -17,7 +17,7 @@ export type Difficulty = 'easy' | 'medium' | 'hard'
 export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed'
 export type ExecutionRuntime = 'edge' | 'lambda'
 
-export type CapsuleMode = 'standard' | 'supervision' | 'debug' | 'security'
+export type CapsuleMode = 'standard' | 'supervision' | 'debug' | 'security' | 'data-analysis'
 
 export interface GenerationRequest {
   prompt: string
@@ -684,11 +684,21 @@ class DevcapsulesAPIClient {
       })
 
       // Extract function name from reference solution
-      const fnMatch = referenceSolution.match(/def\s+(\w+)\s*\(/) ||
-                       referenceSolution.match(/function\s+(\w+)\s*\(/) ||
-                       referenceSolution.match(/const\s+(\w+)\s*=\s*(?:\(|function)/) ||
-                       referenceSolution.match(/(\w+)\s*=\s*lambda/)
-      const functionName = fnMatch?.[1] || 'solution'
+      // For Python: find the last top-level (unindented) def to skip class methods like __init__
+      let functionName = 'solution'
+      if (language === 'python' || language === 'python3') {
+        const topLevelDefs = [...referenceSolution.matchAll(/^def\s+(\w+)\s*\(/gm)]
+        if (topLevelDefs.length > 0) {
+          functionName = topLevelDefs[topLevelDefs.length - 1][1]
+        } else {
+          const pyMatch = referenceSolution.match(/def\s+(\w+)\s*\(/)
+          if (pyMatch) functionName = pyMatch[1]
+        }
+      } else {
+        const jsMatch = referenceSolution.match(/function\s+(\w+)\s*\(/) ||
+                         referenceSolution.match(/const\s+(\w+)\s*=\s*(?:\(|function)/)
+        if (jsMatch) functionName = jsMatch[1]
+      }
 
       console.log('🧪 Validating with execute-tests:', { 
         language, 

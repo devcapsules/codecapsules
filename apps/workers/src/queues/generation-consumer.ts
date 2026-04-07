@@ -35,7 +35,7 @@ interface GenerationJob {
   language: string;
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
   type?: string;
-  capsuleMode?: 'standard' | 'supervision' | 'debug' | 'security';
+  capsuleMode?: 'standard' | 'supervision' | 'debug' | 'security' | 'data-analysis';
   timestamp: number;
 }
 
@@ -368,7 +368,7 @@ export async function processGenerationQueue(
       // This is non-fatal: if Piston fails, we keep the AI-generated values.
       // ══════════════════════════════════════════════════════════════════════
 
-      if (needsDEO(job.language, job.prompt, result.capsule)) {
+      if (needsDEO(job.language, job.prompt, result.capsule, job.capsuleMode)) {
         try {
           const deoResult = await calibrateExpectedOutputs(
             result.capsule,

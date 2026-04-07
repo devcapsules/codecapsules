@@ -202,6 +202,26 @@ function CapsuleCard({
         </div>
       </div>
       
+      {/* Course association + Difficulty */}
+      {(capsule.courseNames || capsule.difficulty) && (
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          {capsule.difficulty && (
+            <span className="text-xs px-2 py-0.5 rounded" style={{ 
+              background: capsule.difficulty === 'Hard' ? 'rgba(239,68,68,0.15)' : capsule.difficulty === 'Medium' ? 'rgba(245,158,11,0.15)' : 'rgba(0,255,135,0.1)',
+              color: capsule.difficulty === 'Hard' ? '#f87171' : capsule.difficulty === 'Medium' ? '#fbbf24' : '#00ff87'
+            }}>
+              {capsule.difficulty}
+            </span>
+          )}
+          {capsule.courseNames && (
+            <span className="text-xs text-slate-400 truncate" title={capsule.courseNames}>
+              <svg className="w-3 h-3 inline mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+              {capsule.courseNames}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Key Analytics */}
       <div className="grid grid-cols-3 gap-4 mb-4 py-3 border-t border-slate-700">
         <div className="text-center">
@@ -263,6 +283,8 @@ export default function Dashboard() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAllCapsules, setShowAllCapsules] = useState(true);
+  const [groupBy, setGroupBy] = useState<'none' | 'course' | 'language' | 'difficulty' | 'status'>('none');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [dashData, setDashData] = useState<DashboardData | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
 
@@ -307,8 +329,42 @@ export default function Dashboard() {
   // Filter capsules based on search query
   const filteredCapsules = capsules.filter(capsule => 
     capsule.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (capsule.language && capsule.language.toLowerCase().includes(searchQuery.toLowerCase()))
+    (capsule.language && capsule.language.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (capsule.courseNames && capsule.courseNames.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  // Grouping logic
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const getGroups = (items: typeof filteredCapsules) => {
+    if (groupBy === 'none') return [{ label: '', items }];
+    const map = new Map<string, typeof items>();
+    for (const c of items) {
+      let keys: string[] = [];
+      if (groupBy === 'course') {
+        keys = c.courseNames ? c.courseNames.split(',').map(s => s.trim()) : ['Uncategorized'];
+      } else if (groupBy === 'language') {
+        keys = [c.language || 'Unknown'];
+      } else if (groupBy === 'difficulty') {
+        keys = [c.difficulty || 'Unset'];
+      } else if (groupBy === 'status') {
+        keys = [c.isPublished ? 'Published' : 'Draft'];
+      }
+      for (const k of keys) {
+        if (!map.has(k)) map.set(k, []);
+        map.get(k)!.push(c);
+      }
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => a[0] === 'Uncategorized' || a[0] === 'Unset' || a[0] === 'Unknown' ? 1 : a[0].localeCompare(b[0]))
+      .map(([label, items]) => ({ label, items }));
+  };
 
   // Delete capsule function
   const handleDeleteCapsule = async (capsuleId: string) => {
@@ -485,8 +541,22 @@ export default function Dashboard() {
             </button>
           </div>
           
-          {/* Search Bar */}
+          {/* Search Bar + Group By */}
           <div className="flex items-center gap-4">
+            <select
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as any)}
+              className="border rounded-lg py-2 px-3 text-sm text-white focus:outline-none transition-colors cursor-pointer"
+              style={{ background: '#0d0d1a', borderColor: 'rgba(255,255,255,0.07)' }}
+              onFocus={(e: any) => e.currentTarget.style.borderColor = 'rgba(0,255,135,0.5)'}
+              onBlur={(e: any) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'}
+            >
+              <option value="none">No Grouping</option>
+              <option value="course">By Course</option>
+              <option value="language">By Language</option>
+              <option value="difficulty">By Difficulty</option>
+              <option value="status">By Status</option>
+            </select>
             <div className="relative">
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -534,10 +604,29 @@ export default function Dashboard() {
 
         {/* Capsules Content - Conditional Rendering */}
         {capsules.length > 0 && viewMode === 'grid' ? (
-          /* Card Grid View */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {displayedCapsules.map((capsule) => {
-              const analytics = formatAnalytics(capsule);
+          /* Card Grid View — with optional grouping */
+          <div>
+            {getGroups(displayedCapsules).map((group) => (
+              <div key={group.label || '__all'} className={group.label ? 'mb-8' : ''}>
+                {group.label && (
+                  <button
+                    onClick={() => toggleGroup(group.label)}
+                    className="flex items-center gap-2 mb-4 text-left w-full group/hdr"
+                  >
+                    <svg
+                      className={`w-4 h-4 text-slate-400 transition-transform ${collapsedGroups.has(group.label) ? '' : 'rotate-90'}`}
+                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                    <span className="text-base font-semibold text-white group-hover/hdr:text-[#00ff87] transition-colors">{group.label}</span>
+                    <span className="text-xs text-slate-500 ml-1">({group.items.length})</span>
+                  </button>
+                )}
+                {!collapsedGroups.has(group.label) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {group.items.map((capsule) => {
+                      const analytics = formatAnalytics(capsule);
               return (
                 <CapsuleCard 
                   key={capsule.id} 
@@ -556,8 +645,13 @@ export default function Dashboard() {
                 />
               );
             })}
+                  </div>
+                )}
+              </div>
+            ))}
             
             {/* Add New Capsule Card */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
             <div 
             onClick={() => setIsCreateModalOpen(true)}
               className="rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer group border-2 border-dashed transition-all"
@@ -574,6 +668,7 @@ export default function Dashboard() {
               </div>
               <h3 className="font-semibold text-white mb-2">Create New Capsule</h3>
               <p className="text-sm text-slate-400">Start from a template or build from scratch</p>
+            </div>
             </div>
           </div>
         ) : capsules.length > 0 ? (

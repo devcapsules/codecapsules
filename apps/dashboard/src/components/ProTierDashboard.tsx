@@ -67,8 +67,10 @@ export default function ProTierDashboard({ userId }: Props) {
       }
     } catch (error) {
       console.error('Failed to fetch Pro Tier metrics:', error);
-      // Mock data for demo
-      setMetrics({
+      // No mock data — show real state
+      setMetrics(null);
+      /* removed hardcoded mock data */
+      if (false) setMetrics({
         total_impressions: 15847,
         overall_engagement_rate: 34.2,
         overall_completion_rate: 67.8,
@@ -343,7 +345,7 @@ export default function ProTierDashboard({ userId }: Props) {
               <div className="w-full bg-slate-700 rounded-full h-3">
                 <div 
                   className={`${step.color} h-3 rounded-full transition-all duration-1000`}
-                  style={{ width: `${step.percentage}%` }}
+                  style={{ width: `${Math.min(step.percentage, 100)}%` }}
                 />
               </div>
               {index < funnelSteps.length - 1 && (
@@ -353,13 +355,15 @@ export default function ProTierDashboard({ userId }: Props) {
           ))}
         </div>
 
+        {metrics.funnel_data.impressions > 0 && metrics.funnel_data.runs <= metrics.funnel_data.impressions && (
         <div className="mt-6 p-4 bg-yellow-600/10 border border-yellow-600/30 rounded-lg">
           <div className="text-sm text-yellow-400 font-medium">Insight</div>
           <div className="text-sm text-slate-300 mt-1">
-            You're losing {(100 - (metrics.funnel_data.runs / metrics.funnel_data.impressions) * 100).toFixed(0)}% of readers at the "Run" step. 
+            You're losing {Math.max(0, 100 - (metrics.funnel_data.runs / metrics.funnel_data.impressions) * 100).toFixed(0)}% of readers at the "Run" step. 
             Consider improving your problem descriptions or adding clearer call-to-action buttons.
           </div>
         </div>
+        )}
       </div>
     </div>
   );

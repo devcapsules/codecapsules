@@ -458,8 +458,8 @@ export function PlaylistEditor({
           }
         }
 
-        // Load available capsules for the creator
-        const capsulesResponse = await fetch(`${apiBaseUrl}/capsules`, {
+        // Load available capsules for the creator (only their own)
+        const capsulesResponse = await fetch(`${apiBaseUrl}/my-capsules`, {
           headers: {
             'Authorization': `Bearer ${getAuthToken()}`,
             'Content-Type': 'application/json'
@@ -468,7 +468,7 @@ export function PlaylistEditor({
 
         if (capsulesResponse.ok) {
           const capsulesJson = await capsulesResponse.json()
-          const availableCapsules: BaseCapsule[] = capsulesJson.data || capsulesJson
+          const availableCapsules: BaseCapsule[] = capsulesJson.capsules || capsulesJson.data || capsulesJson
 
           // Extract capsules from loaded playlist items
           const sortedItems = loadedPlaylist?.items

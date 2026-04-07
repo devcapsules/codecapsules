@@ -130,7 +130,7 @@ export interface TerminalConfig {
  * - debug:       Code with a specific bug injected, learner finds & fixes
  * - security:    Code with a vulnerability, learner identifies & hardens
  */
-export type CapsuleMode = 'standard' | 'supervision' | 'debug' | 'security'
+export type CapsuleMode = 'standard' | 'supervision' | 'debug' | 'security' | 'data-analysis'
 
 export interface GenerationContext {
   type: "CODE" | "DATABASE" | "TERMINAL"

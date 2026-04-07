@@ -80,8 +80,10 @@ export default function CohortDashboard({ cohortId, instructorId }: Props) {
       }
     } catch (error) {
       console.error('Failed to fetch cohort metrics:', error);
-      // Mock data for demo
-      setMetrics({
+      // No mock data — show real state
+      setMetrics(null);
+      /* removed hardcoded mock data */
+      if (false) setMetrics({
         cohort_id: cohortId,
         cohort_name: 'CS 101 - Fall 2024',
         student_count: 28,

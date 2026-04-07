@@ -47,7 +47,7 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
   const [prompt, setPrompt] = useState('');
   const [selectedLang, setSelectedLang] = useState('python');
   const [difficulty, setDifficulty] = useState('Medium');
-  const [capsuleMode, setCapsuleMode] = useState<'standard' | 'supervision' | 'debug' | 'security'>('standard');
+  const [capsuleMode, setCapsuleMode] = useState<'standard' | 'supervision' | 'debug' | 'security' | 'data-analysis'>('standard');
   const [mode, setMode] = useState<'prompt' | 'template'>('prompt');
   const [localError, setLocalError] = useState<string>('');
   const [quotaExceeded, setQuotaExceeded] = useState(false);
@@ -450,7 +450,7 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Capsule Mode</label>
+                        <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Capsule Mode <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '4px', background: 'rgba(0,255,135,0.12)', color: '#00ff87', border: '1px solid rgba(0,255,135,0.25)', marginLeft: '6px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Beta</span></label>
                         <select
                           value={capsuleMode}
                           onChange={(e) => setCapsuleMode(e.target.value as typeof capsuleMode)}
@@ -458,6 +458,7 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
                           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0' }}
                         >
                           <option value="standard" style={{ background: '#0a0a14', color: '#e2e8f0' }}>Standard</option>
+                          <option value="data-analysis" style={{ background: '#0a0a14', color: '#e2e8f0' }}>Data Analysis</option>
                           <option value="supervision" style={{ background: '#0a0a14', color: '#e2e8f0' }}>Supervision</option>
                           <option value="debug" style={{ background: '#0a0a14', color: '#e2e8f0' }}>Debug</option>
                           <option value="security" style={{ background: '#0a0a14', color: '#e2e8f0' }}>Security</option>

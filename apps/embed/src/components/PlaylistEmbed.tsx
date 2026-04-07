@@ -43,13 +43,14 @@ interface PlaylistData {
 
 interface PlaylistEmbedProps {
   playlistId: string
+  startIndex?: number
 }
 
 type StepStatus = 'locked' | 'current' | 'completed'
 
-export default function PlaylistEmbed({ playlistId }: PlaylistEmbedProps) {
+export default function PlaylistEmbed({ playlistId, startIndex = 0 }: PlaylistEmbedProps) {
   const [playlist, setPlaylist] = useState<PlaylistData | null>(null)
-  const [currentIndex, setCurrentIndex] = useState(0)
+  const [currentIndex, setCurrentIndex] = useState(startIndex)
   const [completedSet, setCompletedSet] = useState<Set<number>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -105,6 +106,15 @@ export default function PlaylistEmbed({ playlistId }: PlaylistEmbedProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ capsule_id: capsuleId, status: 'completed' }),
       }).catch(() => {})
+
+      // Notify opener window (learn/course page) via postMessage
+      try {
+        window.opener?.postMessage({
+          type: 'dc-capsule-complete',
+          capsuleId,
+          playlistId,
+        }, '*')
+      } catch {}
     }
   }, [playlist, currentIndex, playlistId, apiUrl])
 

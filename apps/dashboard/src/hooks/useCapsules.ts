@@ -11,6 +11,7 @@ export interface Capsule {
   tags: string[];
   createdAt: string;
   isPublished: boolean;
+  courseNames?: string;
   analytics?: {
     impressions: number;
     runs: number;
@@ -72,6 +73,7 @@ export function useCapsules() {
           tags: c.tags ? (typeof c.tags === 'string' ? JSON.parse(c.tags) : c.tags) : [],
           createdAt: c.created_at || c.createdAt,
           isPublished: c.is_published === 1 || c.is_published === true || c.isPublished === true,
+          courseNames: c.course_names || '',
           analytics: {
             impressions: Number(c.impressions) || 0,
             runs: Number(c.total_runs) || 0,
