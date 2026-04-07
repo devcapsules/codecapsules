@@ -14,12 +14,10 @@ export function ValuePropsSection() {
           <h2 className="text-2xl md:text-3xl font-black tracking-tight text-white" style={{ letterSpacing: '-0.02em', lineHeight: 1.2 }}>
             The engine behind<br/>
             <span style={{
-              background: 'linear-gradient(90deg, #00ff87 0%, #86efac 30%, #00ff87 50%, #00b894 80%, #00ff87 100%)',
-              backgroundSize: '200% auto',
+              background: 'linear-gradient(90deg, #00ff87 0%, #86efac 50%, #00b894 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
-              animation: 'shimmerText 3s linear infinite',
             }}>interactive tech education.</span>
           </h2>
         </div>

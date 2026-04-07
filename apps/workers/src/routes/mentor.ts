@@ -198,21 +198,20 @@ mentor.post('/hint', async (c) => {
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // Buffer analytics event
+  // Buffer analytics event (via shared analytics buffer)
   // ══════════════════════════════════════════════════════════════════════════
 
-  const eventKey = `events:pending:${Math.floor(Date.now() / 60_000)}:${crypto.randomUUID().slice(0, 8)}`;
-  await env.CACHE.put(eventKey, JSON.stringify({
-    capsuleId,
-    userId: auth.userId,
-    eventType: 'hint_viewed',
-    metadata: { 
-      hintLevel: result.data.hintLevel, 
+  const { trackEvent } = await import('../utils/analytics-buffer');
+  c.executionCtx.waitUntil(trackEvent(env, {
+    capsule_id: capsuleId,
+    user_id: auth.userId,
+    event_type: 'hint_viewed',
+    metadata: JSON.stringify({
+      hintLevel: result.data.hintLevel,
       attemptNumber: attemptNumber || hintCount + 1,
       language,
-    },
-    timestamp: new Date().toISOString(),
-  }), { expirationTtl: 900 });
+    }),
+  }));
 
   console.log(JSON.stringify({
     type: 'metric',
@@ -279,19 +278,18 @@ mentor.post('/feedback', async (c) => {
 
   const env = c.env;
 
-  // Buffer feedback for batch processing
-  const eventKey = `events:pending:${Math.floor(Date.now() / 60_000)}:${crypto.randomUUID().slice(0, 8)}`;
-  await env.CACHE.put(eventKey, JSON.stringify({
-    capsuleId: body.capsuleId,
-    userId: auth.userId,
-    eventType: 'hint_feedback',
-    metadata: {
+  // Buffer feedback via shared analytics buffer
+  const { trackEvent } = await import('../utils/analytics-buffer');
+  c.executionCtx.waitUntil(trackEvent(env, {
+    capsule_id: body.capsuleId,
+    user_id: auth.userId,
+    event_type: 'hint_feedback',
+    metadata: JSON.stringify({
       hintLevel: body.hintLevel,
       helpful: body.helpful,
       solvedAfter: body.solvedAfter,
-    },
-    timestamp: new Date().toISOString(),
-  }), { expirationTtl: 900 });
+    }),
+  }));
 
   return c.json({ success: true });
 });

@@ -1168,7 +1168,7 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
                           )}
                           
                           {/* Side-by-side comparison */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                          <div className="sql-comparison-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                             <div>
                               <div style={{ marginBottom: '8px', color: '#ef4444', fontSize: '13px', fontWeight: '600' }}>
                                 Your Results:

@@ -143,7 +143,7 @@ export function generateEmbedCode(
   })
 
   return `<iframe 
-  src="https://embed.codecapsule.com/playlist/${playlistId}?${params}" 
+  src="https://embed.devcapsules.com/playlist/${playlistId}?${params}" 
   width="${width}" 
   height="${height}"
   frameborder="0"

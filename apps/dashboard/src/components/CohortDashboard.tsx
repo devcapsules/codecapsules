@@ -200,7 +200,7 @@ export default function CohortDashboard({ cohortId, instructorId }: Props) {
             onClick={() => setSelectedView('grid')}
             className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               selectedView === 'grid' 
-                ? 'bg-blue-600 text-white' 
+                ? 'bg-emerald-600 text-white' 
                 : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
             }`}
           >
@@ -210,7 +210,7 @@ export default function CohortDashboard({ cohortId, instructorId }: Props) {
             onClick={() => setSelectedView('list')}
             className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               selectedView === 'list' 
-                ? 'bg-blue-600 text-white' 
+                ? 'bg-emerald-600 text-white' 
                 : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
             }`}
           >
@@ -256,7 +256,7 @@ export default function CohortDashboard({ cohortId, instructorId }: Props) {
               </svg>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-red-400">⚠️ Students Need Help</h3>
+              <h3 className="text-lg font-semibold text-red-400">Students Need Help</h3>
               <p className="text-red-300 text-sm">These students have high Run-to-Pass ratios - go help them now!</p>
             </div>
           </div>
@@ -282,7 +282,7 @@ export default function CohortDashboard({ cohortId, instructorId }: Props) {
       {/* Student Progress Grid/List */}
       <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-700/50">
-          <h3 className="text-lg font-semibold text-white">👥 Student Progress</h3>
+          <h3 className="text-lg font-semibold text-white">Student Progress</h3>
           <p className="text-sm text-slate-400">Green = Passed, Red = Failed, Gray = Not Started</p>
         </div>
 
@@ -338,7 +338,7 @@ export default function CohortDashboard({ cohortId, instructorId }: Props) {
                       </div>
                       <div className="w-20 bg-slate-700 rounded-full h-2 mx-auto mt-1">
                         <div 
-                          className="bg-blue-500 h-2 rounded-full"
+                          className="bg-emerald-500 h-2 rounded-full"
                           style={{ width: `${(student.capsules_completed / student.total_capsules) * 100}%` }}
                         />
                       </div>

@@ -1238,6 +1238,7 @@ body {
 
 /* ── Responsive: Mobile (<640px) ───────────────────────────────── */
 @media (max-width: 640px) {
+  /* ── CODE Embed ── */
   .embed-main {
     flex-direction: column;
   }
@@ -1271,11 +1272,16 @@ body {
     display: none;
   }
 
+  .run-btn {
+    padding: 7px 12px;
+    font-size: 12px;
+  }
+
   .console-panel {
     height: 200px;
   }
 
-  /* On mobile, stack EdGE below tests instead of side-by-side */
+  /* Stack EdGE below tests instead of side-by-side */
   .console-split .console-split-body {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr 1fr;
@@ -1288,6 +1294,111 @@ body {
   .console-split .console-content {
     border-right: none;
     border-bottom: 1px solid var(--dc-border);
+  }
+
+  /* ── SQL Embed ── */
+  .sql-main {
+    flex-direction: column !important;
+  }
+
+  .sql-embed .instructions-panel {
+    width: 100%;
+    max-height: 30vh;
+    border-right: none;
+    border-bottom: 1px solid var(--dc-border);
+  }
+
+  .sql-editor-area {
+    min-height: 200px;
+  }
+
+  .sql-results-panel {
+    height: 250px;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  /* ── Terminal Embed ── */
+  .terminal-embed .terminal-main {
+    flex-direction: column !important;
+  }
+
+  .quest-panel {
+    width: 100% !important;
+    max-height: 30vh;
+    border-right: none !important;
+    border-bottom: 1px solid var(--dc-border);
+    overflow-y: auto;
+  }
+
+  .terminal-area {
+    padding: 8px;
+  }
+
+  .terminal-line {
+    font-size: 12px;
+  }
+
+  .terminal-input {
+    font-size: 12px;
+  }
+
+  /* ── Playlist Embed ── */
+  .pl-header {
+    padding: 4px 8px;
+    min-height: 32px;
+    gap: 6px;
+  }
+
+  .pl-header-title {
+    font-size: 12px;
+  }
+
+  .pl-step-label {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .pl-next-inner {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .pl-next-btn {
+    padding: 6px 14px;
+    font-size: 12px;
+  }
+
+  .pl-complete-card {
+    padding: 24px 20px;
+  }
+
+  .pl-complete-card h2 {
+    font-size: 20px;
+  }
+
+  .pl-complete-stats {
+    gap: 20px;
+  }
+
+  .pl-stat-num {
+    font-size: 22px;
+  }
+
+  /* ── Status Bar ── */
+  .status-bar {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  /* ── SQL Comparison Grid ── */
+  .sql-comparison-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
   }
 }
 

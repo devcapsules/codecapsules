@@ -685,13 +685,14 @@ export function PlaylistEditor({
     if (!playlistId || togglingFeatured) return
     setTogglingFeatured(true)
     try {
+      const newTags = isFeatured ? [] : ['featured']
       const response = await fetch(`${apiBaseUrl}/playlists/${playlistId}/tags`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${getAuthToken()}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ tag: 'featured' })
+        body: JSON.stringify({ tags: newTags })
       })
       if (response.ok) {
         setIsFeatured(prev => !prev)

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { Sparkles, Code2, Zap, LayoutTemplate } from 'lucide-react';
+import { Code2, Zap, LayoutTemplate } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCodeGeneration } from '../hooks/useCodeGeneration';
 import { useAPI } from '../contexts/APIContext';
@@ -39,14 +39,15 @@ const GEN_PIPELINE_STEPS = [
   { icon: '01', label: 'Generating problem statement', runBadge: 'Writing…', doneBadge: 'Done',    progressThreshold: 0  },
   { icon: '02', label: 'Writing reference solution',   runBadge: 'Solving…', doneBadge: 'Done',    progressThreshold: 22 },
   { icon: '03', label: 'Crafting 5 test cases',        runBadge: 'Crafting…', doneBadge: '5 cases', progressThreshold: 48 },
-  { icon: '04', label: 'Hardcoding resistance check',  runBadge: 'Checking…', doneBadge: 'Clean ✓', progressThreshold: 72 },
-  { icon: '05', label: 'Saving to dashboard',          runBadge: 'Saving…',  doneBadge: 'Saved ✓', progressThreshold: 90 },
+  { icon: '04', label: 'Hardcoding resistance check',  runBadge: 'Checking…', doneBadge: 'Clean', progressThreshold: 72 },
+  { icon: '05', label: 'Saving to dashboard',          runBadge: 'Saving…',  doneBadge: 'Saved', progressThreshold: 90 },
 ];
 
 export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleModalProps) {
   const [prompt, setPrompt] = useState('');
   const [selectedLang, setSelectedLang] = useState('python');
   const [difficulty, setDifficulty] = useState('Medium');
+  const [capsuleMode, setCapsuleMode] = useState<'standard' | 'supervision' | 'debug' | 'security'>('standard');
   const [mode, setMode] = useState<'prompt' | 'template'>('prompt');
   const [localError, setLocalError] = useState<string>('');
   const [quotaExceeded, setQuotaExceeded] = useState(false);
@@ -128,6 +129,7 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
         prompt: prompt,
         language: selectedLang.toLowerCase() as any,
         difficulty: difficulty.toLowerCase() as any,
+        capsuleMode: capsuleMode,
       });
       
       if (result?.success && result.capsule) {
@@ -213,11 +215,11 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
                 <div className="flex items-center gap-3 mb-7">
                   <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.15))',
+                      background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(139,92,246,0.12))',
                       border: '1px solid rgba(139,92,246,0.3)',
                       animation: 'pulse 2s ease-in-out infinite',
                     }}>
-                    ⚡
+                    <Zap className="w-5 h-5 text-purple-400" />
                   </div>
                   <div>
                     <div className="text-base font-extrabold text-white">EdGE Forge</div>
@@ -309,7 +311,7 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
                     animate={{ width: `${progress}%` }}
                     transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
                     style={{
-                      background: 'linear-gradient(90deg, #8b5cf6, #3b82f6, #00ff87)',
+                      background: 'linear-gradient(90deg, #8b5cf6, #a78bfa, #00ff87)',
                       backgroundSize: '200% 100%',
                       animation: 'shimmer 2s linear infinite',
                     }}
@@ -339,8 +341,7 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
               >
                 {/* Header */}
                 <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
-                  <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-purple-400" />
+                  <h2 className="text-lg font-semibold text-white">
                     Create New Capsule
                   </h2>
                   <div className="flex items-center gap-3">
@@ -378,8 +379,8 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
                 <div className="p-6 space-y-6">
                   {/* Prompt Input */}
                   <div className="relative group">
-                    <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 opacity-20 group-focus-within:opacity-100 transition duration-500 blur-sm"></div>
-                    <div className="relative bg-black/30 rounded-xl p-4" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-emerald-500/30 to-emerald-600/30 opacity-0 group-focus-within:opacity-100 transition duration-500 blur-sm"></div>
+                    <div className="relative rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                       <textarea
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
@@ -407,7 +408,7 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
                   </div>
 
                   {/* Language & Difficulty */}
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Language</label>
                       <div className="grid grid-cols-3 gap-2">
@@ -428,41 +429,56 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
                         ))}
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Difficulty</label>
-                      <div className="flex p-1 rounded-lg h-[58px] items-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        {DIFFICULTIES.map((diff) => (
-                          <button
-                            key={diff}
-                            onClick={() => setDifficulty(diff)}
-                            className={`flex-1 py-2 text-xs font-medium rounded-md transition-all h-full ${
-                              difficulty === diff
-                                ? 'text-white shadow-sm'
-                                : 'text-slate-500 hover:text-white'
-                            }`}
-                            style={difficulty === diff ? { background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' } : undefined}
-                          >
-                            {diff}
-                          </button>
-                        ))}
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Difficulty</label>
+                        <div className="flex p-1 rounded-lg h-[58px] items-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          {DIFFICULTIES.map((diff) => (
+                            <button
+                              key={diff}
+                              onClick={() => setDifficulty(diff)}
+                              className={`flex-1 py-2 text-xs font-medium rounded-md transition-all h-full ${
+                                difficulty === diff
+                                  ? 'text-white shadow-sm'
+                                  : 'text-slate-500 hover:text-white'
+                              }`}
+                              style={difficulty === diff ? { background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' } : undefined}
+                            >
+                              {diff}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Capsule Mode</label>
+                        <select
+                          value={capsuleMode}
+                          onChange={(e) => setCapsuleMode(e.target.value as typeof capsuleMode)}
+                          className="w-full px-3 py-2.5 rounded-lg text-sm text-white outline-none transition-all"
+                          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f0' }}
+                        >
+                          <option value="standard" style={{ background: '#0a0a14', color: '#e2e8f0' }}>Standard</option>
+                          <option value="supervision" style={{ background: '#0a0a14', color: '#e2e8f0' }}>Supervision</option>
+                          <option value="debug" style={{ background: '#0a0a14', color: '#e2e8f0' }}>Debug</option>
+                          <option value="security" style={{ background: '#0a0a14', color: '#e2e8f0' }}>Security</option>
+                        </select>
                       </div>
                     </div>
                   </div>
 
                   {/* Quota Exceeded — Upgrade CTA */}
                   {quotaExceeded && (
-                    <div className="rounded-xl p-5 text-center" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.08), rgba(59,130,246,0.06))', border: '1px solid rgba(139,92,246,0.2)' }}>
-                      <div className="text-3xl mb-2">🚀</div>
+                    <div className="rounded-xl p-5 text-center" style={{ background: 'linear-gradient(135deg, rgba(0,255,135,0.06), rgba(0,255,135,0.02))', border: '1px solid rgba(0,255,135,0.15)' }}>
                       <h3 className="text-white font-bold text-base mb-1">Generation Limit Reached</h3>
                       <p className="text-slate-400 text-sm mb-4">
                         You've used all your free AI generations this month. Upgrade to Creator for 50 generations/month.
                       </p>
                       <a
                         href="/account"
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm text-white transition-all"
-                        style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', boxShadow: '0 0 20px rgba(139,92,246,0.3)' }}
-                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.boxShadow = '0 0 32px rgba(139,92,246,0.5)'}
-                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.boxShadow = '0 0 20px rgba(139,92,246,0.3)'}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm text-[#04040a] transition-all"
+                        style={{ background: 'linear-gradient(135deg, #00ff87, #00c96b)', boxShadow: '0 0 20px rgba(0,255,135,0.3)' }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.boxShadow = '0 0 32px rgba(0,255,135,0.5)'}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.boxShadow = '0 0 20px rgba(0,255,135,0.3)'}
                       >
                         <Zap className="w-4 h-4" />
                         Upgrade to Creator — ₹2,499/mo
@@ -504,7 +520,7 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
                     >
                       <Zap className="w-5 h-5 fill-white group-hover:text-yellow-300 transition-colors" />
                       <span>Generate Capsule</span>
-                      <span className="text-blue-200 text-sm font-normal ml-1">(~30s)</span>
+                      <span className="text-emerald-200 text-sm font-normal ml-1">(~30s)</span>
                     </motion.button>
                   )}
                 </div>

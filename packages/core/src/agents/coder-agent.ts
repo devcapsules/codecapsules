@@ -111,14 +111,18 @@ DIFFICULTY: ${context.difficulty}
 ${difficultySpec}
 === END DIFFICULTY ENFORCEMENT ===
 
+=== CAPSULE MODE: ${(context.capsuleMode || 'standard').toUpperCase()} ===
+${this.getModeCodeSpec(context.capsuleMode || 'standard')}
+=== END CAPSULE MODE ===
+
 === TEST CASE DISTRIBUTION (MANDATORY) ===
 ${testSpec}
 === END TEST CASE DISTRIBUTION ===${datasetBlock}
 
 Generate the complete BaseCapsule JSON for it. Include:
 - problem_statement (markdown format)
-- boilerplate_code (starter code for students — follow boilerplate depth above)
-- reference_solution (complete working solution)
+- boilerplate_code (${(context.capsuleMode || 'standard') === 'standard' ? 'starter code for students — follow boilerplate depth above' : 'the FULL flawed/buggy/vulnerable code the learner must fix'})
+- reference_solution (${(context.capsuleMode || 'standard') === 'standard' ? 'complete working solution' : 'the CORRECTLY FIXED version of the boilerplate code'})
 - test_cases (follow the EXACT test distribution above — count and visibility MUST match)
 - hints (2 helpful hints)
 
@@ -1004,8 +1008,86 @@ Total: 1 visible + 4 hidden = 5 tests.`
   }
 
   /**
-   * Get code style guidance based on configuration
+   * Get mode-specific code generation rules for the Coder Agent.
+   * Controls what boilerplate_code and reference_solution mean.
    */
+  private getModeCodeSpec(mode: string): string {
+    switch (mode) {
+      case 'supervision':
+        return `This is a SUPERVISION capsule. The learner reviews and refactors AI-generated code.
+
+BOILERPLATE_CODE MUST BE:
+- A COMPLETE, FULLY WORKING implementation (NOT a stub, NOT empty, NOT "pass")
+- Written with DELIBERATELY BAD code quality: meaningless variable names (x1, tmp, data2),
+  zero comments, magic numbers, code duplication, or mixed concerns
+- The code MUST produce CORRECT output for all test cases — the flaw is readability/style, NOT logic
+
+REFERENCE_SOLUTION MUST BE:
+- The SAME logic rewritten with clean variable names, docstrings, comments, extracted constants
+- It must produce IDENTICAL output to the boilerplate for all test cases
+
+TEST CASES:
+- Tests must PASS on BOTH the flawed boilerplate AND the clean reference solution
+- Tests validate that the learner didn't accidentally break logic while refactoring
+
+HINTS should guide the learner on WHAT to look for (e.g., "Look for variables with meaningless names"),
+not on how to write code from scratch.`
+
+      case 'debug':
+        return `This is a DEBUG capsule. The learner finds and fixes bugs in AI-generated code.
+
+BOILERPLATE_CODE MUST BE:
+- A COMPLETE implementation that LOOKS correct but has 1-2 SUBTLE LOGIC BUGS injected
+- Bugs should be realistic: off-by-one, wrong boundary, mutation during iteration,
+  wrong operator, incorrect variable reuse, cumulative rounding errors
+- The code must be readable and well-structured — the challenge is finding the bug, not reading the code
+
+REFERENCE_SOLUTION MUST BE:
+- The FIXED version with the bugs corrected
+- Minimal changes from the boilerplate — only the bug fix, nothing else
+
+TEST CASES:
+- Tests must FAIL on the buggy boilerplate code
+- Tests must PASS on the reference solution (fixed code)
+- Include at least one test that specifically targets the bug (edge/boundary case)
+
+HINTS should narrow down WHERE the bug might be (e.g., "Check the loop termination condition"),
+not reveal the exact fix.`
+
+      case 'security':
+        return `This is a SECURITY capsule. The learner finds and fixes vulnerabilities.
+
+BOILERPLATE_CODE MUST BE:
+- A COMPLETE, WORKING implementation with 1-2 SECURITY VULNERABILITIES
+- Vulnerabilities should be realistic: SQL injection via f-string/concat, eval() on user input,
+  no input sanitization, missing bounds checking, accepting dangerous input types
+- The code must work correctly for normal inputs — it only fails under attack inputs
+
+REFERENCE_SOLUTION MUST BE:
+- The HARDENED version with vulnerabilities fixed (parameterized queries, input validation,
+  safe parsing instead of eval, sanitization, bounds checks)
+- Must still produce correct output for all normal inputs
+
+TEST CASES:
+- Include NORMAL tests that pass on both versions
+- Include ATTACK tests with malicious inputs that:
+  - Produce wrong/dangerous results on the vulnerable boilerplate
+  - Are safely handled by the reference solution (return error dict or sanitized output)
+- Example attack inputs: SQL injection strings, eval payloads, XSS-like strings, negative values
+
+HINTS should describe the vulnerability category (e.g., "Check how user input is used in queries"),
+not reveal the exact fix.`
+
+      case 'standard':
+      default:
+        return `This is a STANDARD capsule. The learner writes the solution from scratch.
+BOILERPLATE_CODE: A function stub or skeleton with signature and TODO comments.
+REFERENCE_SOLUTION: The complete working implementation.
+Tests validate the learner's solution against expected outputs.`
+    }
+  }
+
+  /** Get code style guidance based on config. */
   private getCodeStyleGuidance(): string {
     const style = this.config.code_style
     const comments = this.config.comment_level

@@ -122,6 +122,16 @@ export interface TerminalConfig {
 /**
  * Context provided to AI agents during generation
  */
+/**
+ * Capsule generation modes — controls the entire pedagogical structure.
+ *
+ * - standard:    Learner writes solution from scratch (default)
+ * - supervision: AI-generated bad/flawed code pre-written, learner reads & fixes
+ * - debug:       Code with a specific bug injected, learner finds & fixes
+ * - security:    Code with a vulnerability, learner identifies & hardens
+ */
+export type CapsuleMode = 'standard' | 'supervision' | 'debug' | 'security'
+
 export interface GenerationContext {
   type: "CODE" | "DATABASE" | "TERMINAL"
   language: string
@@ -132,6 +142,12 @@ export interface GenerationContext {
   targetAudience?: "beginner" | "intermediate" | "advanced"
   estimatedTime?: number        // minutes
   prerequisites?: string[]
+
+  /**
+   * Controls the generation mode for the capsule.
+   * Defaults to 'standard' (write-from-scratch).
+   */
+  capsuleMode?: CapsuleMode
 }
 
 /**

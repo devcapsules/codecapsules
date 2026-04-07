@@ -21,7 +21,7 @@ export function LanguageMarquee() {
 
 
       {/* Caption */}
-      <p className="text-center text-xs text-slate-700 uppercase tracking-widest font-bold mb-4">
+      <p className="text-center text-xs text-slate-500 uppercase tracking-widest font-bold mb-4">
         Powered by lightning-fast, secure execution infrastructure
       </p>
 

@@ -18,8 +18,17 @@ export default function AuthCallback() {
       }
 
       if (data.session?.user) {
-        // Check if this is a new user
-        router.push('/dashboard')
+        // Redirect based on domain — learner subdomain goes to /learn/capsules
+        const isLearnerDomain = typeof window !== 'undefined' && window.location.hostname === 'learn.devcapsules.com';
+        const params = new URLSearchParams(window.location.search);
+        const returnTo = params.get('returnTo');
+        if (returnTo && returnTo.startsWith('/')) {
+          router.push(returnTo);
+        } else if (isLearnerDomain) {
+          router.push('/learn/capsules');
+        } else {
+          router.push('/dashboard');
+        }
       } else {
         // No session, redirect to login
         router.push('/login')

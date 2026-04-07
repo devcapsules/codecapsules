@@ -9,7 +9,6 @@ interface PublishEmbedModalProps {
 }
 
 export default function PublishEmbedModal({ isOpen, onClose, capsuleId, capsuleTitle }: PublishEmbedModalProps) {
-  const [activeTab, setActiveTab] = useState<'iframe' | 'link' | 'lti'>('iframe');
   const [showPoweredBy, setShowPoweredBy] = useState(true);
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({});
 
@@ -25,17 +24,6 @@ export default function PublishEmbedModal({ isOpen, onClose, capsuleId, capsuleT
   allow="clipboard-write"
   title="${capsuleTitle} - Devcapsules">
 </iframe>`;
-
-  const ltiConfig = `<?xml version="1.0" encoding="UTF-8"?>
-<cartridge_basiclti_link xmlns="http://www.imsglobal.org/xsd/imslticc_v1p0"
-    xmlns:blti="http://www.imsglobal.org/xsd/imsbasiclti_v1p0"
-    xmlns:lticm="http://www.imsglobal.org/xsd/imslticm_v1p0"
-    xmlns:lticp="http://www.imsglobal.org/xsd/imslticp_v1p0">
-  <blti:title>${capsuleTitle}</blti:title>
-  <blti:description>Interactive coding exercise: ${capsuleTitle}</blti:description>
-  <blti:launch_url>${capsuleEmbedUrl}</blti:launch_url>
-  <blti:secure_launch_url>${capsuleEmbedUrl}</blti:secure_launch_url>
-</cartridge_basiclti_link>`;
 
   const copyToClipboard = async (text: string, key: string) => {
     try {
@@ -96,133 +84,50 @@ export default function PublishEmbedModal({ isOpen, onClose, capsuleId, capsuleT
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-          <button
-            onClick={() => setActiveTab('iframe')}
-            className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
-              activeTab === 'iframe' 
-                ? ''
-                : 'text-slate-400 hover:text-white'
-            }`}
-            style={activeTab === 'iframe' ? { color: '#00ff87', borderBottom: '2px solid #00ff87', background: 'rgba(0,255,135,0.03)' } : { }}
-            onMouseEnter={e=>{ if (activeTab !== 'iframe') (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.03)'; }}
-            onMouseLeave={e=>{ if (activeTab !== 'iframe') (e.currentTarget as HTMLElement).style.background=''; }}
-          >
-            &lt;iframe&gt; Embed
-          </button>
-          <button
-            onClick={() => setActiveTab('link')}
-            className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
-              activeTab === 'link' 
-                ? ''
-                : 'text-slate-400 hover:text-white'
-            }`}
-            style={activeTab === 'link' ? { color: '#00ff87', borderBottom: '2px solid #00ff87', background: 'rgba(0,255,135,0.03)' } : { }}
-            onMouseEnter={e=>{ if (activeTab !== 'link') (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.03)'; }}
-            onMouseLeave={e=>{ if (activeTab !== 'link') (e.currentTarget as HTMLElement).style.background=''; }}
-          >
-            Direct Link
-          </button>
-          <button
-            onClick={() => setActiveTab('lti')}
-            className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
-              activeTab === 'lti' 
-                ? ''
-                : 'text-slate-400 hover:text-white'
-            }`}
-            style={activeTab === 'lti' ? { color: '#00ff87', borderBottom: '2px solid #00ff87', background: 'rgba(0,255,135,0.03)' } : { }}
-            onMouseEnter={e=>{ if (activeTab !== 'lti') (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.03)'; }}
-            onMouseLeave={e=>{ if (activeTab !== 'lti') (e.currentTarget as HTMLElement).style.background=''; }}
-          >
-            LMS (LTI)
-          </button>
-        </div>
-
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1">
-          {activeTab === 'iframe' && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">HTML Embed Code</h3>
-                <p className="text-slate-400 text-sm mb-4">
-                  Copy this code and paste it into your website, blog, or learning platform.
-                </p>
-              </div>
+        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+          {/* Direct Link */}
+          <div>
+            <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Direct Link</label>
+            <div className="mt-2 rounded-lg p-3 flex items-center gap-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <code className="text-sm flex-1 truncate" style={{ color: '#00ff87' }}>{capsuleEmbedUrl}</code>
+              <CopyButton text={capsuleEmbedUrl} copyKey="link" label="Copy" />
+            </div>
+            <p className="text-xs text-slate-500 mt-1.5">Share via email, social media, or messaging apps.</p>
+          </div>
 
-              {/* Branding Toggle */}
-              <div className="flex items-center justify-between p-4 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div>
-                  <h4 className="font-medium text-white">Show "Powered by Devcapsules"</h4>
-                  <p className="text-sm text-slate-400">Help us grow by showing our branding (free plan requirement)</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={showPoweredBy}
-                    onChange={(e) => setShowPoweredBy(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" style={{ background: showPoweredBy ? '#00ff87' : 'rgba(255,255,255,0.1)' }}></div>
-                </label>
-              </div>
+          {/* Branding Toggle */}
+          <div className="flex items-center justify-between p-4 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div>
+              <h4 className="font-medium text-white text-sm">Show "Powered by Devcapsules"</h4>
+              <p className="text-xs text-slate-500 mt-0.5">Free plan requirement</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={showPoweredBy}
+                onChange={(e) => setShowPoweredBy(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" style={{ background: showPoweredBy ? '#00ff87' : 'rgba(255,255,255,0.1)' }}></div>
+            </label>
+          </div>
 
-              {/* Code Block */}
-              <div className="relative">
-                <div className="rounded-lg p-4" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                  <pre className="text-sm text-green-400 overflow-x-auto">
-                    <code>{iframeCode}</code>
-                  </pre>
-                </div>
-                <div className="absolute top-3 right-3">
-                  <CopyButton text={iframeCode} copyKey="iframe" label="Copy Code" />
-                </div>
+          {/* Embed Code */}
+          <div>
+            <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">HTML Embed Code</label>
+            <div className="relative mt-2">
+              <div className="rounded-lg p-4 pr-28" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <pre className="text-sm text-green-400 overflow-x-auto">
+                  <code>{iframeCode}</code>
+                </pre>
+              </div>
+              <div className="absolute top-3 right-3">
+                <CopyButton text={iframeCode} copyKey="iframe" label="Copy" />
               </div>
             </div>
-          )}
-
-          {activeTab === 'link' && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Direct Link</h3>
-                <p className="text-slate-400 text-sm mb-4">
-                  Share this URL directly or use it in emails, social media, etc.
-                </p>
-              </div>
-
-              {/* URL */}
-              <div className="relative">
-                <div className="rounded-lg p-4 flex items-center justify-between" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                  <code className="text-sm flex-1 pr-4" style={{ color: '#00ff87' }}>{capsuleEmbedUrl}</code>
-                  <CopyButton text={capsuleEmbedUrl} copyKey="link" label="Copy Link" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'lti' && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">LMS Integration (LTI)</h3>
-                <p className="text-slate-400 text-sm mb-4">
-                  Integration with Canvas, Moodle, Blackboard, and other Learning Management Systems.
-                </p>
-              </div>
-
-              {/* Coming Soon Message */}
-              <div className="rounded-lg p-8 text-center" style={{ background: 'rgba(0,255,135,0.03)', border: '1px solid rgba(0,255,135,0.15)' }}>
-                <h4 className="font-medium text-lg mb-2" style={{ color: '#00ff87' }}>In Development</h4>
-                <p className="text-slate-400 text-sm mb-4">
-                  LTI integration is currently in development. We're building seamless integration 
-                  with popular Learning Management Systems.
-                </p>
-                <p className="text-slate-300 text-sm">
-                  In the meantime, you can use the <strong>Direct Link</strong> or <strong>HTML Embed</strong> 
-                  options to share your capsules.
-                </p>
-              </div>
-            </div>
-          )}
+            <p className="text-xs text-slate-500 mt-1.5">Paste into your website, blog, or documentation.</p>
+          </div>
         </div>
 
         {/* Footer */}

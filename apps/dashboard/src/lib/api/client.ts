@@ -17,10 +17,13 @@ export type Difficulty = 'easy' | 'medium' | 'hard'
 export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed'
 export type ExecutionRuntime = 'edge' | 'lambda'
 
+export type CapsuleMode = 'standard' | 'supervision' | 'debug' | 'security'
+
 export interface GenerationRequest {
   prompt: string
   language: SupportedLanguage
   difficulty?: Difficulty
+  capsuleMode?: CapsuleMode
   concepts?: string[]
   includeTestCases?: boolean
   includeHints?: boolean

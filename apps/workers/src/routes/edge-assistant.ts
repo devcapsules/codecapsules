@@ -439,23 +439,22 @@ edge.post('/assist', async (c) => {
       expirationTtl: 86400,
     });
 
-    // ── Buffer analytics event ──
+    // ── Buffer analytics event via shared analytics buffer ──
     if (capsuleId) {
-      const eventKey = `events:pending:${Math.floor(Date.now() / 60_000)}:${crypto.randomUUID().slice(0, 8)}`;
-      await env.CACHE.put(eventKey, JSON.stringify({
-        capsuleId,
-        userId: auth?.userId || 'anonymous',
-        eventType: 'edge_assist',
-        metadata: {
+      const { trackEvent } = await import('../utils/analytics-buffer');
+      c.executionCtx.waitUntil(trackEvent(c.env, {
+        capsule_id: capsuleId,
+        user_id: auth?.userId || 'anonymous',
+        event_type: 'edge_assist',
+        metadata: JSON.stringify({
           errorType,
           lineNumber: result.lineNumber,
           language,
           difficulty,
           latencyMs: Date.now() - startTime,
           cached: false,
-        },
-        timestamp: new Date().toISOString(),
-      }), { expirationTtl: 900 });
+        }),
+      }));
     }
 
     console.log(JSON.stringify({

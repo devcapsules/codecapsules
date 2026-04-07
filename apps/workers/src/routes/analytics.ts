@@ -395,12 +395,12 @@ analyticsRoutes.get('/learners/:capsuleId', async (c) => {
       MAX(ce.learner_name) as learner_name,
       MIN(ce.created_at) as first_seen,
       MAX(ce.created_at) as last_seen,
-      COUNT(CASE WHEN ce.event_type = 'code_run' THEN 1 END) as total_runs,
-      COUNT(CASE WHEN ce.event_type = 'test_passed' THEN 1 END) as passes,
-      COUNT(CASE WHEN ce.event_type = 'test_failed' THEN 1 END) as fails,
+      COUNT(CASE WHEN ce.event_type = 'run' THEN 1 END) as total_runs,
+      COUNT(CASE WHEN ce.event_type = 'test_pass' THEN 1 END) as passes,
+      COUNT(CASE WHEN ce.event_type = 'test_fail' THEN 1 END) as fails,
       COUNT(CASE WHEN ce.event_type = 'hint_viewed' THEN 1 END) as hints_used,
       COUNT(CASE WHEN ce.event_type = 'solution_viewed' THEN 1 END) as solution_views,
-      CASE WHEN COUNT(CASE WHEN ce.event_type = 'test_passed' THEN 1 END) > 0 THEN 'passed' ELSE 'struggling' END as status
+      CASE WHEN COUNT(CASE WHEN ce.event_type = 'test_pass' THEN 1 END) > 0 THEN 'passed' ELSE 'struggling' END as status
     FROM capsule_events ce
     WHERE ce.capsule_id = ? AND ce.learner_id IS NOT NULL
     GROUP BY ce.learner_id
@@ -473,8 +473,8 @@ analyticsRoutes.get('/course-learners/:playlistId', async (c) => {
       ce.learner_id,
       MAX(ce.learner_name) as learner_name,
       ce.capsule_id,
-      COUNT(CASE WHEN ce.event_type = 'test_passed' THEN 1 END) as passes,
-      COUNT(CASE WHEN ce.event_type = 'code_run' THEN 1 END) as attempts,
+      COUNT(CASE WHEN ce.event_type = 'test_pass' THEN 1 END) as passes,
+      COUNT(CASE WHEN ce.event_type = 'run' THEN 1 END) as attempts,
       MAX(ce.created_at) as last_activity
     FROM capsule_events ce
     WHERE ce.capsule_id IN (${placeholders}) AND ce.learner_id IS NOT NULL
@@ -497,14 +497,22 @@ analyticsRoutes.get('/course-learners/:playlistId', async (c) => {
     };
   }
 
-  const learners = Array.from(learnerMap.entries()).map(([id, data]) => ({
-    learnerId: id,
-    displayName: data.name || `Student #${id.slice(0, 6)}`,
-    isAnonymous: !data.name,
-    capsuleProgress: data.progress,
-    capsulesPassed: Object.values(data.progress).filter(p => p.passed).length,
-    totalCapsules: capsuleIds.length,
-  }));
+  const learners = Array.from(learnerMap.entries()).map(([id, data]) => {
+    const progressEntries = Object.values(data.progress);
+    const totalAttempts = progressEntries.reduce((s, p) => s + p.attempts, 0);
+    const lastActivity = progressEntries.reduce((max, p) => p.lastActivity > max ? p.lastActivity : max, '');
+    return {
+      learnerId: id,
+      displayName: data.name || `Student #${id.slice(0, 6)}`,
+      isAnonymous: !data.name,
+      capsuleProgress: data.progress,
+      capsulesAttempted: progressEntries.length,
+      capsulesPassed: progressEntries.filter(p => p.passed).length,
+      totalCapsules: capsuleIds.length,
+      totalAttempts,
+      lastActivity,
+    };
+  });
 
   // Sort: most progress first, then by name
   learners.sort((a, b) => b.capsulesPassed - a.capsulesPassed || a.displayName.localeCompare(b.displayName));
@@ -820,9 +828,9 @@ analyticsRoutes.get('/cohort/:cohortId', requirePlan('team'), async (c) => {
       ce.learner_id,
       MAX(ce.learner_name) as learner_name,
       ce.capsule_id,
-      COUNT(CASE WHEN ce.event_type IN ('code_run','run') THEN 1 END) as runs,
-      COUNT(CASE WHEN ce.event_type IN ('test_passed','test_pass') THEN 1 END) as passes,
-      COUNT(CASE WHEN ce.event_type IN ('test_failed','test_fail') THEN 1 END) as fails,
+      COUNT(CASE WHEN ce.event_type = 'run' THEN 1 END) as runs,
+      COUNT(CASE WHEN ce.event_type = 'test_pass' THEN 1 END) as passes,
+      COUNT(CASE WHEN ce.event_type = 'test_fail' THEN 1 END) as fails,
       MIN(ce.created_at) as first_seen,
       MAX(ce.created_at) as last_activity
     FROM capsule_events ce
@@ -930,6 +938,275 @@ analyticsRoutes.get('/cohort/:cohortId', requirePlan('team'), async (c) => {
       students,
       at_risk_students: atRiskStudents,
       capsules,
+    },
+    meta: { requestId: c.get('requestId'), timestamp: Date.now(), version: c.env.API_VERSION },
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GET /analytics/at-risk-students/:cohortId — At-risk student detection
+// Returns students who haven't attempted recently or are struggling
+// TIER GATE: team+ plan required
+// ══════════════════════════════════════════════════════════════════════════════
+
+analyticsRoutes.get('/at-risk-students/:cohortId', requirePlan('team'), async (c) => {
+  const auth = c.get('auth');
+  if (!auth) throw new ApiError(401, 'Authentication required');
+
+  const { cohortId } = c.req.param();
+
+  // Verify ownership
+  const playlist = await c.env.DB.prepare(
+    'SELECT creator_id, title FROM courses WHERE id = ?'
+  ).bind(cohortId).first<{ creator_id: string; title: string }>();
+  if (!playlist) throw new ApiError(404, 'Cohort/Course not found');
+  if (playlist.creator_id !== auth.userId) throw new ApiError(403, 'Access denied');
+
+  // Get capsules in this course
+  const capsuleRows = await c.env.DB.prepare(`
+    SELECT pi.capsule_id, c.title as capsule_title, pi.position
+    FROM course_capsules pi
+    JOIN capsules c ON pi.capsule_id = c.id
+    WHERE pi.course_id = ?
+    ORDER BY pi.position ASC
+  `).bind(cohortId).all();
+
+  const capList = (capsuleRows.results || []) as any[];
+  const capsuleIds = capList.map((cap: any) => cap.capsule_id);
+
+  if (capsuleIds.length === 0) {
+    return c.json({
+      success: true,
+      data: { cohort_id: cohortId, cohort_name: playlist.title, at_risk_students: [], inactive_students: [], summary: { total_learners: 0, at_risk_count: 0, inactive_count: 0 } },
+      meta: { requestId: c.get('requestId'), timestamp: Date.now(), version: c.env.API_VERSION },
+    });
+  }
+
+  const placeholders = capsuleIds.map(() => '?').join(',');
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Get per-learner stats across course capsules
+  const learnerStats = await c.env.DB.prepare(`
+    SELECT
+      ce.learner_id,
+      MAX(ce.learner_name) as learner_name,
+      COUNT(CASE WHEN ce.event_type = 'run' THEN 1 END) as total_runs,
+      COUNT(CASE WHEN ce.event_type = 'test_pass' THEN 1 END) as total_passes,
+      COUNT(CASE WHEN ce.event_type = 'test_fail' THEN 1 END) as total_fails,
+      COUNT(DISTINCT CASE WHEN ce.event_type = 'test_pass' THEN ce.capsule_id END) as capsules_passed,
+      MAX(ce.created_at) as last_activity,
+      MIN(ce.created_at) as first_seen
+    FROM capsule_events ce
+    WHERE ce.capsule_id IN (${placeholders}) AND ce.learner_id IS NOT NULL
+    GROUP BY ce.learner_id
+  `).bind(...capsuleIds).all();
+
+  // Get per-learner stuck capsules (capsules with runs but no passes)
+  const stuckCapsules = await c.env.DB.prepare(`
+    SELECT
+      ce.learner_id,
+      ce.capsule_id,
+      c.title as capsule_title,
+      COUNT(CASE WHEN ce.event_type = 'run' THEN 1 END) as attempts,
+      COUNT(CASE WHEN ce.event_type = 'test_pass' THEN 1 END) as passes
+    FROM capsule_events ce
+    JOIN capsules c ON ce.capsule_id = c.id
+    WHERE ce.capsule_id IN (${placeholders}) AND ce.learner_id IS NOT NULL
+    GROUP BY ce.learner_id, ce.capsule_id
+    HAVING attempts > 0 AND passes = 0
+  `).bind(...capsuleIds).all();
+
+  // Build stuck capsule map: learner_id → [capsule titles]
+  const stuckMap = new Map<string, string[]>();
+  for (const row of (stuckCapsules.results || []) as any[]) {
+    if (!stuckMap.has(row.learner_id)) stuckMap.set(row.learner_id, []);
+    stuckMap.get(row.learner_id)!.push(row.capsule_title);
+  }
+
+  const atRiskStudents: any[] = [];
+  const inactiveStudents: any[] = [];
+
+  for (const learner of (learnerStats.results || []) as any[]) {
+    const runToPassRatio = learner.total_passes > 0 ? learner.total_runs / learner.total_passes : learner.total_runs;
+    const completionPct = (learner.capsules_passed / capsuleIds.length) * 100;
+    const lastActivity = learner.last_activity || '';
+    const isInactive = lastActivity < sevenDaysAgo;
+    const isStruggling = runToPassRatio > 7 || (completionPct < 30 && learner.total_runs > 5);
+
+    const stuckOn = stuckMap.get(learner.learner_id) || [];
+    const needsHelpScore = Math.min(100, Math.round(
+      (isInactive ? 30 : 0) +
+      (isStruggling ? 30 : 0) +
+      Math.min(30, stuckOn.length * 10) +
+      (runToPassRatio > 10 ? 10 : 0)
+    ));
+
+    const studentData = {
+      student_id: learner.learner_id,
+      student_name: learner.learner_name || `Student #${learner.learner_id.slice(0, 6)}`,
+      capsules_completed: learner.capsules_passed,
+      total_capsules: capsuleIds.length,
+      total_runs: learner.total_runs,
+      total_passes: learner.total_passes,
+      run_to_pass_ratio: Math.round(runToPassRatio * 10) / 10,
+      last_activity: lastActivity,
+      is_inactive: isInactive,
+      stuck_on: stuckOn,
+      needs_help_score: needsHelpScore,
+    };
+
+    if (isInactive) inactiveStudents.push(studentData);
+    if (isStruggling) atRiskStudents.push(studentData);
+  }
+
+  // Sort by needs_help_score descending
+  atRiskStudents.sort((a, b) => b.needs_help_score - a.needs_help_score);
+  inactiveStudents.sort((a, b) => a.last_activity.localeCompare(b.last_activity));
+
+  const totalLearners = (learnerStats.results || []).length;
+
+  return c.json({
+    success: true,
+    data: {
+      cohort_id: cohortId,
+      cohort_name: playlist.title,
+      at_risk_students: atRiskStudents,
+      inactive_students: inactiveStudents,
+      summary: {
+        total_learners: totalLearners,
+        at_risk_count: atRiskStudents.length,
+        inactive_count: inactiveStudents.length,
+        not_attempted_this_week: inactiveStudents.length,
+      },
+    },
+    meta: { requestId: c.get('requestId'), timestamp: Date.now(), version: c.env.API_VERSION },
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GET /analytics/edge-breakdown/:cohortId — EdGE Assistant intervention analysis
+// Returns: common error types, capsules triggering most interventions,
+//          avg interventions before pass
+// TIER GATE: team+ plan required
+// ══════════════════════════════════════════════════════════════════════════════
+
+analyticsRoutes.get('/edge-breakdown/:cohortId', requirePlan('team'), async (c) => {
+  const auth = c.get('auth');
+  if (!auth) throw new ApiError(401, 'Authentication required');
+
+  const { cohortId } = c.req.param();
+
+  // Verify ownership
+  const playlist = await c.env.DB.prepare(
+    'SELECT creator_id, title FROM courses WHERE id = ?'
+  ).bind(cohortId).first<{ creator_id: string; title: string }>();
+  if (!playlist) throw new ApiError(404, 'Cohort/Course not found');
+  if (playlist.creator_id !== auth.userId) throw new ApiError(403, 'Access denied');
+
+  // Get capsules in this course
+  const capsuleRows = await c.env.DB.prepare(`
+    SELECT pi.capsule_id, c.title as capsule_title, pi.position
+    FROM course_capsules pi
+    JOIN capsules c ON pi.capsule_id = c.id
+    WHERE pi.course_id = ?
+    ORDER BY pi.position ASC
+  `).bind(cohortId).all();
+
+  const capList = (capsuleRows.results || []) as any[];
+  const capsuleIds = capList.map((cap: any) => cap.capsule_id);
+
+  if (capsuleIds.length === 0) {
+    return c.json({
+      success: true,
+      data: { cohort_id: cohortId, cohort_name: playlist.title, error_types: [], capsule_interventions: [], avg_interventions_before_pass: 0 },
+      meta: { requestId: c.get('requestId'), timestamp: Date.now(), version: c.env.API_VERSION },
+    });
+  }
+
+  const placeholders = capsuleIds.map(() => '?').join(',');
+
+  // 1. Most common error types from EdGE assist metadata
+  const edgeEvents = await c.env.DB.prepare(`
+    SELECT metadata
+    FROM capsule_events
+    WHERE capsule_id IN (${placeholders})
+      AND event_type = 'edge_assist'
+      AND metadata IS NOT NULL
+  `).bind(...capsuleIds).all();
+
+  // Parse error types from metadata JSON
+  const errorTypeCounts = new Map<string, number>();
+  for (const row of (edgeEvents.results || []) as any[]) {
+    try {
+      const meta = JSON.parse(row.metadata);
+      const errorType = meta.errorType || 'unknown';
+      errorTypeCounts.set(errorType, (errorTypeCounts.get(errorType) || 0) + 1);
+    } catch { /* skip malformed */ }
+  }
+
+  const errorTypes = Array.from(errorTypeCounts.entries())
+    .map(([error_type, count]) => ({ error_type, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  // 2. Which capsules trigger the most EdGE interventions
+  const capsuleInterventions = await c.env.DB.prepare(`
+    SELECT
+      ce.capsule_id,
+      c.title as capsule_title,
+      COUNT(*) as intervention_count,
+      COUNT(DISTINCT ce.learner_id) as students_helped
+    FROM capsule_events ce
+    JOIN capsules c ON ce.capsule_id = c.id
+    WHERE ce.capsule_id IN (${placeholders})
+      AND ce.event_type = 'edge_assist'
+    GROUP BY ce.capsule_id
+    ORDER BY intervention_count DESC
+  `).bind(...capsuleIds).all();
+
+  // 3. Average interventions before a student passes (per capsule)
+  //    Count edge_assist events per learner per capsule, then compare with passes
+  const interventionBeforePass = await c.env.DB.prepare(`
+    SELECT
+      ce.capsule_id,
+      c.title as capsule_title,
+      ce.learner_id,
+      COUNT(CASE WHEN ce.event_type = 'edge_assist' THEN 1 END) as edge_count,
+      COUNT(CASE WHEN ce.event_type = 'test_pass' THEN 1 END) as pass_count
+    FROM capsule_events ce
+    JOIN capsules c ON ce.capsule_id = c.id
+    WHERE ce.capsule_id IN (${placeholders})
+      AND ce.learner_id IS NOT NULL
+      AND ce.event_type IN ('edge_assist', 'test_pass')
+    GROUP BY ce.capsule_id, ce.learner_id
+  `).bind(...capsuleIds).all();
+
+  // Compute avg interventions before pass across all learner×capsule combos
+  let totalEdge = 0;
+  let passedLearners = 0;
+  for (const row of (interventionBeforePass.results || []) as any[]) {
+    if (row.pass_count > 0 && row.edge_count > 0) {
+      totalEdge += row.edge_count;
+      passedLearners++;
+    }
+  }
+
+  const totalInterventions = (edgeEvents.results || []).length;
+
+  return c.json({
+    success: true,
+    data: {
+      cohort_id: cohortId,
+      cohort_name: playlist.title,
+      total_interventions: totalInterventions,
+      error_types: errorTypes,
+      capsule_interventions: (capsuleInterventions.results || []).map((r: any) => ({
+        capsule_id: r.capsule_id,
+        capsule_title: r.capsule_title,
+        intervention_count: r.intervention_count,
+        students_helped: r.students_helped,
+      })),
+      avg_interventions_before_pass: passedLearners > 0 ? Math.round((totalEdge / passedLearners) * 10) / 10 : 0,
     },
     meta: { requestId: c.get('requestId'), timestamp: Date.now(), version: c.env.API_VERSION },
   });
@@ -1107,6 +1384,96 @@ analyticsRoutes.get('/public/:id', async (c) => {
       impressions: 0,
       total_runs: 0,
       completion_rate: 0,
+    },
+    meta: {
+      requestId: c.get('requestId'),
+      timestamp: Date.now(),
+      version: c.env.API_VERSION,
+    },
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GET /analytics/traffic — Learner vs creator API traffic by hour (admin only)
+// Query params:
+//   ?days=7  (default 7; max 90)
+//   ?tag=devcapsules-learner  (optional — filter to a single client tag)
+// ══════════════════════════════════════════════════════════════════════════════
+
+const TRAFFIC_ADMIN_EMAILS = [
+  'yashw@devcapsules.com',
+  'yash@devleep.com',
+  'admin@devcapsules.com',
+];
+
+analyticsRoutes.get('/traffic', async (c) => {
+  const auth = c.get('auth');
+  if (!auth) throw new ApiError(401, 'Authentication required');
+  if (!TRAFFIC_ADMIN_EMAILS.includes(auth.email)) throw new ApiError(403, 'Admin access required');
+
+  const rawDays = parseInt(c.req.query('days') || '7', 10);
+  const days = Math.min(Math.max(rawDays, 1), 90);
+  const tagFilter = c.req.query('tag');
+
+  // Cutoff: days × 24 hourly buckets, e.g. "2026-03-09T12"
+  const cutoffBucket = new Date(Date.now() - days * 86_400_000)
+    .toISOString()
+    .slice(0, 13); // "YYYY-MM-DDTHH"
+
+  // Per-tag totals (summary row)
+  const summaryRows = tagFilter
+    ? await c.env.DB.prepare(`
+        SELECT client_tag, SUM(request_count) as total_requests
+        FROM client_tag_stats
+        WHERE hour_bucket >= ? AND client_tag = ?
+        GROUP BY client_tag
+        ORDER BY total_requests DESC
+      `).bind(cutoffBucket, tagFilter).all()
+    : await c.env.DB.prepare(`
+        SELECT client_tag, SUM(request_count) as total_requests
+        FROM client_tag_stats
+        WHERE hour_bucket >= ?
+        GROUP BY client_tag
+        ORDER BY total_requests DESC
+      `).bind(cutoffBucket).all();
+
+  // Hourly series for charting (last `days` days, grouped by hour)
+  const seriesRows = tagFilter
+    ? await c.env.DB.prepare(`
+        SELECT hour_bucket, client_tag, SUM(request_count) as request_count
+        FROM client_tag_stats
+        WHERE hour_bucket >= ? AND client_tag = ?
+        GROUP BY hour_bucket, client_tag
+        ORDER BY hour_bucket ASC
+      `).bind(cutoffBucket, tagFilter).all()
+    : await c.env.DB.prepare(`
+        SELECT hour_bucket, client_tag, SUM(request_count) as request_count
+        FROM client_tag_stats
+        WHERE hour_bucket >= ?
+        GROUP BY hour_bucket, client_tag
+        ORDER BY hour_bucket ASC
+      `).bind(cutoffBucket).all();
+
+  const summary = (summaryRows.results || []) as { client_tag: string; total_requests: number }[];
+  const series  = (seriesRows.results  || []) as { hour_bucket: string; client_tag: string; request_count: number }[];
+
+  const grandTotal = summary.reduce((s, r) => s + r.total_requests, 0);
+
+  return c.json({
+    success: true,
+    data: {
+      period: { days, cutoffBucket },
+      summary: summary.map(r => ({
+        clientTag: r.client_tag,
+        totalRequests: r.total_requests,
+        pct: grandTotal > 0 ? Math.round((r.total_requests / grandTotal) * 1000) / 10 : 0,
+      })),
+      grandTotal,
+      hourly: series.map(r => ({
+        hourBucket: r.hour_bucket,
+        clientTag: r.client_tag,
+        requestCount: r.request_count,
+      })),
     },
     meta: {
       requestId: c.get('requestId'),

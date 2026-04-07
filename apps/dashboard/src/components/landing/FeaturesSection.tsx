@@ -14,18 +14,16 @@ export function FeaturesSection() {
           <h2 className="text-2xl md:text-3xl font-black tracking-tight text-white mb-3" style={{ letterSpacing: '-0.02em' }}>
             Built for educators.<br/>
             <span style={{
-              background: 'linear-gradient(90deg, #00ff87 0%, #86efac 30%, #00ff87 50%, #00b894 80%, #00ff87 100%)',
-              backgroundSize: '200% auto',
+              background: 'linear-gradient(90deg, #00ff87 0%, #86efac 50%, #00b894 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
-              animation: 'shimmerText 3s linear infinite',
             }}>Designed to save time.</span>
           </h2>
         </div>
 
-        {/* Feature Grid — 3 cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 reveal-stagger">
+        {/* Feature Grid — 2×3 cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 reveal-stagger">
 
           {/* Feature 1 — Zero-Setup */}
           <div className="feat-card rounded-2xl p-7 border" style={{
@@ -88,6 +86,70 @@ export function FeaturesSection() {
             <div className="flex flex-wrap gap-1.5">
               <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.25)', color: '#a78bfa' }}>Creator+</span>
               <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.25)', color: '#a78bfa' }}>5 test cases</span>
+            </div>
+          </div>
+
+          {/* Feature 4 — Embed Anywhere */}
+          <div className="feat-card rounded-2xl p-7 border" style={{
+            '--card-glow': 'rgba(34,211,153,0.12)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'rgba(10,10,20,0.6)',
+            backdropFilter: 'blur(12px)',
+          } as React.CSSProperties}>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5"
+              style={{ background: 'rgba(34,211,153,0.15)' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 18 22 12 16 6"/><path d="M8 6 2 12 8 18"/></svg>
+            </div>
+            <h3 className="text-lg font-black text-white mb-2">Embed Anywhere</h3>
+            <p className="text-slate-500 text-sm leading-relaxed mb-4">
+              Works in any LMS, blog, documentation site, or platform. A simple iframe embed — no special integrations, no plugins, no restrictions.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: 'rgba(34,211,153,0.08)', border: '1px solid rgba(34,211,153,0.2)', color: '#34d399' }}>Canvas</span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: 'rgba(34,211,153,0.08)', border: '1px solid rgba(34,211,153,0.2)', color: '#34d399' }}>Notion</span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: 'rgba(34,211,153,0.08)', border: '1px solid rgba(34,211,153,0.2)', color: '#34d399' }}>Webflow</span>
+            </div>
+          </div>
+
+          {/* Feature 5 — Rich Analytics */}
+          <div className="feat-card rounded-2xl p-7 border" style={{
+            '--card-glow': 'rgba(6,182,212,0.12)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'rgba(10,10,20,0.6)',
+            backdropFilter: 'blur(12px)',
+          } as React.CSSProperties}>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5"
+              style={{ background: 'rgba(6,182,212,0.15)' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            </div>
+            <h3 className="text-lg font-black text-white mb-2">Rich Analytics</h3>
+            <p className="text-slate-500 text-sm leading-relaxed mb-4">
+              See exactly how your audience interacts with your code. Track engagement, completion rates, and identify where students get stuck.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.2)', color: '#22d3ee' }}>Engagement</span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.2)', color: '#22d3ee' }}>Completion</span>
+            </div>
+          </div>
+
+          {/* Feature 6 — White Label */}
+          <div className="feat-card rounded-2xl p-7 border" style={{
+            '--card-glow': 'rgba(249,115,22,0.12)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'rgba(10,10,20,0.6)',
+            backdropFilter: 'blur(12px)',
+          } as React.CSSProperties}>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5"
+              style={{ background: 'rgba(249,115,22,0.15)' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fb923c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            </div>
+            <h3 className="text-lg font-black text-white mb-2">Your Brand, Your Style</h3>
+            <p className="text-slate-500 text-sm leading-relaxed mb-4">
+              Customize colors, themes, and branding to match your content. White-label on Creator+ plans — professional appearance that builds trust.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', color: '#fb923c' }}>White label</span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', color: '#fb923c' }}>Custom domain</span>
             </div>
           </div>
 

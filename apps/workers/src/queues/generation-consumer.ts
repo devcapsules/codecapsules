@@ -35,6 +35,7 @@ interface GenerationJob {
   language: string;
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
   type?: string;
+  capsuleMode?: 'standard' | 'supervision' | 'debug' | 'security';
   timestamp: number;
 }
 
@@ -239,33 +240,20 @@ export async function processGenerationQueue(
       }
 
       // ══════════════════════════════════════════════════════════════════════
-      // Step 3: Update Progress — "Starting..."
+      // Step 3: Update Progress — "Processing..."
+      // (Single progress write replaces separate 5% and 15% updates)
       // ══════════════════════════════════════════════════════════════════════
 
       await updateProgress(env, job.jobId, {
         status: 'processing',
-        progress: 5,
-        currentStep: 'Queued for EdGE Forge...',
-        steps: ['Queue'],
+        progress: 10,
+        currentStep: 'AI agents are working on your exercise...',
+        steps: ['Queue ✓', 'AI Pipeline'],
       });
 
       // ══════════════════════════════════════════════════════════════════════
       // Step 4: Call Azure VM Pipeline (THE BRIDGE)
-      // 
-      // This is where we hand off to the 3-agent pipeline via Cloudflare Tunnel.
-      // The Azure VM runs the full AI pipeline:
-      //   PedagogistAgent → CoderAgent → DebuggerAgent
-      //   Quality gates, FeedbackFlywheel, capsule conversion
-      //
-      // We just wait for the result.
       // ══════════════════════════════════════════════════════════════════════
-
-      await updateProgress(env, job.jobId, {
-        status: 'processing',
-        progress: 15,
-        currentStep: 'AI agents are working on your exercise...',
-        steps: ['Queue ✓', 'AI Pipeline'],
-      });
 
       const pipelineResult = await tunnel.call<PipelineGenerationResult>(
         '/internal/generate',
@@ -276,6 +264,7 @@ export async function processGenerationQueue(
           language: job.language,
           difficulty: job.difficulty,
           type: job.type || 'code',
+          capsuleMode: job.capsuleMode || 'standard',
         },
         { timeoutMs: 120_000 } // Pipeline + Piston validation + healing can take ~90s
       );
@@ -300,24 +289,7 @@ export async function processGenerationQueue(
       const result = pipelineResult.data;
 
       // ══════════════════════════════════════════════════════════════════════
-      // Step 5: Update Progress — "Almost done..."
-      // ══════════════════════════════════════════════════════════════════════
-
-      await updateProgress(env, job.jobId, {
-        status: 'processing',
-        progress: 90,
-        currentStep: 'Finalizing your capsule...',
-        steps: [
-          'Queue ✓',
-          'Pedagogist ✓',
-          'Coder ✓',
-          'Debugger ✓',
-          'Finalizing',
-        ],
-      });
-
-      // ══════════════════════════════════════════════════════════════════════
-      // Step 6: Calculate Cost
+      // Step 5: Calculate Cost (skipped "Almost done..." progress to save KV writes)
       // ══════════════════════════════════════════════════════════════════════
 
       const pedagogistCost = calculateCost(
@@ -397,19 +369,6 @@ export async function processGenerationQueue(
       // ══════════════════════════════════════════════════════════════════════
 
       if (needsDEO(job.language, job.prompt, result.capsule)) {
-        await updateProgress(env, job.jobId, {
-          status: 'processing',
-          progress: 92,
-          currentStep: 'Calibrating test cases against real data...',
-          steps: [
-            'Queue ✓',
-            'Pedagogist ✓',
-            'Coder ✓',
-            'Debugger ✓',
-            'Calibrating Tests',
-          ],
-        });
-
         try {
           const deoResult = await calibrateExpectedOutputs(
             result.capsule,

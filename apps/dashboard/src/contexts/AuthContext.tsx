@@ -12,7 +12,7 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<any>
   signUp: (email: string, password: string, options?: any) => Promise<any>
   signOut: () => Promise<any>
-  signInWithProvider: (provider: 'github' | 'google') => Promise<any>
+  signInWithProvider: (provider: 'google') => Promise<any>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -84,11 +84,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error }
   }
 
-  const signInWithProvider = async (provider: 'github' | 'google') => {
+  const signInWithProvider = async (provider: 'google') => {
+    // Preserve returnTo through the OAuth redirect chain
+    const params = new URLSearchParams(window.location.search);
+    const returnTo = params.get('returnTo');
+    const callbackUrl = new URL('/auth/callback', window.location.origin);
+    if (returnTo) callbackUrl.searchParams.set('returnTo', returnTo);
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: callbackUrl.toString(),
       },
     })
     return { data, error }

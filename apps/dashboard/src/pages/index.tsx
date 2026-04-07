@@ -9,7 +9,6 @@ import { LanguageMarquee } from '../components/landing/LanguageMarquee';
 import { ValuePropsSection } from '../components/landing/ValuePropsSection';
 import { FeaturesSection } from '../components/landing/FeaturesSection';
 import { SocialProofSection } from '../components/landing/SocialProofSection';
-import { ComparisonSection } from '../components/landing/ComparisonSection';
 import { PricingSection } from '../components/landing/PricingSection';
 import { FAQSection } from '../components/landing/FAQSection';
 import { CTASection } from '../components/landing/CTASection';
@@ -353,15 +352,14 @@ export default function HomePage() {
         <Navigation />
         <div className="pt-16">
         <HeroSection />
-        <div className="reveal"><EdgeAssistantShowcase /></div>
-        <div className="reveal"><DemoVideoSection /></div>
         <div className="reveal mt-12"><LanguageMarquee /></div>
-        <div className="reveal"><SocialProofSection /></div>
         <div className="reveal" id="features"><FeaturesSection /></div>
+        <div className="reveal"><DemoVideoSection /></div>
+        <div className="reveal"><EdgeAssistantShowcase /></div>
         <div className="reveal"><EdgeForgeShowcase /></div>
+        <div className="reveal"><SocialProofSection /></div>
         <div className="reveal"><ValuePropsSection /></div>
         <div className="reveal"><CurriculumSection /></div>
-        <div className="reveal"><ComparisonSection /></div>
         <div className="reveal" id="pricing"><PricingSection /></div>
         <div className="reveal" id="faq"><FAQSection /></div>
         <div className="reveal"><CTASection /></div>

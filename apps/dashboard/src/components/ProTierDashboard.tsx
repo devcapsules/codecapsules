@@ -156,7 +156,7 @@ export default function ProTierDashboard({ userId }: Props) {
       label: 'Impressions',
       value: metrics.funnel_data.impressions,
       percentage: 100,
-      color: 'bg-blue-500'
+      color: 'bg-emerald-500'
     },
     {
       label: 'Runs',
@@ -183,7 +183,7 @@ export default function ProTierDashboard({ userId }: Props) {
         <select
           value={timeRange}
           onChange={(e) => setTimeRange(e.target.value)}
-          className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
         >
           <option value="7d">Last 7 days</option>
           <option value="30d">Last 30 days</option>
@@ -249,7 +249,7 @@ export default function ProTierDashboard({ userId }: Props) {
       {/* Top 5 Capsules Table */}
       <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-700/50">
-          <h3 className="text-lg font-semibold text-white">🏆 Top 5 Capsules</h3>
+          <h3 className="text-lg font-semibold text-white">Top 5 Capsules</h3>
           <p className="text-sm text-slate-400">Ranked by Engagement Rate - Do more of this!</p>
         </div>
         <div className="overflow-x-auto">
@@ -281,7 +281,7 @@ export default function ProTierDashboard({ userId }: Props) {
                 <tr key={capsule.id} className="hover:bg-slate-700/20">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded text-white text-xs flex items-center justify-center mr-3">
+                      <div className="w-6 h-6 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded text-white text-xs flex items-center justify-center mr-3">
                         {index + 1}
                       </div>
                       <div>
@@ -324,7 +324,7 @@ export default function ProTierDashboard({ userId }: Props) {
 
       {/* Drop-off Funnel */}
       <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-white mb-6">📊 Drop-off Funnel</h3>
+        <h3 className="text-lg font-semibold text-white mb-6">Drop-off Funnel</h3>
         <p className="text-sm text-slate-400 mb-6">Where are you losing readers?</p>
         
         <div className="space-y-4">
@@ -354,7 +354,7 @@ export default function ProTierDashboard({ userId }: Props) {
         </div>
 
         <div className="mt-6 p-4 bg-yellow-600/10 border border-yellow-600/30 rounded-lg">
-          <div className="text-sm text-yellow-400 font-medium">📈 Insight</div>
+          <div className="text-sm text-yellow-400 font-medium">Insight</div>
           <div className="text-sm text-slate-300 mt-1">
             You're losing {(100 - (metrics.funnel_data.runs / metrics.funnel_data.impressions) * 100).toFixed(0)}% of readers at the "Run" step. 
             Consider improving your problem descriptions or adding clearer call-to-action buttons.

@@ -40,6 +40,21 @@ const nextConfig = {
     return config
   },
 
+  async redirects() {
+    return [
+      {
+        source: '/capsules',
+        destination: '/learn/capsules',
+        permanent: false,
+      },
+      {
+        source: '/capsules/',
+        destination: '/learn/capsules/',
+        permanent: false,
+      },
+    ]
+  },
+
 }
 
 module.exports = nextConfig

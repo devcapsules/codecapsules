@@ -1,11 +1,16 @@
 /**
- * Public Capsules Catalog — Browse featured courses & capsules without login
+ * Learner Capsules Catalog — /learn/capsules
+ *
+ * Public course/capsule catalog for learners.
+ * CTAs route to /learn/course?id= (read-only learner view), not the creator detail page.
  */
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../../contexts/AuthContext'
+import { useSoftLogin } from '../../hooks/useSoftLogin'
+import SoftLoginModal from '../../components/SoftLoginModal'
 
 const API_URL = process.env.NEXT_PUBLIC_WORKERS_API_URL || 'https://devcapsules-api.devleep-edu.workers.dev'
 
@@ -54,7 +59,6 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   HARD:   'bg-red-500/15 text-red-400 border-red-500/30',
 }
 
-// Rich marketing metadata for courses — keyed by title substring match
 const COURSE_META: Record<string, {
   project: string
   outcome: string
@@ -120,14 +124,17 @@ function getCourseMetadata(title: string) {
   return null
 }
 
-export default function CapsulesCatalog() {
+export default function LearnCapsulesCatalog() {
   const router = useRouter()
   const { user } = useAuth()
+  const { learner, saveLearner } = useSoftLogin()
   const [courses, setCourses] = useState<FeaturedCourse[]>([])
   const [capsules, setCapsules] = useState<FeaturedCapsule[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null)
+  const [showSoftLogin, setShowSoftLogin] = useState(false)
+  const [pendingCapsuleId, setPendingCapsuleId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchFeatured()
@@ -137,10 +144,13 @@ export default function CapsulesCatalog() {
     setLoading(true)
     setError('')
     try {
-      // Fetch featured courses and standalone capsules in parallel
+      const learnerHeaders = {
+        'x-client': 'devcapsules-learner',
+      }
+
       const [coursesRes, capsulesRes] = await Promise.all([
-        fetch(`${API_URL}/api/v1/playlists/featured?limit=50`),
-        fetch(`${API_URL}/api/v1/capsules/featured?limit=100`),
+        fetch(`${API_URL}/api/v1/playlists/featured?limit=50`, { headers: learnerHeaders }),
+        fetch(`${API_URL}/api/v1/capsules/featured?limit=100`, { headers: learnerHeaders }),
       ])
 
       const coursesJson = await coursesRes.json()
@@ -177,10 +187,27 @@ export default function CapsulesCatalog() {
   }
 
   const handleCapsuleClick = (capsuleId: string) => {
-    window.open(`https://embed.devcapsules.com/?id=${capsuleId}`, '_blank')
+    if (user || learner) {
+      window.open(`https://embed.devcapsules.com/?id=${capsuleId}`, '_blank')
+    } else {
+      setPendingCapsuleId(capsuleId)
+      setShowSoftLogin(true)
+    }
   }
 
-  // Infer language from course tags
+  const handleSoftLoginSubmit = (name: string, phone: string) => {
+    saveLearner(name, phone)
+    setShowSoftLogin(false)
+    if (pendingCapsuleId) {
+      window.open(`https://embed.devcapsules.com/?id=${pendingCapsuleId}`, '_blank')
+      setPendingCapsuleId(null)
+    }
+  }
+
+  const handleStartCourse = (courseId: string) => {
+    router.push(`/learn/course?id=${courseId}`)
+  }
+
   const courseLanguage = (tags: string[]) => {
     for (const t of tags) {
       const lower = t.toLowerCase()
@@ -282,11 +309,8 @@ export default function CapsulesCatalog() {
                               </span>
                             </div>
 
-                            <h4 className="text-lg font-semibold text-white mb-2">
-                              {course.title}
-                            </h4>
+                            <h4 className="text-lg font-semibold text-white mb-2">{course.title}</h4>
 
-                            {/* What you'll build — visible without expanding */}
                             {meta && (
                               <div className="mb-3 p-3 rounded-lg" style={{ background: 'rgba(0,255,135,0.04)', border: '1px solid rgba(0,255,135,0.08)' }}>
                                 <p className="text-[10px] font-bold uppercase tracking-wider text-[#00ff87]/60 mb-1">
@@ -303,7 +327,6 @@ export default function CapsulesCatalog() {
                               </p>
                             )}
 
-                            {/* Skill tags */}
                             {meta && (
                               <div className="flex flex-wrap gap-1.5 mb-3">
                                 {meta.skills.map(skill => (
@@ -314,7 +337,6 @@ export default function CapsulesCatalog() {
                               </div>
                             )}
 
-                            {/* Expand indicator */}
                             <div className="flex items-center gap-1 text-xs text-[#00ff87]/60">
                               <svg
                                 className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
@@ -335,7 +357,8 @@ export default function CapsulesCatalog() {
                                     key={mod.id}
                                     className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]"
                                   >
-                                    <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
+                                    <span
+                                      className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
                                       style={{ background: 'rgba(0,255,135,0.1)', color: '#00ff87' }}
                                     >
                                       {i + 1}
@@ -349,36 +372,29 @@ export default function CapsulesCatalog() {
                                   </div>
                                 ))}
                               </div>
-
-                              {/* CTA */}
                               <button
-                                onClick={() => router.push(`/learn/course?id=${course.id}`)}
+                                onClick={() => handleStartCourse(course.id)}
                                 className="mt-4 w-full py-2.5 rounded-lg text-sm font-semibold transition-all"
                                 style={{
                                   background: 'rgba(0,255,135,0.1)',
                                   border: '1px solid rgba(0,255,135,0.3)',
                                   color: '#00ff87',
                                 }}
-                                onMouseEnter={e => {
-                                  (e.currentTarget as HTMLElement).style.background = 'rgba(0,255,135,0.2)'
-                                }}
-                                onMouseLeave={e => {
-                                  (e.currentTarget as HTMLElement).style.background = 'rgba(0,255,135,0.1)'
-                                }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(0,255,135,0.2)' }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(0,255,135,0.1)' }}
                               >
                                 Start Course →
                               </button>
                             </div>
                           )}
 
-                          {/* Collapsed module preview for courses without modules */}
                           {isExpanded && course.modules.length === 0 && (
                             <div className="px-6 pb-6 border-t border-white/5 pt-4">
                               <p className="text-sm text-slate-500">
                                 {course.total_items} exercises — no modules defined yet
                               </p>
                               <button
-                                onClick={() => router.push(`/learn/course?id=${course.id}`)}
+                                onClick={() => handleStartCourse(course.id)}
                                 className="mt-4 w-full py-2.5 rounded-lg text-sm font-semibold transition-all"
                                 style={{
                                   background: 'rgba(0,255,135,0.1)',
@@ -444,7 +460,7 @@ export default function CapsulesCatalog() {
                           <div className="flex items-center gap-3 text-[10px] text-slate-600">
                             {capsule.test_count > 0 && <span>{capsule.test_count} tests</span>}
                             {capsule.has_hints > 0 && <span>Hints</span>}
-                            <span className="ml-auto text-[#00ff87]/60">Solve →</span>
+                            {!user && !learner && <span className="ml-auto text-[#00ff87]/60">Solve →</span>}
                           </div>
                         </button>
                       )
@@ -462,6 +478,13 @@ export default function CapsulesCatalog() {
           )}
         </section>
       </div>
+
+      {showSoftLogin && (
+        <SoftLoginModal
+          onSubmit={handleSoftLoginSubmit}
+          onClose={() => { setShowSoftLogin(false); setPendingCapsuleId(null); }}
+        />
+      )}
     </>
   )
 }

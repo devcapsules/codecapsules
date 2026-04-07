@@ -82,39 +82,6 @@ export default function PlaylistEmbed({ playlistId }: PlaylistEmbedProps) {
     fetchPlaylist()
   }, [playlistId, apiUrl])
 
-  // ── Listen for "all tests passed" from the child embed ────────────────────
-  // The AdaptiveCapsuleEmbed dispatches a custom event or we listen for
-  // postMessage from the execution result. We use a MutationObserver +
-  // polling approach: watch for the ".all-passed" success indicator in the DOM.
-
-  useEffect(() => {
-    // Poll for the success state indicator that codecapsuleEmbed renders
-    // when allPassed === true (the confetti / "All tests passed" banner).
-    // This avoids modifying the existing embed component.
-    const interval = setInterval(() => {
-      const successBanner = document.querySelector('.test-summary.all-passed, .all-passed-banner, .toast.success')
-      const confetti = document.querySelector('.confetti-container')
-      if (successBanner || confetti) {
-        handleCapsuleComplete()
-        clearInterval(interval)
-      }
-    }, 500)
-
-    return () => clearInterval(interval)
-  }, [currentIndex, embedKey])
-
-  // ── Also listen for custom event dispatched by modified embed ──────────────
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail
-      if (detail?.allPassed) {
-        handleCapsuleComplete()
-      }
-    }
-    window.addEventListener('capsule-complete', handler)
-    return () => window.removeEventListener('capsule-complete', handler)
-  }, [currentIndex])
-
   // ── Completion handler ─────────────────────────────────────────────────────
 
   const handleCapsuleComplete = useCallback(() => {
@@ -141,6 +108,37 @@ export default function PlaylistEmbed({ playlistId }: PlaylistEmbedProps) {
     }
   }, [playlist, currentIndex, playlistId, apiUrl])
 
+  // ── Listen for "all tests passed" from the child embed ────────────────────
+  // The AdaptiveCapsuleEmbed dispatches a custom event or we listen for
+  // postMessage from the execution result. We use a MutationObserver +
+  // polling approach: watch for the ".dc-success-overlay" indicator in the DOM.
+
+  useEffect(() => {
+    // Poll for the success overlay that DCAnimations renders
+    // when allPassed === true (the "All Tests Passed!" overlay).
+    const interval = setInterval(() => {
+      const successOverlay = document.querySelector('.dc-success-overlay, .dc-success-card')
+      if (successOverlay) {
+        handleCapsuleComplete()
+        clearInterval(interval)
+      }
+    }, 500)
+
+    return () => clearInterval(interval)
+  }, [currentIndex, embedKey, handleCapsuleComplete])
+
+  // ── Also listen for custom event dispatched by modified embed ──────────────
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.allPassed) {
+        handleCapsuleComplete()
+      }
+    }
+    window.addEventListener('capsule-complete', handler)
+    return () => window.removeEventListener('capsule-complete', handler)
+  }, [currentIndex, handleCapsuleComplete])
+
   // ── Navigate to next capsule ───────────────────────────────────────────────
 
   const goToStep = useCallback((index: number) => {
@@ -162,14 +160,35 @@ export default function PlaylistEmbed({ playlistId }: PlaylistEmbedProps) {
     goToStep(currentIndex + 1)
   }, [currentIndex, goToStep])
 
+  // ── Intercept "Continue Coding" click to auto-advance ──────────────────────
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (target.closest('.dc-success-close') && playlist && currentIndex < playlist.items.length - 1) {
+        // Let the overlay close first, then auto-advance
+        setTimeout(() => goNext(), 400)
+      }
+    }
+    document.addEventListener('click', handler, true)
+    return () => document.removeEventListener('click', handler, true)
+  }, [playlist, currentIndex, goNext])
+
   // ── Step status ────────────────────────────────────────────────────────────
 
   const getStepStatus = (index: number): StepStatus => {
     if (completedSet.has(index)) return 'completed'
     if (index === currentIndex) return 'current'
-    // Check gating
-    if (index > 0 && playlist?.items[index - 1]?.is_gate && !completedSet.has(index - 1)) return 'locked'
-    return index <= currentIndex ? 'completed' : 'locked'
+    // Items before current that weren't explicitly completed
+    if (index < currentIndex) return 'completed'
+    // Items after current: only lock if an uncompleted gate blocks them
+    for (let i = 0; i < index; i++) {
+      if (playlist?.items[i]?.is_gate && !completedSet.has(i)) return 'locked'
+    }
+    // If current capsule is completed, the next one is unlocked
+    if (completedSet.has(currentIndex) && index === currentIndex + 1) return 'current'
+    // Otherwise lock items that are more than 1 step ahead
+    if (index > currentIndex + 1 && !completedSet.has(index - 1)) return 'locked'
+    return 'locked'
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────

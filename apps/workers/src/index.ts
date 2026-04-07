@@ -52,11 +52,13 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 app.onError((error, c) => {
   const requestId = c.get('requestId') || 'unknown';
+  const clientTag = (c.req.header('x-client') || c.req.header('X-Client') || 'unknown').slice(0, 64);
 
   // Log error
   console.error(JSON.stringify({
     level: 'error',
     requestId,
+    clientTag,
     path: c.req.path,
     method: c.req.method,
     error: error instanceof Error ? error.message : 'Unknown error',
@@ -105,6 +107,32 @@ app.use('*', async (c, next) => {
   await next();
 });
 
+// Structured request log for client-segment observability (e.g. devcapsules-learner)
+app.use('*', async (c, next) => {
+  const startedAt = Date.now();
+  const requestId = c.get('requestId') || 'unknown';
+  const rawClientTag = c.req.header('x-client') || c.req.header('X-Client') || 'unknown';
+  const clientTag = rawClientTag.replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 64) || 'unknown';
+
+  await next();
+
+  console.log(JSON.stringify({
+    level: 'info',
+    type: 'request_complete',
+    requestId,
+    clientTag,
+    path: c.req.path,
+    method: c.req.method,
+    status: c.res.status,
+    durationMs: Date.now() - startedAt,
+    timestamp: new Date().toISOString(),
+  }));
+
+  // Buffer hit for D1 client-tag counter (fire-and-forget, non-blocking)
+  const { trackClientTagHit } = await import('./utils/analytics-buffer');
+  c.executionCtx.waitUntil(trackClientTagHit(c.env, clientTag));
+});
+
 // Security headers
 app.use('*', secureHeaders({
   contentSecurityPolicy: {
@@ -140,7 +168,7 @@ app.use('*', async (c, next) => {
   return cors({
     origin: isEmbedRoute ? '*' : allowedOrigins,
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Client'],
     credentials: !isEmbedRoute,
     maxAge: 86400, // 24 hours
   })(c, next);
@@ -311,8 +339,9 @@ export default {
     
     // Every 15 minutes: aggregate analytics + flush event buffer + downgrade expired subscriptions
     if (event.cron === '*/15 * * * *') {
-      const { flushEventBuffer } = await import('./utils/analytics-buffer');
+      const { flushEventBuffer, flushClientTagCounters } = await import('./utils/analytics-buffer');
       await flushEventBuffer(env);
+      await flushClientTagCounters(env);
       await aggregateAnalytics(env);
       await downgradeExpiredSubscriptions(env);
     }
@@ -344,21 +373,31 @@ async function aggregateAnalytics(env: Env): Promise<void> {
     //   run        — user clicked Run (embed run_clicked)
     //   test_pass  — test passed (embed test_passed)
     //   test_fail  — test failed (embed test_failed)
+    //   hint_viewed, solution_viewed — learner assistance
     await env.DB.prepare(`
       INSERT OR REPLACE INTO capsule_stats (
-        capsule_id, impressions, total_runs, total_passes,
-        total_fails, completion_rate, engagement_rate, last_computed
+        capsule_id, impressions, unique_viewers, total_runs, total_passes,
+        total_fails, unique_users, avg_attempts, completion_rate, engagement_rate,
+        hint_usage_rate, solution_rate, last_computed
       )
       SELECT
         capsule_id,
         SUM(CASE WHEN event_type = 'impression' THEN 1 ELSE 0 END) as impressions,
+        COUNT(DISTINCT CASE WHEN event_type = 'impression' THEN COALESCE(learner_id, user_id, session_id) END) as unique_viewers,
         SUM(CASE WHEN event_type = 'run' THEN 1 ELSE 0 END) as total_runs,
         SUM(CASE WHEN event_type = 'test_pass' THEN 1 ELSE 0 END) as total_passes,
         SUM(CASE WHEN event_type = 'test_fail' THEN 1 ELSE 0 END) as total_fails,
+        COUNT(DISTINCT CASE WHEN event_type = 'run' THEN COALESCE(learner_id, user_id, session_id) END) as unique_users,
+        CAST(SUM(CASE WHEN event_type = 'run' THEN 1 ELSE 0 END) AS REAL) /
+          NULLIF(COUNT(DISTINCT CASE WHEN event_type = 'test_pass' THEN COALESCE(learner_id, user_id, session_id) END), 0) as avg_attempts,
         CAST(SUM(CASE WHEN event_type = 'test_pass' THEN 1 ELSE 0 END) AS REAL) /
           NULLIF(SUM(CASE WHEN event_type = 'run' THEN 1 ELSE 0 END), 0) as completion_rate,
         CAST(SUM(CASE WHEN event_type = 'run' THEN 1 ELSE 0 END) AS REAL) /
           NULLIF(SUM(CASE WHEN event_type = 'impression' THEN 1 ELSE 0 END), 0) as engagement_rate,
+        CAST(SUM(CASE WHEN event_type = 'hint_viewed' THEN 1 ELSE 0 END) AS REAL) /
+          NULLIF(SUM(CASE WHEN event_type = 'run' THEN 1 ELSE 0 END), 0) as hint_usage_rate,
+        CAST(SUM(CASE WHEN event_type = 'solution_viewed' THEN 1 ELSE 0 END) AS REAL) /
+          NULLIF(SUM(CASE WHEN event_type = 'run' THEN 1 ELSE 0 END), 0) as solution_rate,
         datetime('now') as last_computed
       FROM capsule_events
       GROUP BY capsule_id

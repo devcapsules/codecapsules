@@ -89,13 +89,20 @@ export class PedagogistAgent {
       ? `\n${buildDatasetCatalogPrompt()}\n`
       : ''
 
+    // Mode-specific framing for supervision / debug / security capsules
+    const modeBlock = this.getModeSpec(context.capsuleMode || 'standard')
+
     const prompt = `You are an expert curriculum designer. A user wants a '${context.difficulty}' '${context.language}' problem about '${context.userPrompt}'.
+
+=== CAPSULE MODE: ${(context.capsuleMode || 'standard').toUpperCase()} ===
+${modeBlock}
+=== END CAPSULE MODE ===
 
 === DIFFICULTY SPECIFICATION: ${context.difficulty.toUpperCase()} ===
 ${difficultySpec}
 === END DIFFICULTY SPECIFICATION ===${datasetBlock}
 
-Brainstorm ONE single, unique, high-quality problem idea that STRICTLY follows the difficulty specification above.
+Brainstorm ONE single, unique, high-quality problem idea that STRICTLY follows the capsule mode AND difficulty specification above.
 ${datasetBlock ? `The problem MUST use one of the Universal Datasets listed above. Reference the actual column names in your description.
 CRITICAL: Only these CSV files exist in the execution environment — apple_global_sales_dataset.csv and spotify-tracks-dataset.csv. NEVER reference any other CSV files. Do NOT suggest creating test/mock/sample CSVs.` : ''}
 
@@ -104,7 +111,7 @@ Return JSON with this exact structure:
   "title": "Short, descriptive title",
   "description": "2-3 sentence problem description",
   "context": "1-2 sentence real-world motivation. Why a working engineer would need this skill.",
-  "task": "Direct, actionable build instruction. What the learner must do.",
+  "task": "Direct, actionable ${(context.capsuleMode || 'standard') === 'standard' ? 'build' : 'fix/audit'} instruction. What the learner must do.",
   "insight": "The aha-moment revealed AFTER the learner passes all tests.",
   "real_world_usage": "Where this pattern appears in production.",
   "learning_objectives": ["What will students learn?", "What skills will they practice?"],
@@ -176,6 +183,56 @@ The student must design the approach, handle edge cases, and optimize.`
 
       default:
         return 'Use medium difficulty specification.'
+    }
+  }
+
+  /**
+   * Get mode-specific generation instructions.
+   * Controls whether the capsule is "write from scratch", "fix flawed code", etc.
+   */
+  private getModeSpec(mode: string): string {
+    switch (mode) {
+      case 'supervision':
+        return `MODE: SUPERVISION — Code Review & Fix
+The learner does NOT write code from scratch. Instead:
+1. You generate a COMPLETE, WORKING (but flawed) AI-generated solution as the STARTER CODE.
+2. The flawed code must contain 1-2 specific issues: poor naming, missing docs, magic numbers, code duplication, or mixed concerns.
+3. The learner's job is to READ the code, IDENTIFY the flaw(s), and REFACTOR/FIX while keeping behavior identical.
+4. Tests must PASS on both the original flawed code AND the fixed code (since flaws are readability/style, not logic).
+5. The "task" must tell the learner WHAT to look for and fix — never "implement from scratch".
+6. Frame it as: "An AI generated this code for production. Your job is to audit and improve it."
+CRITICAL: The starter code must be a FULL working implementation with deliberate code quality issues — NOT an empty function stub.`
+
+      case 'debug':
+        return `MODE: DEBUG — Find and Fix the Bug
+The learner does NOT write code from scratch. Instead:
+1. You generate a COMPLETE solution that looks correct but has 1-2 LOGIC BUGS injected.
+2. Bugs must be subtle and realistic: off-by-one errors, wrong boundary conditions, mutation during iteration, incorrect operator, wrong variable reuse.
+3. The starter code IS the buggy implementation — the learner edits it to fix the bugs.
+4. Tests must FAIL on the buggy starter code and PASS only when the learner fixes the bugs correctly.
+5. The "task" must describe the expected behavior, NOT reveal where the bug is.
+6. Frame it as: "The AI-generated code below has a bug. Find and fix it so all tests pass."
+CRITICAL: The starter code must be a FULL implementation with a real but subtle bug — NOT an empty function stub.`
+
+      case 'security':
+        return `MODE: SECURITY — Identify and Harden Vulnerabilities
+The learner does NOT write code from scratch. Instead:
+1. You generate a COMPLETE working solution that has 1-2 SECURITY VULNERABILITIES.
+2. Vulnerabilities must be realistic: SQL injection via string concat, eval() on user input, no input sanitization, hardcoded secrets, missing bounds checking.
+3. The starter code IS the vulnerable implementation — the learner hardens it.
+4. Tests must include ATTACK INPUTS that exploit the vulnerability on the original code, and PASS when properly hardened.
+5. The "task" must describe the security concern, NOT reveal the exact fix.
+6. Frame it as: "The AI-generated code has a security vulnerability. Find it and harden the code."
+CRITICAL: The starter code must be a FULL implementation with a real vulnerability — NOT an empty function stub.`
+
+      case 'standard':
+      default:
+        return `MODE: STANDARD — Write from Scratch
+The learner writes the solution from scratch.
+1. Provide a function stub/boilerplate as starter code.
+2. The learner implements the complete solution.
+3. Tests validate correctness of the learner's implementation.
+This is the default "build it yourself" mode.`
     }
   }
 

@@ -35,12 +35,10 @@ export function SocialProofSection() {
             <h2 className="text-2xl md:text-3xl font-black tracking-tight text-white mb-4" style={{ letterSpacing: '-0.02em', lineHeight: 1.15 }}>
               One line of code to make your curriculum
               <span style={{
-                background: 'linear-gradient(90deg, #00ff87 0%, #86efac 30%, #00ff87 50%, #00b894 80%, #00ff87 100%)',
-                backgroundSize: '200% auto',
+                background: 'linear-gradient(90deg, #00ff87 0%, #86efac 50%, #00b894 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
-                animation: 'shimmerText 3s linear infinite',
                 display: 'block',
               }}> executable.</span>
             </h2>

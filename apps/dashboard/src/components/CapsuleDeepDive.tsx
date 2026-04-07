@@ -261,16 +261,16 @@ export default function CapsuleDeepDive({ capsuleId, cohortId }: Props) {
       {/* Navigation Tabs */}
       <div className="flex space-x-1 bg-slate-800/50 p-1 rounded-lg">
         {[
-          { id: 'failing-tests', label: '🎯 Top Failing Test Cases', subtitle: 'The killer feature' },
-          { id: 'students', label: '👥 Student Attempts', subtitle: 'Individual progress' },
-          { id: 'insights', label: '💡 Teaching Insights', subtitle: 'Actionable data' }
+          { id: 'failing-tests', label: 'Top Failing Test Cases', subtitle: 'The killer feature' },
+          { id: 'students', label: 'Student Attempts', subtitle: 'Individual progress' },
+          { id: 'insights', label: 'Teaching Insights', subtitle: 'Actionable data' }
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setSelectedTab(tab.id as any)}
             className={`flex-1 text-left px-4 py-3 rounded-lg transition-colors ${
               selectedTab === tab.id
-                ? 'bg-blue-600 text-white'
+                ? 'bg-emerald-600 text-white'
                 : 'text-slate-300 hover:bg-slate-700/50'
             }`}
           >
@@ -284,7 +284,7 @@ export default function CapsuleDeepDive({ capsuleId, cohortId }: Props) {
       {selectedTab === 'failing-tests' && (
         <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-700/50 bg-gradient-to-r from-red-600/10 to-orange-600/10">
-            <h3 className="text-lg font-semibold text-white">🎯 Top Failing Test Cases</h3>
+            <h3 className="text-lg font-semibold text-white">Top Failing Test Cases</h3>
             <p className="text-sm text-red-300">
               <strong>The Value:</strong> You immediately know what to re-teach in tomorrow's lecture. No more guessing.
             </p>
@@ -328,7 +328,7 @@ export default function CapsuleDeepDive({ capsuleId, cohortId }: Props) {
 
                 {/* Common Errors */}
                 <div className="mb-4">
-                  <div className="text-sm font-medium text-slate-300 mb-2">🐛 Common Errors:</div>
+                  <div className="text-sm font-medium text-slate-300 mb-2">Common Errors:</div>
                   <div className="space-y-1">
                     {testCase.common_errors.map((error, i) => (
                       <div key={i} className="bg-slate-700/50 border border-slate-600/50 rounded p-2 text-sm text-red-300 font-mono">
@@ -339,15 +339,15 @@ export default function CapsuleDeepDive({ capsuleId, cohortId }: Props) {
                 </div>
 
                 {/* Insight - The Money Shot */}
-                <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4">
+                <div className="bg-emerald-600/10 border border-emerald-600/30 rounded-lg p-4">
                   <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div className="w-6 h-6 bg-emerald-600 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
                       <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                       </svg>
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-blue-400">💡 Teaching Insight</div>
+                      <div className="text-sm font-medium text-emerald-400">Teaching Insight</div>
                       <div className="text-sm text-slate-300 mt-1">{testCase.insight}</div>
                     </div>
                   </div>
@@ -361,7 +361,7 @@ export default function CapsuleDeepDive({ capsuleId, cohortId }: Props) {
       {selectedTab === 'students' && (
         <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-700/50">
-            <h3 className="text-lg font-semibold text-white">👥 Individual Student Progress</h3>
+            <h3 className="text-lg font-semibold text-white">Individual Student Progress</h3>
             <p className="text-sm text-slate-400">Detailed attempt history and error analysis</p>
           </div>
           <div className="overflow-x-auto">
@@ -401,7 +401,7 @@ export default function CapsuleDeepDive({ capsuleId, cohortId }: Props) {
                       {new Date(student.last_attempt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <button className="text-blue-400 hover:text-blue-300 text-sm font-medium">
+                      <button className="text-emerald-400 hover:text-emerald-300 text-sm font-medium">
                         View Details
                       </button>
                     </td>
@@ -417,7 +417,7 @@ export default function CapsuleDeepDive({ capsuleId, cohortId }: Props) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Difficulty Analysis */}
           <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">📊 Difficulty Analysis</h3>
+            <h3 className="text-lg font-semibold text-white mb-4">Difficulty Analysis</h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Too Easy</span>
@@ -429,10 +429,10 @@ export default function CapsuleDeepDive({ capsuleId, cohortId }: Props) {
               
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Just Right</span>
-                <span className="text-blue-400 font-medium">{data.difficulty_analysis.just_right.toFixed(1)}%</span>
+                <span className="text-emerald-400 font-medium">{data.difficulty_analysis.just_right.toFixed(1)}%</span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2">
-                <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${data.difficulty_analysis.just_right}%` }} />
+                <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${data.difficulty_analysis.just_right}%` }} />
               </div>
               
               <div className="flex items-center justify-between">

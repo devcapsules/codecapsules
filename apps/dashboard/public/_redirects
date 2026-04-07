@@ -1,0 +1,6 @@
+# Cloudflare Pages redirects
+# These fire at the CDN edge and work with static exports (unlike next.config.js redirects).
+
+# Redirect legacy /capsules → learner catalog
+/capsules              /learn/capsules    302
+/capsules/             /learn/capsules/   302

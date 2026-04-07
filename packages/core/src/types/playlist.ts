@@ -282,7 +282,7 @@ export function generatePlaylistEmbedCode(
   if (options.allowJumping) params.set('jumping', 'true')
   
   const queryString = params.toString()
-  const src = `https://embed.codecapsule.dev/playlist/${playlistId}${queryString ? '?' + queryString : ''}`
+  const src = `https://embed.devcapsules.com/playlist/${playlistId}${queryString ? '?' + queryString : ''}`
   
   return `<iframe 
   src="${src}"

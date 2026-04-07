@@ -1,15 +1,43 @@
 import type { AppProps } from "next/app";
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from "next/router";
 import Head from "next/head";
 import "../styles/globals.css";
 import Layout from "../components/Layout";
+import LearnerLayout from "../components/LearnerLayout";
 import { AuthProvider } from "../contexts/AuthContext";
 import { APIProvider } from "../contexts/APIContext";
 import { AnimationProvider } from "../context/AnimationContext";
 
+const LEARNER_HOSTNAME = 'learn.devcapsules.com';
+
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
+  const [isLearnerDomain, setIsLearnerDomain] = useState(false);
+
+  // ── Phase 2: Subdomain routing lock ──────────────────────────────────────
+  // learn.devcapsules.com  → only /learn/* routes; everything else → /learn/capsules
+  // devcapsules.com        → /learn/* routes → https://learn.devcapsules.com…
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hostname = window.location.hostname;
+    const onLearnerDomain = hostname === LEARNER_HOSTNAME;
+    setIsLearnerDomain(onLearnerDomain);
+
+    // Allow auth-related routes on the learner domain (login, signup, callback)
+    const isAuthRoute = ['/login', '/signup', '/auth'].some(p => router.pathname.startsWith(p));
+    if (onLearnerDomain && !router.pathname.startsWith('/learn') && !isAuthRoute) {
+      // Lock learner subdomain to /learn/* only (auth routes exempted)
+      router.replace('/learn/capsules');
+      return;
+    }
+
+    const isLocalDev = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.localhost');
+    if (!onLearnerDomain && !isLocalDev && router.pathname.startsWith('/learn')) {
+      // Redirect creator-domain /learn/* traffic to the learner subdomain
+      window.location.href = `https://${LEARNER_HOSTNAME}${router.asPath}`;
+    }
+  }, [router.pathname, router.asPath]);
 
   // Scroll-reveal: observe .reveal and .reveal-stagger elements
   useEffect(() => {
@@ -35,7 +63,10 @@ export default function App({ Component, pageProps }: AppProps) {
   // Pages that should NOT use the main Layout (they have their own navigation)
   const noLayoutPages = ['/', '/login', '/signup', '/auth/callback', '/editor'];
   const isBlogPage = router.pathname.startsWith('/blog');
-  const shouldUseLayout = !noLayoutPages.includes(router.pathname) && !isBlogPage;
+  const isLearnerPage = router.pathname.startsWith('/learn');
+  // Learner layout whenever on the learner subdomain OR on a /learn/* path
+  const shouldUseLearnerLayout = isLearnerPage || isLearnerDomain;
+  const shouldUseCreatorLayout = !shouldUseLearnerLayout && !noLayoutPages.includes(router.pathname) && !isBlogPage;
 
   return (
     <>
@@ -65,7 +96,11 @@ export default function App({ Component, pageProps }: AppProps) {
       <AnimationProvider>
       <AuthProvider>
         <APIProvider>
-          {shouldUseLayout ? (
+          {shouldUseLearnerLayout ? (
+            <LearnerLayout>
+              <Component {...pageProps} />
+            </LearnerLayout>
+          ) : shouldUseCreatorLayout ? (
             <Layout>
               <Component {...pageProps} />
             </Layout>

@@ -50,6 +50,17 @@ interface AnalyticsData {
   }>
 }
 
+interface LearnerData {
+  learnerId: string
+  displayName: string
+  isAnonymous: boolean
+  capsulesAttempted: number
+  capsulesPassed: number
+  totalCapsules: number
+  totalAttempts: number
+  lastActivity: string
+}
+
 export default function CourseDetailPage() {
   const { user, session, loading: authLoading } = useAuth()
   const router = useRouter()
@@ -60,7 +71,9 @@ export default function CourseDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [copiedEmbed, setCopiedEmbed] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'exercises' | 'analytics' | 'embed'>('exercises')
+  const [activeTab, setActiveTab] = useState<'exercises' | 'students' | 'analytics' | 'embed'>('exercises')
+  const [learners, setLearners] = useState<LearnerData[]>([])
+  const [learnersLoading, setLearnersLoading] = useState(false)
 
   const fetchCourse = useCallback(async () => {
     if (!id || !session?.access_token) return
@@ -100,10 +113,32 @@ export default function CourseDetailPage() {
     }
   }, [id, session?.access_token])
 
+  const fetchLearners = useCallback(async () => {
+    if (!id || !session?.access_token) return
+    try {
+      setLearnersLoading(true)
+      const res = await fetch(`${API_URL}/analytics/course-learners/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      if (res.ok) {
+        const json = await res.json()
+        setLearners(json.data?.learners || [])
+      }
+    } catch {
+      // Learners are optional; fail silently
+    } finally {
+      setLearnersLoading(false)
+    }
+  }, [id, session?.access_token])
+
   useEffect(() => {
     fetchCourse()
     fetchAnalytics()
-  }, [fetchCourse, fetchAnalytics])
+    fetchLearners()
+  }, [fetchCourse, fetchAnalytics, fetchLearners])
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -263,6 +298,7 @@ export default function CourseDetailPage() {
         <div className="flex gap-1 border-b border-slate-800 mb-6">
           {([
             { key: 'exercises', label: 'Exercises', count: course.items.length },
+            { key: 'students', label: 'Students', count: learners.length || undefined },
             { key: 'analytics', label: 'Analytics' },
             { key: 'embed', label: 'Embed Codes' },
           ] as const).map(tab => (
@@ -359,6 +395,126 @@ export default function CourseDetailPage() {
         )}
 
         {/* ── Analytics Tab ── */}
+        {activeTab === 'students' && (
+          <div className="pb-12">
+            {learnersLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-500/30 border-t-emerald-500" />
+              </div>
+            ) : learners.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-14 h-14 rounded-2xl bg-slate-800/60 border border-slate-700/40 flex items-center justify-center mx-auto mb-3">
+                  <span className="text-2xl">👥</span>
+                </div>
+                <p className="text-slate-400 mb-1">No students yet</p>
+                <p className="text-xs text-slate-500">Students appear here once they interact with your embedded capsules.</p>
+              </div>
+            ) : (
+              <div className="bg-[#0a0a14] rounded-xl border border-slate-800 overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-800">
+                      <th className="text-left text-xs font-medium text-slate-500 px-5 py-3">Student</th>
+                      <th className="text-center text-xs font-medium text-slate-500 px-4 py-3">Attempted</th>
+                      <th className="text-center text-xs font-medium text-slate-500 px-4 py-3">Passed</th>
+                      <th className="text-center text-xs font-medium text-slate-500 px-4 py-3">Attempts</th>
+                      <th className="text-right text-xs font-medium text-slate-500 px-5 py-3">Last Active</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {learners.map((learner) => {
+                      const completionPct = learner.totalCapsules > 0
+                        ? Math.round((learner.capsulesPassed / learner.totalCapsules) * 100)
+                        : 0
+                      const lastActive = learner.lastActivity
+                        ? new Date(learner.lastActivity + 'Z')
+                        : null
+                      const now = new Date()
+                      const daysAgo = lastActive
+                        ? Math.floor((now.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24))
+                        : null
+                      const lastActiveLabel = daysAgo === null
+                        ? '—'
+                        : daysAgo === 0
+                          ? 'Today'
+                          : daysAgo === 1
+                            ? 'Yesterday'
+                            : `${daysAgo}d ago`
+                      const isInactive = daysAgo !== null && daysAgo >= 7
+
+                      return (
+                        <tr key={learner.learnerId} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="px-5 py-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
+                                learner.isAnonymous
+                                  ? 'bg-slate-700 text-slate-400'
+                                  : 'bg-emerald-500/15 text-emerald-400'
+                              }`}>
+                                {learner.displayName.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <span className="text-sm text-white">{learner.displayName}</span>
+                                {learner.isAnonymous && (
+                                  <span className="ml-1.5 text-[10px] text-slate-600">(no name)</span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="text-center px-4 py-3">
+                            <span className="text-sm text-slate-300">{learner.capsulesAttempted}</span>
+                            <span className="text-xs text-slate-600">/{learner.totalCapsules}</span>
+                          </td>
+                          <td className="text-center px-4 py-3">
+                            <div className="flex items-center justify-center gap-2">
+                              <span className={`text-sm font-medium ${
+                                completionPct === 100
+                                  ? 'text-emerald-400'
+                                  : completionPct >= 50
+                                    ? 'text-amber-400'
+                                    : 'text-slate-300'
+                              }`}>
+                                {learner.capsulesPassed}
+                              </span>
+                              <div className="w-12 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    completionPct === 100
+                                      ? 'bg-emerald-500'
+                                      : completionPct >= 50
+                                        ? 'bg-amber-500'
+                                        : 'bg-slate-600'
+                                  }`}
+                                  style={{ width: `${completionPct}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="text-center px-4 py-3">
+                            <span className="text-sm text-slate-300">{learner.totalAttempts}</span>
+                          </td>
+                          <td className="text-right px-5 py-3">
+                            <span className={`text-xs ${isInactive ? 'text-red-400' : 'text-slate-500'}`}>
+                              {lastActiveLabel}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+                <div className="px-5 py-3 border-t border-slate-800 flex items-center justify-between">
+                  <span className="text-xs text-slate-500">{learners.length} student{learners.length !== 1 ? 's' : ''}</span>
+                  <span className="text-xs text-slate-600">
+                    {learners.filter(l => !l.isAnonymous).length} identified · {learners.filter(l => l.isAnonymous).length} anonymous
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Completion Analytics Tab ── */}
         {activeTab === 'analytics' && (
           <div className="pb-12">
             {!analytics ? (

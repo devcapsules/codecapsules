@@ -113,8 +113,8 @@ function FailingTestChart({ data }: { data: any[] }) {
           </div>
         ))}
       </div>
-      <div className="mt-4 p-3 bg-blue-600/10 border border-blue-600/30 rounded-lg">
-        <div className="text-sm text-blue-400 font-medium">Insight</div>
+      <div className="mt-4 p-3 bg-emerald-600/10 border border-emerald-600/30 rounded-lg">
+        <div className="text-sm text-emerald-400 font-medium">Insight</div>
         <div className="text-sm text-slate-300 mt-1">
           Students struggle most with edge cases. Consider adding more scaffolding hints for boundary conditions.
         </div>
@@ -127,7 +127,7 @@ function CohortTable({ data }: { data: any[] }) {
   return (
     <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
       <div className="px-6 py-4 border-b border-slate-700/50">
-        <h3 className="text-lg font-semibold text-white">👥 Cohort Performance</h3>
+        <h3 className="text-lg font-semibold text-white">Cohort Performance</h3>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full">
@@ -182,7 +182,7 @@ function CohortTable({ data }: { data: any[] }) {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <button className="text-blue-400 hover:text-blue-300 text-sm font-medium">
+                  <button className="text-emerald-400 hover:text-emerald-300 text-sm font-medium">
                     View Details
                   </button>
                 </td>
@@ -325,7 +325,7 @@ export default function Analytics() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
       </div>
     );
   }
@@ -348,7 +348,7 @@ export default function Analytics() {
               <button
                 onClick={fetchRealTimeAnalytics}
                 disabled={analyticsLoading}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
               >
                 <svg className={`w-4 h-4 ${analyticsLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0V9a8 8 0 1115.356 2m-15.356 0H4" />
@@ -371,7 +371,7 @@ export default function Analytics() {
             <select
               value={selectedCapsule}
               onChange={(e) => setSelectedCapsule(e.target.value)}
-              className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
               <option value="all">All Capsules</option>
               {(analyticsData.capsules || analyticsData.capsulePerformance || []).map((capsule: any, index: number) => (
@@ -385,7 +385,7 @@ export default function Analytics() {
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}
-              className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
               <option value="7d">Last 7 days</option>
               <option value="30d">Last 30 days</option>
@@ -399,7 +399,7 @@ export default function Analytics() {
             <select
               value={selectedCohort}
               onChange={(e) => setSelectedCohort(e.target.value)}
-              className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
               <option value="all">All Cohorts</option>
               {(analyticsData.playlists || analyticsData.cohortData || []).map((cohort: any, index: number) => (
@@ -450,33 +450,33 @@ export default function Analytics() {
                 onClick={() => setDashboardView('pro')}
                 className={`flex-1 text-left px-4 py-3 rounded-lg transition-colors ${
                   dashboardView === 'pro'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-emerald-600 text-white'
                     : 'text-slate-300 hover:bg-slate-700/50'
                 }`}
               >
-                <div className="font-medium">📝 Pro Tier (Bloggers)</div>
+                <div className="font-medium">Pro Tier (Bloggers)</div>
                 <div className="text-xs opacity-75">Content engagement metrics</div>
               </button>
               <button
                 onClick={() => setDashboardView('cohort')}
                 className={`flex-1 text-left px-4 py-3 rounded-lg transition-colors ${
                   dashboardView === 'cohort'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-emerald-600 text-white'
                     : 'text-slate-300 hover:bg-slate-700/50'
                 }`}
               >
-                <div className="font-medium">👥 B2B Cohort View</div>
+                <div className="font-medium">B2B Cohort View</div>
                 <div className="text-xs opacity-75">Student outcomes & pedagogy</div>
               </button>
               <button
                 onClick={() => setDashboardView('deep-dive')}
                 className={`flex-1 text-left px-4 py-3 rounded-lg transition-colors ${
                   dashboardView === 'deep-dive'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-emerald-600 text-white'
                     : 'text-slate-300 hover:bg-slate-700/50'
                 }`}
               >
-                <div className="font-medium">🎯 Capsule Deep-Dive</div>
+                <div className="font-medium">Capsule Deep-Dive</div>
                 <div className="text-xs opacity-75">The "Money" view for sales</div>
               </button>
             </div>
@@ -484,8 +484,8 @@ export default function Analytics() {
             {/* Dashboard Content */}
             {analyticsLoading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                <span className="ml-3 text-blue-300">Loading analytics dashboard...</span>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+                <span className="ml-3 text-emerald-300">Loading analytics dashboard...</span>
               </div>
             ) : (
               <div>
@@ -522,21 +522,21 @@ export default function Analytics() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">🚀 Unlock Premium Analytics</h3>
+                  <h3 className="text-lg font-bold text-white">Unlock Premium Analytics</h3>
                   <p className="text-yellow-300 text-sm">Get the insights that drive educational success</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-yellow-600/5 border border-yellow-600/20 rounded-lg p-4">
-                  <div className="font-medium text-white mb-2">📝 Pro Tier</div>
+                  <div className="font-medium text-white mb-2">Pro Tier</div>
                   <div className="text-sm text-yellow-200">Content engagement rates, completion funnels, top-performing posts</div>
                 </div>
                 <div className="bg-yellow-600/5 border border-yellow-600/20 rounded-lg p-4">
-                  <div className="font-medium text-white mb-2">👥 B2B Dashboard</div>
+                  <div className="font-medium text-white mb-2">B2B Dashboard</div>
                   <div className="text-sm text-yellow-200">Student progress grids, at-risk identification, cohort insights</div>
                 </div>
                 <div className="bg-yellow-600/5 border border-yellow-600/20 rounded-lg p-4">
-                  <div className="font-medium text-white mb-2">🎯 Deep-Dive</div>
+                  <div className="font-medium text-white mb-2">Deep-Dive</div>
                   <div className="text-sm text-yellow-200">Failing test case analysis, the "money view" for sales demos</div>
                 </div>
               </div>
@@ -549,7 +549,7 @@ export default function Analytics() {
                 </button>
                 <button 
                   onClick={() => handleUpgrade('team')}
-                  className="bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-all"
+                  className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-6 py-3 rounded-lg font-medium transition-all"
                 >
                   Get Pro / Bootcamp (₹8,299/mo)
                 </button>
@@ -560,7 +560,7 @@ export default function Analytics() {
 
         {/* Basic Analytics Overview */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-white mb-2">📊 Basic Analytics Overview</h3>
+          <h3 className="text-lg font-semibold text-white mb-2">Basic Analytics Overview</h3>
           <p className="text-slate-400 text-sm">General insights and performance metrics</p>
         </div>
         
@@ -572,7 +572,7 @@ export default function Analytics() {
 
           {/* Capsule Performance */}
           <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-white mb-6">📊 Capsule Performance</h3>
+            <h3 className="text-lg font-semibold text-white mb-6">Capsule Performance</h3>
             <div className="space-y-4">
               {(analyticsData.capsulePerformance || []).map((capsule: any, index: number) => (
                 <div key={index} className="border border-slate-700/50 rounded-lg p-4">
@@ -612,10 +612,10 @@ export default function Analytics() {
           </div>
           <div className="flex space-x-3">
             <button className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-              📧 Schedule Report
+              Schedule Report
             </button>
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-              📊 Export Data
+            <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+              Export Data
             </button>
           </div>
         </div>

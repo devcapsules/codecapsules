@@ -15,7 +15,7 @@ export function FAQSection() {
     },
     {
       question: "What programming languages are supported?",
-      answer: "25+ languages including Python, JavaScript, Java, C++, Go, Rust, TypeScript, PHP, Ruby, SQL, and more. Need something else? Just ask."
+      answer: "We currently support Python, JavaScript, Java, and SQL with full execution. C and C++ support is coming soon. Need another language? Just ask."
     },
     {
       question: "Is this secure?",
@@ -44,19 +44,19 @@ export function FAQSection() {
         {/* FAQ Accordion */}
         <div className="space-y-4">
           {faqs.map((faq, index) => (
-            <div key={index} className="bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
+            <div key={index} className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <button
-                className="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-gray-800/70 transition-colors"
+                className="w-full px-6 py-4 text-left flex justify-between items-center transition-colors hover:bg-white/[0.02]"
                 onClick={() => setOpenFAQ(openFAQ === index ? null : index)}
               >
                 <span className="font-semibold text-white text-sm md:text-base">{faq.question}</span>
-                <span className="text-gray-400 text-lg ml-4">
+                <span className="text-slate-500 text-lg ml-4">
                   {openFAQ === index ? '−' : '+'}
                 </span>
               </button>
               {openFAQ === index && (
                 <div className="px-6 pb-4">
-                  <p className="text-gray-300 text-sm leading-relaxed">{faq.answer}</p>
+                  <p className="text-slate-400 text-sm leading-relaxed">{faq.answer}</p>
                 </div>
               )}
             </div>

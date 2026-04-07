@@ -43,7 +43,11 @@ generateRoutes.post('/', async (c) => {
   }
 
   const body = await c.req.json();
-  const { prompt, language, difficulty = 'MEDIUM', skipCache = false } = body;
+  const { prompt, language, difficulty = 'MEDIUM', capsuleMode = 'standard', skipCache = false } = body;
+
+  // Validate capsuleMode
+  const validModes = ['standard', 'supervision', 'debug', 'security'];
+  const normalizedMode = validModes.includes(capsuleMode) ? capsuleMode : 'standard';
 
   // Validate inputs
   if (!prompt || typeof prompt !== 'string') {
@@ -151,6 +155,7 @@ generateRoutes.post('/', async (c) => {
     prompt,
     language: language.toLowerCase(),
     difficulty: normalizedDifficulty as 'EASY' | 'MEDIUM' | 'HARD',
+    capsuleMode: normalizedMode,
     timestamp: Date.now(),
   });
 

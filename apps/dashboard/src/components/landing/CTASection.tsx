@@ -32,7 +32,7 @@ export function CTASection() {
             <svg width="18" height="18" fill="none" viewBox="0 0 18 18" className="hidden sm:block"><path d="M3 9h12M10 5l5 4-5 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </Link>
         </div>
-        <p className="text-xs text-slate-700">No credit card <span aria-hidden="true"> &middot; </span> Free tier forever <span aria-hidden="true"> &middot; </span> 5-minute setup</p>
+        <p className="text-xs text-slate-500">No credit card <span aria-hidden="true"> &middot; </span> Free tier forever <span aria-hidden="true"> &middot; </span> 5-minute setup</p>
       </div>
     </section>
   );

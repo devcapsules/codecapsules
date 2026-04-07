@@ -129,6 +129,7 @@ app.post('/internal/generate', async (req, res) => {
     language = 'javascript',
     difficulty = 'medium',
     type = 'code',
+    capsuleMode = 'standard',
   } = req.body;
 
   console.log(`🤖 [${jobId}] Generate started | user=${userId} lang=${language} diff=${difficulty}`);
@@ -149,6 +150,7 @@ app.post('/internal/generate', async (req, res) => {
       targetAudience:
         difficulty === 'easy' ? 'beginner' : difficulty === 'hard' ? 'advanced' : 'intermediate',
       estimatedTime: difficulty === 'easy' ? 15 : difficulty === 'hard' ? 45 : 30,
+      capsuleMode: capsuleMode as any,
     };
 
     const result: PipelineGenerationResult = await getPipeline().generateCapsule(context);
