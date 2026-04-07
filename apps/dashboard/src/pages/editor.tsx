@@ -310,6 +310,10 @@ function LivePreview({ capsuleData }: { capsuleData: any }) {
 
   // Helper function to extract function name from code
   const extractFunctionName = (code: string): string => {
+    // Python: find last top-level (unindented) def — handles class + wrapper pattern
+    const topLevelDefs = [...code.matchAll(/^def\s+(\w+)\s*\(/gm)];
+    if (topLevelDefs.length > 0) return topLevelDefs[topLevelDefs.length - 1][1];
+    
     // Try JavaScript function patterns
     let match = code.match(/function\s+(\w+)\s*\(/);
     if (match) return match[1];
@@ -318,7 +322,7 @@ function LivePreview({ capsuleData }: { capsuleData: any }) {
     match = code.match(/const\s+(\w+)\s*=\s*\(/);
     if (match) return match[1];
     
-    // Try Python function patterns
+    // Fallback: any Python def
     match = code.match(/def\s+(\w+)\s*\(/);
     if (match) return match[1];
     
@@ -1072,6 +1076,10 @@ export default function CapsuleEditor() {
 
   // Helper function to extract function name from code
   const extractFunctionName = (code: string): string => {
+    // Python: find last top-level (unindented) def — handles class + wrapper pattern
+    const topLevelDefs = [...code.matchAll(/^def\s+(\w+)\s*\(/gm)];
+    if (topLevelDefs.length > 0) return topLevelDefs[topLevelDefs.length - 1][1];
+    
     // Try JavaScript function patterns
     let match = code.match(/function\s+(\w+)\s*\(/);
     if (match) return match[1];
@@ -1080,7 +1088,7 @@ export default function CapsuleEditor() {
     match = code.match(/const\s+(\w+)\s*=\s*\(/);
     if (match) return match[1];
     
-    // Try Python function patterns
+    // Fallback: any Python def
     match = code.match(/def\s+(\w+)\s*\(/);
     if (match) return match[1];
     

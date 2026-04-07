@@ -268,10 +268,14 @@ api.get('/my-capsules', async (c) => {
            COALESCE(s.total_runs, 0) as total_runs,
            COALESCE(s.total_passes, 0) as total_passes,
            COALESCE(s.total_fails, 0) as total_fails,
-           COALESCE(s.completion_rate, 0) as completion_rate
+           COALESCE(s.completion_rate, 0) as completion_rate,
+           GROUP_CONCAT(DISTINCT co.title) as course_names
     FROM capsules c
     LEFT JOIN capsule_stats s ON c.id = s.capsule_id
+    LEFT JOIN course_capsules cc ON c.id = cc.capsule_id
+    LEFT JOIN courses co ON cc.course_id = co.id AND co.is_deleted = 0
     WHERE c.creator_id = ? AND c.is_deleted = 0
+    GROUP BY c.id
     ORDER BY c.updated_at DESC
   `).bind(auth.userId).all();
 

@@ -669,8 +669,9 @@ try {
         }
         const pyTestDataB64 = Buffer.from(JSON.stringify(pyTestDataObj)).toString('base64')
         
-        // Detect if solution is class-based or function-based
-        const isClass = solution.includes('class ') && solution.includes('def __init__')
+        // Detect if solution is class-based WITHOUT a top-level wrapper function
+        const hasTopLevelFunction = /^def\s+\w+\s*\(/m.test(solution)
+        const isClass = solution.includes('class ') && solution.includes('def __init__') && !hasTopLevelFunction
         const classMatch = solution.match(/class\s+(\w+)/)
         const className = classMatch ? classMatch[1] : null
         
@@ -771,6 +772,9 @@ except Exception as error:
    */
   private extractFunctionName(solution: string, language: string): string {
     if (language === 'python') {
+      // Find last top-level (unindented) def — handles class + wrapper pattern
+      const topLevelDefs = [...solution.matchAll(/^def\s+(\w+)\s*\(/gm)]
+      if (topLevelDefs.length > 0) return topLevelDefs[topLevelDefs.length - 1][1]
       const match = solution.match(/def\s+(\w+)\s*\(/)
       return match ? match[1] : 'solve'
     } else if (language === 'javascript') {

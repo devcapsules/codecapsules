@@ -174,6 +174,10 @@ function saveCode(capsuleId: string, code: string) {
 
 function extractFunctionName(code: string, language: string): string {
   if (language === 'python' || language === 'python3') {
+    // Find last top-level (unindented) def — handles class + wrapper pattern
+    const topLevelDefs = [...code.matchAll(/^def\s+(\w+)\s*\(/gm)]
+    if (topLevelDefs.length > 0) return topLevelDefs[topLevelDefs.length - 1][1]
+    // Fallback: any def
     const match = code.match(/def\s+(\w+)\s*\(/)
     return match ? match[1] : 'solution'
   }
@@ -508,6 +512,15 @@ function DevcapsulesEmbedInner({ widgetId, capsuleData, courseId }: CapsuleEmbed
             detail: { capsuleId: widget.id, allPassed: true, passed: passedCount, total: totalCount, courseId }
           }))
 
+          // Notify opener window (learn/course page) via postMessage
+          try {
+            window.opener?.postMessage({
+              type: 'dc-capsule-complete',
+              capsuleId: widget.id,
+              courseId: courseId || null,
+            }, '*')
+          } catch {}
+
           // Headless Playlist: fire progress ping when courseId is present
           if (courseId) {
             const progressUrl = (import.meta as any).env?.VITE_API_URL || 'https://devcapsules-api.devleep-edu.workers.dev/api/v1'
@@ -809,7 +822,7 @@ function DevcapsulesEmbedInner({ widgetId, capsuleData, courseId }: CapsuleEmbed
                     {renderMarkdown(widget.context)}
                   </div>
                   <div className="instructions-section">
-                    <h3 className="section-label">Task</h3>
+                    <h3 className="section-label section-label--task">Task</h3>
                     {renderMarkdown(widget.task || widget.problemStatement)}
                   </div>
                 </>

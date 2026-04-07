@@ -877,6 +877,9 @@ function convertBaseCapsuleToUniversalFormat(baseCapsule: any, difficulty: strin
 }
 
 function extractFunctionName(code: string): string {
+  // Python: find last top-level (unindented) def — handles class + wrapper pattern
+  const topLevelDefs = [...code.matchAll(/^def\s+(\w+)\s*\(/gm)];
+  if (topLevelDefs.length > 0) return topLevelDefs[topLevelDefs.length - 1][1];
   const pythonMatch = code.match(/def\s+(\w+)\s*\(/);
   if (pythonMatch) return pythonMatch[1];
   const jsMatch = code.match(/function\s+(\w+)\s*\(/) || code.match(/const\s+(\w+)\s*=\s*(?:async\s*)?\(/);
