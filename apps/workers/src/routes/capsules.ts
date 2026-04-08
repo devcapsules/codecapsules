@@ -558,6 +558,12 @@ capsuleRoutes.post('/', async (c) => {
 
   const body = await c.req.json();
   let { title, description, type, difficulty, language, content, tags } = body;
+
+  // Normalize type to match D1 CHECK constraint
+  const VALID_TYPES = ['CODE', 'DATABASE', 'TERMINAL'];
+  type = (type || 'CODE').toUpperCase();
+  if (type === 'SQL') type = 'DATABASE';
+  if (!VALID_TYPES.includes(type)) type = 'CODE';
   const capsuleContext = body.context || '';
   const capsuleTask = body.task || '';
   const capsuleInsight = body.insight || '';

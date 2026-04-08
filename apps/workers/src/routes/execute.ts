@@ -169,10 +169,10 @@ executeRoutes.post('/', async (c) => {
 
 executeRoutes.post('/tests', async (c) => {
   const body = await c.req.json();
-  const { userCode, testCases, language, functionName } = body;
+  const { userCode, testCases, language, functionName, schema_setup } = body;
 
-  if (!userCode || !testCases || !language || !functionName) {
-    throw new ApiError(400, 'userCode, testCases, language, and functionName are required');
+  if (!userCode || !testCases || !language) {
+    throw new ApiError(400, 'userCode, testCases, and language are required');
   }
 
   const lang = language.toLowerCase();
@@ -186,10 +186,127 @@ executeRoutes.post('/tests', async (c) => {
     const results: TestResult[] = [];
     let passedCount = 0;
 
+    // schema_setup is passed into each executeSQL call → runs in isolated DO
+    const schemaStatements: string[] = Array.isArray(schema_setup) ? schema_setup : [];
+
+    // Run reference solution first to get expected output (if provided)
+    const { referenceSolution } = body;
+    let expectedRows: unknown[] | null = null;
+    if (referenceSolution) {
+      const refResult = await executeSQL(c.env, referenceSolution, schemaStatements);
+      if (refResult.success) {
+        try { expectedRows = JSON.parse(refResult.stdout); } catch { expectedRows = null; }
+      }
+    }
+
+    // ── Smart SQL comparison helpers ──
+
+    /** Normalize a value for loose comparison: 42 == 42.0, null == null */
+    const normalizeValue = (v: unknown): unknown => {
+      if (v === null || v === undefined) return null;
+      if (typeof v === 'number') return v;
+      if (typeof v === 'string') {
+        const num = Number(v);
+        if (!isNaN(num) && v.trim() !== '') return num;
+      }
+      return v;
+    };
+
+    /** Normalize a row object: lowercase keys + coerce numeric values */
+    const normalizeRow = (row: Record<string, unknown>): Record<string, unknown> => {
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(row)) {
+        out[k.toLowerCase()] = normalizeValue(v);
+      }
+      return out;
+    };
+
+    /** Check if user query contains ORDER BY (means row order matters) */
+    const queryHasOrderBy = /\border\s+by\b/i.test(userCode);
+
+    /** Compare two row arrays with smart matching */
+    const compareResults = (
+      userRows: Record<string, unknown>[],
+      expectedRows: Record<string, unknown>[]
+    ): { passed: boolean; diff?: string; columnMismatch?: boolean } => {
+      if (!expectedRows || expectedRows.length === 0) return { passed: true };
+
+      // 1. Column name validation
+      const expectedCols = Object.keys(expectedRows[0]).map(c => c.toLowerCase()).sort();
+      if (userRows.length > 0) {
+        const userCols = Object.keys(userRows[0]).map(c => c.toLowerCase()).sort();
+        if (JSON.stringify(userCols) !== JSON.stringify(expectedCols)) {
+          return {
+            passed: false,
+            columnMismatch: true,
+            diff: `Column mismatch: expected [${expectedCols.join(', ')}], got [${userCols.join(', ')}]`,
+          };
+        }
+      }
+
+      // 2. Row count check
+      if (userRows.length !== expectedRows.length) {
+        return {
+          passed: false,
+          diff: `Row count mismatch: expected ${expectedRows.length} rows, got ${userRows.length}`,
+        };
+      }
+
+      // 3. Normalize all rows (type coercion)
+      const normalizedUser = userRows.map(normalizeRow);
+      const normalizedExpected = expectedRows.map(normalizeRow);
+
+      // 4. Compare — order-sensitive if query has ORDER BY, otherwise sort both
+      const toSortKey = (row: Record<string, unknown>) => JSON.stringify(Object.entries(row).sort(([a], [b]) => a.localeCompare(b)));
+
+      if (queryHasOrderBy) {
+        // Strict order comparison
+        for (let r = 0; r < normalizedExpected.length; r++) {
+          const uStr = JSON.stringify(normalizedUser[r]);
+          const eStr = JSON.stringify(normalizedExpected[r]);
+          if (uStr !== eStr) {
+            return { passed: false, diff: `Row ${r + 1} mismatch` };
+          }
+        }
+      } else {
+        // Order-insensitive: sort both by stringified row content
+        const sortedUser = [...normalizedUser].sort((a, b) => toSortKey(a).localeCompare(toSortKey(b)));
+        const sortedExpected = [...normalizedExpected].sort((a, b) => toSortKey(a).localeCompare(toSortKey(b)));
+        for (let r = 0; r < sortedExpected.length; r++) {
+          const uStr = JSON.stringify(sortedUser[r]);
+          const eStr = JSON.stringify(sortedExpected[r]);
+          if (uStr !== eStr) {
+            return { passed: false, diff: `Output mismatch (compared order-insensitively)` };
+          }
+        }
+      }
+
+      return { passed: true };
+    };
+
     for (let i = 0; i < cappedCases.length; i++) {
       const tc = cappedCases[i];
-      const sqlResult = await executeSQL(c.env, userCode);
-      const passed = sqlResult.success;
+      // Each test gets its own DO instance: fresh schema + user query, fully isolated
+      const sqlResult = await executeSQL(c.env, userCode, schemaStatements);
+
+      let passed = sqlResult.success;
+      let diff: string | undefined;
+
+      // Compare output to expected (from reference solution or test case)
+      if (passed) {
+        try {
+          const userRows = JSON.parse(sqlResult.stdout);
+          const expectedOutput = expectedRows || (tc.expected_output ?
+            (typeof tc.expected_output === 'string' ? JSON.parse(tc.expected_output) : tc.expected_output) : null);
+
+          if (expectedOutput && Array.isArray(expectedOutput) && Array.isArray(userRows)) {
+            const cmp = compareResults(userRows, expectedOutput);
+            passed = cmp.passed;
+            diff = cmp.diff;
+          }
+        } catch { /* comparison parse error — keep passed as is */ }
+      }
+
       results.push({
         testCase: i + 1,
         description: tc.description || `Test ${i + 1}`,
@@ -198,13 +315,13 @@ executeRoutes.post('/tests', async (c) => {
         output: sqlResult.stdout,
         expected: tc.expected_output,
         executionTime: 0,
-        error: sqlResult.stderr || undefined,
+        error: sqlResult.stderr || diff || undefined,
       });
       if (passed) passedCount++;
     }
 
     return c.json({
-      success: true,
+      success: passedCount === cappedCases.length,
       summary: {
         totalTests: cappedCases.length,
         passedTests: passedCount,
@@ -214,6 +331,8 @@ executeRoutes.post('/tests', async (c) => {
         totalTime: Date.now() - startTime,
       },
       results,
+      // Provide expected output for embed side-by-side comparison
+      expected: expectedRows,
       meta: { requestId: c.get('requestId'), timestamp: Date.now(), version: c.env.API_VERSION },
     });
   }
@@ -393,34 +512,47 @@ executeRoutes.get('/health', async (c) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Tier 1 (Edge): SQL via D1
+// Tier 1 (Edge): SQL via SQLSandbox Durable Object (isolated per-execution)
 // ══════════════════════════════════════════════════════════════════════════════
+
 async function executeSQL(
   env: Env,
-  code: string
+  code: string,
+  schemaSetup?: string[]
 ): Promise<ExecutionResult> {
   try {
-    // Split into statements
-    const statements = code.split(';').filter(s => s.trim());
-    const results: unknown[] = [];
+    // Each execution gets a unique DO instance → its own private SQLite
+    const id = env.SQL_SANDBOX.newUniqueId();
+    const stub = env.SQL_SANDBOX.get(id);
 
-    for (const stmt of statements) {
-      const trimmed = stmt.trim();
-      if (!trimmed) continue;
+    const response = await stub.fetch('https://sandbox/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'execute',
+        schemaSetup: schemaSetup || [],
+        userCode: code,
+      }),
+    });
 
-      // Basic security: only allow SELECT, INSERT, UPDATE, DELETE, CREATE TABLE
-      const allowed = /^(SELECT|INSERT|UPDATE|DELETE|CREATE\s+TABLE|DROP\s+TABLE|ALTER)/i;
-      if (!allowed.test(trimmed)) {
-        throw new Error(`Statement not allowed: ${trimmed.slice(0, 50)}`);
-      }
+    const result = await response.json() as { success: boolean; results: unknown[]; error?: string };
 
-      const result = await env.DB.prepare(trimmed).all();
-      results.push(result.results);
+    if (!result.success) {
+      return {
+        success: false,
+        stdout: '',
+        stderr: result.error || 'SQL execution failed',
+        exit_code: 1,
+      };
     }
 
     return {
       success: true,
-      stdout: JSON.stringify(results, null, 2),
+      stdout: JSON.stringify(
+        // Flatten: single-statement results [[rows]] → [rows]
+        result.results.length === 1 ? result.results[0] : result.results,
+        null, 2
+      ),
       stderr: '',
       exit_code: 0,
     };
@@ -428,7 +560,7 @@ async function executeSQL(
     return {
       success: false,
       stdout: '',
-      stderr: error instanceof Error ? error.message : 'SQL execution failed',
+      stderr: error instanceof Error ? error.message : 'SQL sandbox error',
       exit_code: 1,
     };
   }

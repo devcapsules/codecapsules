@@ -24,6 +24,7 @@ interface Env {
 
   // ── Durable Objects ──
   CONCURRENCY_CONTROLLER: DurableObjectNamespace;
+  SQL_SANDBOX: DurableObjectNamespace;
 
   // ── R2 Storage ──
   ASSETS: R2Bucket;

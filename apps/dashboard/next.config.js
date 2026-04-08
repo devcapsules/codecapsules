@@ -21,6 +21,10 @@ const nextConfig = {
     API_BASE_URL: process.env.API_BASE_URL || 'https://devcapsules-api.devleep-edu.workers.dev',
   },
   
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error'] } : false,
+  },
+
   eslint: {
     ignoreDuringBuilds: true,
   },

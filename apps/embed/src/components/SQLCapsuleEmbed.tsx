@@ -23,6 +23,8 @@ interface SQLCapsule {
     tables: Array<{
       name: string
       columns: string[]
+      columnNames?: string[]
+      sampleRows?: Record<string, unknown>[]
     }>
   }
   expectedResults?: any[]
@@ -47,32 +49,61 @@ interface QueryResult {
   suggestions?: string[]
 }
 
-// Helper function to extract schema from schema_setup statements
-function extractSchemaFromSetup(schemaSetup: string[]): { tables: Array<{ name: string; columns: string[] }> } {
-  const tables: Array<{ name: string; columns: string[] }> = []
-  
-  for (const statement of schemaSetup) {
-    // Parse CREATE TABLE statements
-    const createMatch = statement.match(/CREATE\s+TABLE\s+(\w+)\s*\(([^;]+)\)/i)
+// Helper: parse a SQL value literal into a JS value
+function parseSQLValue(raw: string): string | number | null {
+  const v = raw.trim()
+  if (v.toUpperCase() === 'NULL') return null
+  if (/^'(.*)'$/.test(v)) return v.slice(1, -1)
+  const n = Number(v)
+  if (!isNaN(n) && v !== '') return n
+  return v
+}
+
+// Helper function to extract schema + sample data from schema_setup statements
+function extractSchemaFromSetup(schemaSetup: string[]): {
+  tables: Array<{ name: string; columns: string[]; columnNames: string[]; sampleRows: Record<string, unknown>[] }>
+} {
+  const tables: Array<{ name: string; columns: string[]; columnNames: string[]; sampleRows: Record<string, unknown>[] }> = []
+  // Flatten all statements so multi-line strings are handled
+  const allParts: string[] = []
+  for (const stmt of schemaSetup) {
+    stmt.split(';').filter(s => s.trim()).forEach(s => allParts.push(s.trim()))
+  }
+
+  for (const part of allParts) {
+    // Parse CREATE TABLE
+    const createMatch = part.match(/CREATE\s+TABLE\s+(\w+)\s*\(([^;]+)\)/i)
     if (createMatch) {
       const tableName = createMatch[1]
       const columnsStr = createMatch[2]
-      
-      // Parse column definitions
       const columnDefs = columnsStr.split(',').map(col => {
         const cleaned = col.trim()
-        // Extract column name and type
         const parts = cleaned.split(/\s+/)
-        if (parts.length >= 2) {
-          return `${parts[0]} (${parts.slice(1).join(' ')})`
-        }
+        if (parts.length >= 2) return `${parts[0]} (${parts.slice(1).join(' ')})`
         return cleaned
       })
-      
-      tables.push({ name: tableName, columns: columnDefs })
+      const columnNames = columnsStr.split(',').map(col => col.trim().split(/\s+/)[0])
+      tables.push({ name: tableName, columns: columnDefs, columnNames, sampleRows: [] })
     }
   }
-  
+
+  // Second pass: parse INSERT statements
+  for (const part of allParts) {
+    const insertMatch = part.match(/INSERT\s+INTO\s+(\w+)(?:\s*\(([^)]*)\))?\s+VALUES\s*\(([^)]+)\)/i)
+    if (insertMatch) {
+      const tableName = insertMatch[1]
+      const table = tables.find(t => t.name.toLowerCase() === tableName.toLowerCase())
+      if (!table) continue
+      const cols = insertMatch[2]
+        ? insertMatch[2].split(',').map(c => c.trim())
+        : table.columnNames
+      const vals = insertMatch[3].split(',').map(parseSQLValue)
+      const row: Record<string, unknown> = {}
+      cols.forEach((c, i) => { row[c] = i < vals.length ? vals[i] : null })
+      table.sampleRows.push(row)
+    }
+  }
+
   return { tables }
 }
 
@@ -176,6 +207,9 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
   const [instructionsCollapsed, setInstructionsCollapsed] = useState(false)
   const [showSolution, setShowSolution] = useState(false)
   const [showHints, setShowHints] = useState(false)
+  const [edgeStatus, setEdgeStatus] = useState<'idle' | 'analyzing' | 'ready'>('idle')
+  const [edgeData, setEdgeData] = useState<{ hint: string; fix: string; explanation: string; lineNumber: number | null; errorType: string; cached: boolean } | null>(null)
+  const [revealLevel, setRevealLevel] = useState<1 | 2 | 3>(1)
   const { toast } = useDCAnimation()
 
   useEffect(() => {
@@ -473,11 +507,6 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
       })
     }
     
-    // Check if query is suspiciously similar to reference (potential copy-paste)
-    if (referenceSolution && userNormalized === refNormalized) {
-      issues.push('Try to write the solution yourself rather than copying the reference')
-    }
-    
     return issues
   }
 
@@ -618,14 +647,36 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
       const result = await response.json()
       
       // Format results for display with enhanced feedback
+      // Worker returns: { results: [{ output: "JSON rows", expected, passed }], expected: [rows] }
+      const testResults = Array.isArray(result.results) ? result.results : []
+      const firstOutput = testResults[0]?.output
+      let userRows: any[] = []
+      if (firstOutput) {
+        try { userRows = typeof firstOutput === 'string' ? JSON.parse(firstOutput) : firstOutput } catch { userRows = [] }
+      }
+      // Flatten if still nested: [[{row}]] → [{row}]
+      if (userRows.length === 1 && Array.isArray(userRows[0])) userRows = userRows[0]
+
+      let expectedRows: any[] = []
+      if (result.expected) {
+        try { expectedRows = typeof result.expected === 'string' ? JSON.parse(result.expected) : result.expected } catch { expectedRows = [] }
+      }
+      if (expectedRows.length === 1 && Array.isArray(expectedRows[0])) expectedRows = expectedRows[0]
+
+      // If no expected from worker, try first test case's expected_output
+      if (expectedRows.length === 0 && testResults[0]?.expected) {
+        try { expectedRows = typeof testResults[0].expected === 'string' ? JSON.parse(testResults[0].expected) : testResults[0].expected } catch { expectedRows = [] }
+      }
+
+      const allPassed = result.summary?.allPassed || result.success
       const formattedResult = {
-        success: result.success,
-        results: result.results?.data || [],
-        columns: result.results?.columns || [],
-        expected: result.expected,
-        diff: result.diff || result.message || '',
-        error: result.error,
-        testResults: result.results,
+        success: allPassed,
+        results: userRows,
+        columns: userRows.length > 0 ? Object.keys(userRows[0]) : [],
+        expected: expectedRows,
+        diff: result.diff || result.message || (testResults.find((t: any) => !t.passed)?.error) || '',
+        error: result.error || (testResults.find((t: any) => !t.passed)?.error) || '',
+        testResults: testResults,
         approachFeedback: result.approach_feedback || [],
         queryAnalysis: result.query_analysis || {},
         suggestions: result.suggestions || []
@@ -648,8 +699,36 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
       if (!result.success) {
         setActiveTab('errors')
         toast('error', 'Query Failed', formattedResult.diff || formattedResult.error || 'Your query did not produce the expected results.')
+
+        // EdGE Assistant — fetch SQL error guidance
+        setEdgeStatus('analyzing')
+        fetch(`${apiUrl}/edge/assist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            language: 'sql',
+            problemStatement: capsule.problemStatement,
+            studentCode: userQuery,
+            stderr: formattedResult.error || formattedResult.diff || '',
+            testResults: {
+              passed: result.summary?.passedTests || 0,
+              total: result.summary?.totalTests || 1,
+              results: (result.results || []).map((r: any) => ({
+                description: r.description, passed: r.passed,
+                expected: r.expected, actual: r.output, error: r.error,
+              })),
+            },
+            difficulty: capsule.difficulty,
+            capsuleId: capsule.id,
+          }),
+        })
+          .then(res => { if (!res.ok) throw new Error(); return res.json() })
+          .then(data => { setEdgeData(data); setEdgeStatus('ready'); setRevealLevel(1) })
+          .catch(() => setEdgeStatus('idle'))
       } else {
         setActiveTab('results')
+        setEdgeStatus('idle')
+        setEdgeData(null)
         toast('success', 'Query Passed!', 'Your SQL query returned the expected results.')
       }
     } catch (err) {
@@ -692,6 +771,101 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
                 ))}
               </tr>
             ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
+  /** Render a row-by-row diff table: green = match, red = mismatch, per-cell highlighting */
+  const renderDiffTable = (userRows: any[], expectedRows: any[]) => {
+    if ((!userRows || userRows.length === 0) && (!expectedRows || expectedRows.length === 0)) {
+      return <div className="no-results">No results to compare</div>
+    }
+
+    const expCols = expectedRows?.length > 0 ? Object.keys(expectedRows[0]) : []
+    const usrCols = userRows?.length > 0 ? Object.keys(userRows[0]) : []
+    const columns = expCols.length > 0 ? expCols : usrCols
+
+    // Column name mismatch?
+    const colMismatch = usrCols.length > 0 && expCols.length > 0 &&
+      JSON.stringify(usrCols.map(c => c.toLowerCase()).sort()) !== JSON.stringify(expCols.map(c => c.toLowerCase()).sort())
+
+    if (colMismatch) {
+      return (
+        <div style={{ fontSize: '13px' }}>
+          <div className="diff-column-error">
+            <strong>Column mismatch</strong>
+            <div style={{ marginTop: '6px' }}>
+              <span style={{ color: '#ef4444' }}>Yours: </span>
+              <code>{usrCols.join(', ')}</code>
+            </div>
+            <div style={{ marginTop: '4px' }}>
+              <span style={{ color: '#10b981' }}>Expected: </span>
+              <code>{expCols.join(', ')}</code>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    const maxRows = Math.max(userRows?.length || 0, expectedRows?.length || 0)
+    const looseEq = (a: unknown, b: unknown) => {
+      if (a === b) return true
+      if (a == null && b == null) return true
+      const na = Number(a), nb = Number(b)
+      if (!isNaN(na) && !isNaN(nb) && na === nb) return true
+      return String(a).toLowerCase() === String(b).toLowerCase()
+    }
+
+    return (
+      <div className="data-table-container diff-table-container">
+        <table className="data-table diff-table">
+          <thead>
+            <tr>
+              <th style={{ width: '32px', textAlign: 'center' }}>#</th>
+              {columns.map((col, i) => (
+                <th key={i}>{col}</th>
+              ))}
+              <th style={{ width: '28px' }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: maxRows }).map((_, ri) => {
+              const uRow = userRows?.[ri]
+              const eRow = expectedRows?.[ri]
+              const missing = !uRow
+              const extra = !eRow
+              const rowMatch = !missing && !extra && columns.every(c => looseEq(uRow?.[c], eRow?.[c]))
+
+              return (
+                <tr key={ri} className={rowMatch ? 'diff-row-match' : missing ? 'diff-row-missing' : extra ? 'diff-row-extra' : 'diff-row-mismatch'}>
+                  <td style={{ textAlign: 'center', color: '#6b7280', fontSize: '11px' }}>{ri + 1}</td>
+                  {columns.map((col, ci) => {
+                    const uVal = uRow?.[col]
+                    const eVal = eRow?.[col]
+                    const cellMatch = looseEq(uVal, eVal)
+                    return (
+                      <td key={ci} className={cellMatch ? '' : 'diff-cell-mismatch'}>
+                        {missing ? (
+                          <span className="diff-expected-val">{eVal != null ? String(eVal) : 'NULL'}</span>
+                        ) : (
+                          <>
+                            <span>{uVal != null ? String(uVal) : 'NULL'}</span>
+                            {!cellMatch && eVal !== undefined && (
+                              <span className="diff-expected-hint"> ({String(eVal)})</span>
+                            )}
+                          </>
+                        )}
+                      </td>
+                    )
+                  })}
+                  <td style={{ textAlign: 'center', fontSize: '12px' }}>
+                    {rowMatch ? '✓' : missing ? '−' : extra ? '+' : '✗'}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -818,6 +992,36 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
                 </tbody>
               </table>
             </div>
+
+            {/* Sample Data — parsed from INSERT statements */}
+            {table.sampleRows && table.sampleRows.length > 0 && (() => {
+              const sampleCols = table.columnNames || (table.sampleRows.length > 0 ? Object.keys(table.sampleRows[0]) : [])
+              return (
+                <div style={{ marginTop: '12px' }}>
+                  <div style={{ color: '#94a3b8', fontSize: '12px', marginBottom: '6px', fontWeight: '500' }}>
+                    Sample Data ({table.sampleRows.length} rows)
+                  </div>
+                  <div className="data-table-container" style={{ maxHeight: '160px' }}>
+                    <table className="data-table sample-data-table">
+                      <thead>
+                        <tr>
+                          {sampleCols.map((col, ci) => <th key={ci}>{col}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {table.sampleRows.map((row, ri) => (
+                          <tr key={ri}>
+                            {sampleCols.map((col, ci) => (
+                              <td key={ci}>{row[col] === null ? <span style={{ color: '#6b7280', fontStyle: 'italic' }}>NULL</span> : String(row[col])}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         ))}
         
@@ -1081,7 +1285,7 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
           </div>
 
           {/* Results/Schema Panel */}
-          <div className="console-panel sql-results-panel">
+          <div className={`console-panel sql-results-panel ${edgeStatus !== 'idle' ? 'console-split' : ''}`}>
             {/* Tabs */}
             <div className="console-tabs">
               <button
@@ -1108,8 +1312,15 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
               >
                 Errors
               </button>
+              {edgeStatus !== 'idle' && (
+                <span className="console-tab edge-tab-indicator">
+                  <span className="edge-tab-dot" />
+                  EdGE
+                </span>
+              )}
             </div>
 
+            <div className="console-split-body">
             {/* Content */}
             <div className="console-content">
               {activeTab === 'results' && (
@@ -1160,37 +1371,21 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
                             ❌ Tests failed - Results don't match expected output
                           </div>
                           
-                          {/* Show diff if available */}
+                          {/* Show diff message if available */}
                           {queryResult.diff && (
-                            <div style={{ marginBottom: '16px', color: '#fbbf24', fontSize: '12px', padding: '8px', backgroundColor: 'rgba(251, 191, 36, 0.1)', borderRadius: '4px' }}>
+                            <div style={{ marginBottom: '12px', color: '#fbbf24', fontSize: '12px', padding: '8px', backgroundColor: 'rgba(251, 191, 36, 0.1)', borderRadius: '4px' }}>
                               {queryResult.diff}
                             </div>
                           )}
                           
-                          {/* Side-by-side comparison */}
-                          <div className="sql-comparison-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                            <div>
-                              <div style={{ marginBottom: '8px', color: '#ef4444', fontSize: '13px', fontWeight: '600' }}>
-                                Your Results:
-                              </div>
-                              {queryResult.results && queryResult.results.length > 0 ? (
-                                renderDataTable(queryResult.results)
-                              ) : (
-                                <div style={{ color: '#6b7280', fontStyle: 'italic' }}>No results returned</div>
-                              )}
-                            </div>
-                            
-                            <div>
-                              <div style={{ marginBottom: '8px', color: '#10b981', fontSize: '13px', fontWeight: '600' }}>
-                                Expected Results:
-                              </div>
-                              {queryResult.expected && queryResult.expected.length > 0 ? (
-                                renderDataTable(queryResult.expected)
-                              ) : (
-                                <div style={{ color: '#6b7280', fontStyle: 'italic' }}>No expected results</div>
-                              )}
-                            </div>
+                          {/* Row-by-row diff table */}
+                          <div style={{ marginBottom: '6px', color: '#94a3b8', fontSize: '12px' }}>
+                            Row-by-row comparison
+                            <span style={{ marginLeft: '12px', color: '#6b7280' }}>
+                              <span style={{ color: '#10b981' }}>green</span> = match, <span style={{ color: '#ef4444' }}>red</span> = mismatch, <span style={{ color: '#6b7280' }}>gray</span> = missing
+                            </span>
                           </div>
+                          {renderDiffTable(queryResult.results || [], queryResult.expected || [])}
                         </>
                       )}
                     </>
@@ -1210,14 +1405,6 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
 
               {activeTab === 'hints' && (
                 <div>
-                  {/* Debug info */}
-                  {console.log('🔍 Hints Debug:', {
-                    hints: capsule.hints,
-                    hintsLength: capsule.hints?.length,
-                    hintsType: typeof capsule.hints,
-                    hintsArray: Array.isArray(capsule.hints)
-                  })}
-                  
                   {capsule.hints && capsule.hints.length > 0 ? (
                     <div style={{ padding: '16px' }}>
                       <div style={{ 
@@ -1272,7 +1459,7 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
                 <div>
                   {queryResult?.error ? (
                     <div className="sql-error">
-                      <div style={{ color: '#ef4444', marginBottom: '8px' }}>❌ Query Error</div>
+                      <div style={{ color: '#ef4444', marginBottom: '8px' }}>Query Error</div>
                       <pre style={{ 
                         color: '#fca5a5', 
                         fontSize: '13px', 
@@ -1288,6 +1475,64 @@ export default function SQLCapsuleEmbed({ widgetId }: SQLCapsuleEmbedProps) {
                 </div>
               )}
             </div>
+
+            {/* EdGE Assistant Panel — slides in on error */}
+            {edgeStatus !== 'idle' && (
+              <div className="edge-panel" role="complementary" aria-label="EdGE Assistant">
+                <div className="edge-panel-header">
+                  <span className="edge-panel-title">EdGE Assistant</span>
+                  {edgeData?.cached && <span className="edge-cached">Instant</span>}
+                </div>
+                <div className="edge-panel-content">
+                  {edgeStatus === 'analyzing' ? (
+                    <div className="edge-analyzing">
+                      <div className="edge-pulse-dot" />
+                      <span>Analyzing your query...</span>
+                    </div>
+                  ) : edgeData && (
+                    <div className="edge-levels">
+                      {/* Level 1 — Hint (always visible) */}
+                      <div className="edge-level edge-hint">
+                        <div className="edge-level-header">
+                          <span className="edge-icon">Hint</span>
+                          {edgeData.lineNumber && <span className="edge-line">Line {edgeData.lineNumber}</span>}
+                        </div>
+                        <p className="edge-text">{edgeData.hint}</p>
+                      </div>
+
+                      {/* Level 2 — Fix (progressive reveal) */}
+                      {revealLevel >= 2 ? (
+                        <div className="edge-level edge-fix">
+                          <div className="edge-level-header">
+                            <span className="edge-icon">Fix</span>
+                          </div>
+                          <pre className="edge-code"><code>{edgeData.fix}</code></pre>
+                        </div>
+                      ) : (
+                        <button onClick={() => setRevealLevel(2)} className="edge-reveal-btn">
+                          Show Fix
+                        </button>
+                      )}
+
+                      {/* Level 3 — Deep explanation (progressive reveal) */}
+                      {revealLevel >= 3 ? (
+                        <div className="edge-level edge-explanation">
+                          <div className="edge-level-header">
+                            <span className="edge-icon">Why This Happens</span>
+                          </div>
+                          <p className="edge-text">{edgeData.explanation}</p>
+                        </div>
+                      ) : revealLevel === 2 ? (
+                        <button onClick={() => setRevealLevel(3)} className="edge-reveal-btn">
+                          Explain Why
+                        </button>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            </div>{/* end console-split-body */}
           </div>
         </div>
       </div>

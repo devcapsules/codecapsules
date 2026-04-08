@@ -35,6 +35,7 @@ import { CAPSULE_LIMITS } from './middleware/tier-gate';
 
 // Durable Objects
 export { ConcurrencyController } from './durable-objects/concurrency-controller';
+export { SQLSandbox } from './durable-objects/sql-sandbox';
 
 // Types
 type Variables = {

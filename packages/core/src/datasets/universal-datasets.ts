@@ -116,21 +116,16 @@ export const UNIVERSAL_DATASETS: UniversalDataset[] = [
 // ══════════════════════════════════════════════════════════════════════════════
 
 /** Languages that trigger dataset injection */
-const DATA_ANALYSIS_LANGUAGES = ['python', 'sql'];
+const DATA_ANALYSIS_LANGUAGES = ['python'];
 
 /**
  * Check if a language/prompt combination should use universal datasets.
- * Primary signal: capsuleMode === 'data-analysis' (explicit user selection).
- * Fallback: SQL capsules always inject datasets.
+ * Only triggers for capsuleMode === 'data-analysis' (Python + CSV).
+ * SQL/DATABASE capsules use schema_setup (CREATE TABLE + INSERT), NOT CSVs.
  */
 export function isDataAnalysisContext(language: string, userPrompt?: string, capsuleMode?: string): boolean {
-  // Explicit mode selection — most reliable signal
+  // Explicit mode selection — the ONLY reliable signal
   if (capsuleMode === 'data-analysis') return true;
-
-  const lang = language.toLowerCase();
-
-  // Always inject for SQL
-  if (lang === 'sql') return true;
 
   return false;
 }

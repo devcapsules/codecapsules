@@ -98,11 +98,15 @@ function DropdownMenu({
 function CapsuleCard({ 
   capsule, 
   onGetEmbed,
-  onDelete 
+  onDelete,
+  isSelected,
+  onToggleSelect 
 }: { 
   capsule: any; 
   onGetEmbed: (capsule: any) => void;
-  onDelete: (capsuleId: string) => void; 
+  onDelete: (capsuleId: string) => void;
+  isSelected?: boolean;
+  onToggleSelect?: (capsuleId: string) => void; 
 }) {
   const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -120,11 +124,22 @@ function CapsuleCard({
   const isPublished = capsule.isPublished === true;
 
   return (
-    <div className="rounded-lg p-6 transition-all group cursor-pointer" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', transition: 'background 0.2s, border-color 0.2s' }}
-      onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.04)'; (e.currentTarget as HTMLElement).style.borderColor='rgba(0,255,135,0.25)'; }}
-      onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.02)'; (e.currentTarget as HTMLElement).style.borderColor='rgba(255,255,255,0.07)'; }}
+    <div className="rounded-lg p-6 transition-all group cursor-pointer" style={{ background: 'rgba(255,255,255,0.02)', border: isSelected ? '1px solid rgba(0,255,135,0.4)' : '1px solid rgba(255,255,255,0.07)', transition: 'background 0.2s, border-color 0.2s' }}
+      onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.04)'; (e.currentTarget as HTMLElement).style.borderColor=isSelected ? 'rgba(0,255,135,0.5)' : 'rgba(0,255,135,0.25)'; }}
+      onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.02)'; (e.currentTarget as HTMLElement).style.borderColor=isSelected ? 'rgba(0,255,135,0.4)' : 'rgba(255,255,255,0.07)'; }}
     >
       <div className="flex items-start justify-between mb-4">
+        {/* Multi-select checkbox */}
+        {onToggleSelect && (
+          <div className="mr-3 mt-1">
+            <input
+              type="checkbox"
+              checked={isSelected || false}
+              onChange={() => onToggleSelect(capsule.id)}
+              className="w-4 h-4 rounded border-slate-600 bg-slate-700 cursor-pointer accent-emerald-500"
+            />
+          </div>
+        )}
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className={`px-2 py-1 text-xs font-medium rounded ${getLanguageColor(capsule.language)}`}>
@@ -174,17 +189,6 @@ function CapsuleCard({
               onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}
             >
               Get Embed Code
-            </button>
-            <button
-              onClick={() => {
-                // TODO: Add analytics view
-                setIsDropdownOpen(false);
-              }}
-              className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:text-white transition-colors"
-              onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'}
-              onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}
-            >
-              View Analytics
             </button>
             <hr className="border-slate-600 my-1" />
             <button
@@ -259,11 +263,18 @@ function CapsuleCard({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
           </svg>
         </button>
-        <button className="px-3 py-2 text-slate-400 hover:text-white rounded transition-colors" title="Analytics"
-          onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.05)'}
+        <button 
+          onClick={() => {
+            if (confirm(`Delete "${capsule.title}"? This cannot be undone.`)) {
+              onDelete(capsule.id);
+            }
+          }}
+          className="px-3 py-2 text-slate-400 hover:text-red-400 rounded transition-colors"
+          title="Delete"
+          onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(239,68,68,0.08)'}
           onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
         </button>
       </div>
@@ -286,6 +297,8 @@ export default function Dashboard() {
   const [groupBy, setGroupBy] = useState<'none' | 'course' | 'language' | 'difficulty' | 'status'>('none');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [dashData, setDashData] = useState<DashboardData | null>(null);
+  const [selectedCapsuleIds, setSelectedCapsuleIds] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
   const [metricsLoading, setMetricsLoading] = useState(true);
 
   // Fetch dashboard metrics from command-center API
@@ -364,6 +377,29 @@ export default function Dashboard() {
     return Array.from(map.entries())
       .sort((a, b) => a[0] === 'Uncategorized' || a[0] === 'Unset' || a[0] === 'Unknown' ? 1 : a[0].localeCompare(b[0]))
       .map(([label, items]) => ({ label, items }));
+  };
+
+  const toggleCapsuleSelect = (capsuleId: string) => {
+    setSelectedCapsuleIds(prev => {
+      const next = new Set(prev);
+      if (next.has(capsuleId)) next.delete(capsuleId); else next.add(capsuleId);
+      return next;
+    });
+  };
+
+  const selectAllCapsules = () => {
+    const allIds = filteredCapsules.map(c => c.id);
+    setSelectedCapsuleIds(prev => prev.size === allIds.length ? new Set() : new Set(allIds));
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedCapsuleIds.size === 0) return;
+    const count = selectedCapsuleIds.size;
+    if (!confirm(`Delete ${count} capsule${count > 1 ? 's' : ''}? This cannot be undone.`)) return;
+    for (const id of selectedCapsuleIds) {
+      await handleDeleteCapsule(id);
+    }
+    setSelectedCapsuleIds(new Set());
   };
 
   // Delete capsule function
@@ -540,6 +576,20 @@ export default function Dashboard() {
               <span>List</span>
             </button>
           </div>
+
+          {/* Select toggle */}
+          <button
+            onClick={() => { setSelectionMode(m => !m); if (selectionMode) setSelectedCapsuleIds(new Set()); }}
+            className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              selectionMode ? '' : 'text-slate-400 hover:text-white'
+            }`}
+            style={selectionMode ? { background: 'rgba(0,255,135,0.1)', color: '#00ff87', border: '1px solid rgba(0,255,135,0.2)' } : { background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.05)' }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+            <span>{selectionMode ? 'Cancel' : 'Select'}</span>
+          </button>
           
           {/* Search Bar + Group By */}
           <div className="flex items-center gap-4">
@@ -577,6 +627,38 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Bulk Actions Bar */}
+        {selectionMode && selectedCapsuleIds.size > 0 && (
+          <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-lg" style={{ background: 'rgba(0,255,135,0.06)', border: '1px solid rgba(0,255,135,0.2)' }}>
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={selectedCapsuleIds.size === filteredCapsules.length}
+                onChange={selectAllCapsules}
+                className="w-4 h-4 rounded border-slate-600 bg-slate-700 cursor-pointer accent-emerald-500"
+              />
+              <span className="text-sm text-white font-medium">{selectedCapsuleIds.size} selected</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedCapsuleIds(new Set())}
+                className="px-3 py-1.5 text-sm text-slate-400 hover:text-white rounded transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                className="px-3 py-1.5 text-sm text-red-400 hover:text-red-300 rounded transition-colors font-medium"
+                style={{ background: 'rgba(239,68,68,0.1)' }}
+                onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(239,68,68,0.2)'}
+                onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background='rgba(239,68,68,0.1)'}
+              >
+                Delete Selected
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Empty State for New Users */}
         {capsules.length === 0 && !capsulesLoading && (
@@ -642,6 +724,8 @@ export default function Dashboard() {
                     setIsPublishModalOpen(true);
                   }}
                   onDelete={handleDeleteCapsule}
+                  isSelected={selectedCapsuleIds.has(capsule.id)}
+                  onToggleSelect={selectionMode ? toggleCapsuleSelect : undefined}
                 />
               );
             })}
@@ -673,15 +757,25 @@ export default function Dashboard() {
           </div>
         ) : capsules.length > 0 ? (
           /* List/Table View */
-          <div className="rounded-lg overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="rounded-lg overflow-hidden overflow-x-auto" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
             {/* Table Header */}
-            <div className="px-6 py-4" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-              <div className="grid grid-cols-12 gap-4 text-xs font-medium text-slate-400 uppercase tracking-wide">
-                <div className="col-span-4">Capsule</div>
-                <div className="col-span-2">Language</div>
-                <div className="col-span-2">Performance</div>
-                <div className="col-span-2">Activity</div>
-                <div className="col-span-2">Actions</div>
+            <div className="px-4 sm:px-6 py-4" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="grid grid-cols-12 gap-2 sm:gap-4 text-xs font-medium text-slate-400 uppercase tracking-wide">
+                {selectionMode && (
+                  <div className="col-span-1">
+                    <input
+                      type="checkbox"
+                      checked={selectedCapsuleIds.size > 0 && selectedCapsuleIds.size === filteredCapsules.length}
+                      onChange={selectAllCapsules}
+                      className="w-4 h-4 rounded border-slate-600 bg-slate-700 cursor-pointer accent-emerald-500"
+                    />
+                  </div>
+                )}
+                <div className={selectionMode ? 'col-span-7 sm:col-span-3' : 'col-span-8 sm:col-span-4'}>Capsule</div>
+                <div className="hidden sm:block col-span-2">Language</div>
+                <div className="hidden sm:block col-span-2">Performance</div>
+                <div className="hidden sm:block col-span-2">Activity</div>
+                <div className="col-span-4 sm:col-span-2">Actions</div>
               </div>
             </div>
             
@@ -691,12 +785,23 @@ export default function Dashboard() {
                 const analytics = formatAnalytics(capsule);
                 const isPublished = capsule.isPublished === true;
                 return (
-                  <div key={capsule.id} className="px-6 py-4 transition-colors" style={{ }}
+                  <div key={capsule.id} className="px-4 sm:px-6 py-4 transition-colors" style={{ }}
                     onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.02)'}
                     onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=''}>
-                    <div className="grid grid-cols-12 gap-4 items-center">
+                    <div className="grid grid-cols-12 gap-2 sm:gap-4 items-center">
+                      {/* Checkbox */}
+                      {selectionMode && (
+                        <div className="col-span-1 flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedCapsuleIds.has(capsule.id)}
+                            onChange={() => toggleCapsuleSelect(capsule.id)}
+                            className="w-4 h-4 rounded border-slate-600 bg-slate-700 cursor-pointer accent-emerald-500"
+                          />
+                        </div>
+                      )}
                       {/* Capsule Info */}
-                      <div className="col-span-4">
+                      <div className={selectionMode ? 'col-span-7 sm:col-span-3' : 'col-span-8 sm:col-span-4'}>
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(0,255,135,0.1)', border: '1px solid rgba(0,255,135,0.2)' }}>
                             <span className="font-bold text-sm" style={{ color: '#00ff87' }}>{(capsule.language || 'JS').charAt(0).toUpperCase()}</span>
@@ -717,14 +822,14 @@ export default function Dashboard() {
                       </div>
                     
                     {/* Language */}
-                    <div className="col-span-2">
+                    <div className="hidden sm:block col-span-2">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-600/20 text-blue-400">
                         {capsule.language}
                       </span>
                     </div>
                     
                     {/* Performance */}
-                    <div className="col-span-2">
+                    <div className="hidden sm:block col-span-2">
                       <div className="text-sm">
                         <div className="text-white font-medium">{analytics.passRate} pass rate</div>
                         <div className="text-slate-400">{analytics.runs} runs</div>
@@ -732,7 +837,7 @@ export default function Dashboard() {
                     </div>
                     
                     {/* Activity */}
-                    <div className="col-span-2">
+                    <div className="hidden sm:block col-span-2">
                       <div className="text-sm">
                         <div className="text-white font-medium">{analytics.impressions}</div>
                         <div className="text-slate-400">impressions</div>
@@ -740,7 +845,7 @@ export default function Dashboard() {
                     </div>
                     
                     {/* Actions */}
-                    <div className="col-span-2">
+                    <div className="col-span-4 sm:col-span-2">
                       <div className="flex space-x-2">
                         <button
                           onClick={() => router.push('/editor?id=' + capsule.id)}

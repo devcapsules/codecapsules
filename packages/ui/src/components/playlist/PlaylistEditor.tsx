@@ -413,6 +413,7 @@ export function PlaylistEditor({
   })
 
   const [selectedCapsules, setSelectedCapsules] = useState<Set<string>>(new Set())
+  const [browseCapsuleSelection, setBrowseCapsuleSelection] = useState<Set<string>>(new Set())
   const [capsuleSearch, setCapsuleSearch] = useState('')
   const [activeTab, setActiveTab] = useState<'content' | 'browse'>(playlistId ? 'content' : 'browse')
 
@@ -1101,7 +1102,40 @@ export function PlaylistEditor({
                     </div>
 
                     {filteredAvailableCapsules.length > 0 ? (
-                      <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                      <div>
+                        {/* Select All + Add Selected bar */}
+                        <div className="flex items-center justify-between mb-3 px-1">
+                          <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-400 hover:text-white transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={browseCapsuleSelection.size > 0 && browseCapsuleSelection.size === filteredAvailableCapsules.length}
+                              onChange={() => {
+                                if (browseCapsuleSelection.size === filteredAvailableCapsules.length) {
+                                  setBrowseCapsuleSelection(new Set())
+                                } else {
+                                  setBrowseCapsuleSelection(new Set(filteredAvailableCapsules.map(c => c.id)))
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-slate-600 bg-slate-700 cursor-pointer accent-emerald-500"
+                            />
+                            Select All ({filteredAvailableCapsules.length})
+                          </label>
+                          {browseCapsuleSelection.size > 0 && (
+                            <button
+                              onClick={() => {
+                                const capsulesToAdd = filteredAvailableCapsules.filter(c => browseCapsuleSelection.has(c.id))
+                                capsulesToAdd.forEach(c => addCapsule(c))
+                                setBrowseCapsuleSelection(new Set())
+                                setActiveTab('content')
+                              }}
+                              className="inline-flex items-center px-4 py-1.5 text-sm font-medium text-green-200 bg-green-900 rounded-md hover:bg-green-800 transition-colors"
+                            >
+                              <Plus className="w-4 h-4 mr-1" />
+                              Add {browseCapsuleSelection.size} Selected
+                            </button>
+                          )}
+                        </div>
+                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                         {filteredAvailableCapsules.map((capsule) => {
                           const typeIcon = capsule.capsule_type === 'CODE'
                             ? <Code className="w-4 h-4 text-blue-400" />
@@ -1121,6 +1155,18 @@ export function PlaylistEditor({
                               className="flex items-center justify-between p-3 bg-slate-700 rounded-lg border border-slate-600 hover:border-slate-500 transition-colors"
                             >
                               <div className="flex items-center space-x-3 min-w-0 flex-1">
+                                <input
+                                  type="checkbox"
+                                  checked={browseCapsuleSelection.has(capsule.id)}
+                                  onChange={() => {
+                                    setBrowseCapsuleSelection(prev => {
+                                      const next = new Set(prev)
+                                      if (next.has(capsule.id)) next.delete(capsule.id); else next.add(capsule.id)
+                                      return next
+                                    })
+                                  }}
+                                  className="w-4 h-4 rounded border-slate-600 bg-slate-700 cursor-pointer accent-emerald-500 flex-shrink-0"
+                                />
                                 {typeIcon}
                                 <div className="min-w-0 flex-1">
                                   <p className="text-sm font-medium text-white truncate">{capsule.title}</p>
@@ -1135,7 +1181,7 @@ export function PlaylistEditor({
                                 </div>
                               </div>
                               <button
-                                onClick={() => { addCapsule(capsule); setActiveTab('content') }}
+                                onClick={() => { addCapsule(capsule) }}
                                 className="ml-3 inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-200 bg-green-900 rounded-md hover:bg-green-800 transition-colors flex-shrink-0"
                               >
                                 <Plus className="w-4 h-4 mr-1" />
@@ -1144,6 +1190,7 @@ export function PlaylistEditor({
                             </div>
                           )
                         })}
+                      </div>
                       </div>
                     ) : state.availableCapsules.length === 0 ? (
                       <div className="text-center py-12">

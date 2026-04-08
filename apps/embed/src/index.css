@@ -1257,6 +1257,26 @@ body {
     border-bottom: 1px solid var(--dc-border);
   }
 
+  .console-tabs {
+    padding: 0 2px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .console-tab {
+    padding: 6px 10px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .edge-tab-indicator {
+    padding: 6px 10px;
+    font-size: 12px;
+    background: rgba(0, 255, 135, 0.08);
+    border-radius: 6px;
+    margin: 2px 0;
+  }
+
   .embed-header {
     padding: 8px 12px;
   }
@@ -1285,22 +1305,48 @@ body {
   }
 
   .console-panel {
-    height: 200px;
+    height: 180px;
   }
 
-  /* Stack EdGE below tests instead of side-by-side */
+  /* Stack EdGE below tests — give Edge more room since it's the key feature */
   .console-split .console-split-body {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr 1fr;
+    grid-template-rows: auto 1fr;
   }
 
   .console-panel.console-split {
-    height: 380px;
+    height: 60vh;
+    max-height: 480px;
   }
 
   .console-split .console-content {
     border-right: none;
     border-bottom: 1px solid var(--dc-border);
+    max-height: 30%;
+    overflow-y: auto;
+  }
+
+  .console-split .edge-panel {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .edge-panel-header {
+    padding: 8px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: rgba(0, 255, 135, 0.06);
+  }
+
+  .edge-level {
+    padding: 8px 12px;
+  }
+
+  .edge-reveal-btn {
+    margin: 6px 12px;
+    padding: 8px 14px;
+    font-size: 13px;
   }
 
   /* ── SQL Embed ── */
@@ -1482,6 +1528,82 @@ body {
 
 .sql-error {
   color: #fca5a5;
+}
+
+/* ── Sample Data Table (Schema tab) ── */
+.sample-data-table {
+  font-size: 12px !important;
+}
+.sample-data-table th {
+  background-color: #1e293b !important;
+  font-size: 11px;
+  padding: 5px 10px !important;
+  color: #94a3b8 !important;
+}
+.sample-data-table td {
+  padding: 4px 10px !important;
+  font-size: 12px;
+}
+
+/* ── Diff Table (Results tab) ── */
+.diff-table-container {
+  max-height: 240px;
+}
+.diff-table th {
+  font-size: 12px !important;
+}
+.diff-row-match {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+}
+.diff-row-match td {
+  color: #6ee7b7 !important;
+}
+.diff-row-mismatch {
+  background-color: rgba(239, 68, 68, 0.10) !important;
+}
+.diff-row-mismatch td {
+  color: #fca5a5 !important;
+}
+.diff-row-missing {
+  background-color: rgba(107, 114, 128, 0.12) !important;
+}
+.diff-row-missing td {
+  color: #6b7280 !important;
+  font-style: italic;
+}
+.diff-row-extra {
+  background-color: rgba(251, 191, 36, 0.08) !important;
+}
+.diff-row-extra td {
+  color: #fbbf24 !important;
+}
+.diff-cell-mismatch {
+  background-color: rgba(239, 68, 68, 0.18) !important;
+  color: #fca5a5 !important;
+  font-weight: 600;
+}
+.diff-expected-val {
+  color: #6b7280;
+}
+.diff-expected-hint {
+  color: #10b981;
+  font-size: 11px;
+  opacity: 0.85;
+}
+.diff-column-error {
+  padding: 12px;
+  background-color: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  color: #fca5a5;
+  font-size: 13px;
+}
+.diff-column-error code {
+  font-family: 'Monaco', 'Menlo', monospace;
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
 }
 
 /* Terminal Embed Specific Styles */

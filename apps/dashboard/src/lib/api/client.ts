@@ -509,39 +509,33 @@ class DevcapsulesAPIClient {
         return { success: false, error: 'No reference solution found to validate', readyToPublish: false }
       }
 
-      // ── SQL Capsules: validate by executing the solution query ──
-      // The execute-tests endpoint uses function-based test harnesses that don't
-      // work for SQL. Instead, build the full SQL (schema + seed data + solution)
-      // and run it via /execute to verify it executes without errors.
+      // ── SQL Capsules: validate via /execute/tests with schema_setup ──
       if (isSQL) {
-        console.log('🧪 SQL validation: running solution query via /execute')
+        console.log('🧪 SQL validation: running solution via /execute/tests')
         const db = capsule.content?.primary?.database || {}
         
-        // Build combined SQL: schema → seed data → solution query
-        const sqlParts: string[] = []
-        
-        // 1. Schema setup (CREATE TABLE statements)
+        // Collect schema_setup statements
+        const schemaSetup: string[] = []
         if (db.schema_setup?.length) {
-          sqlParts.push(...db.schema_setup)
+          schemaSetup.push(...db.schema_setup)
         } else if (db.schema) {
-          sqlParts.push(db.schema)
+          schemaSetup.push(db.schema)
         }
-        
-        // 2. Test data setup (INSERT statements)
+        // Add test data setup (INSERT statements)
         if (db.test_data_setup?.length) {
-          sqlParts.push(...db.test_data_setup)
+          schemaSetup.push(...db.test_data_setup)
         } else if (db.seedData?.length) {
-          sqlParts.push(...db.seedData)
+          schemaSetup.push(...db.seedData)
         }
-        
-        // 3. The actual solution query
-        sqlParts.push(referenceSolution)
-        
-        const fullSQL = sqlParts.filter(Boolean).join(';\n')
-        
-        if (!fullSQL.trim()) {
-          // No SQL to run — just allow publish since the AI pipeline already validated
-          console.log('⚠️ No SQL statements to validate, allowing publish')
+
+        // Get test cases
+        const cases = testCases?.length ? testCases 
+          : db.testCases?.length ? db.testCases
+          : db.test_cases?.length ? db.test_cases
+          : [{ description: 'SQL execution test', expected_output: db.expected_result }]
+
+        if (!referenceSolution.trim()) {
+          console.log('⚠️ No SQL solution to validate, allowing publish')
           return {
             success: true,
             validation: { allTestsPassed: true, passedCount: 0, totalCount: 0 },
@@ -552,51 +546,57 @@ class DevcapsulesAPIClient {
         try {
           const execResult = await this.makeRequest<{
             success: boolean
-            stdout?: string
-            stderr?: string
-          }>('/api/execute', {
+            summary?: { allPassed: boolean; passedTests: number; totalTests: number }
+            results?: any[]
+            error?: string
+          }>('/api/execute/tests', {
             method: 'POST',
             body: JSON.stringify({
-              source_code: fullSQL,
+              userCode: referenceSolution,
+              testCases: cases,
               language: 'sql',
+              schema_setup: schemaSetup,
+              referenceSolution: referenceSolution,
             }),
           })
           
-          const testCount = testCases?.length || db.testCases?.length || 0
+          const totalTests = execResult.summary?.totalTests || cases.length
+          const passedTests = execResult.summary?.passedTests || 0
           
-          if (execResult.success) {
-            console.log('✅ SQL solution executed successfully')
+          if (execResult.success && execResult.summary?.allPassed) {
+            console.log('✅ SQL solution validated — all tests passed')
             return {
               success: true,
               validation: {
                 allTestsPassed: true,
-                passedCount: testCount,
-                totalCount: testCount,
+                passedCount: passedTests,
+                totalCount: totalTests,
+                results: execResult.results,
               },
               readyToPublish: true,
             }
           } else {
-            const errMsg = execResult.stderr || 'SQL solution query failed to execute'
+            const errMsg = execResult.error || 
+              `SQL validation: ${passedTests}/${totalTests} tests passed`
             console.error('❌ SQL validation failed:', errMsg)
             return {
               success: true,
               validation: {
                 allTestsPassed: false,
-                passedCount: 0,
-                totalCount: testCount,
+                passedCount: passedTests,
+                totalCount: totalTests,
+                results: execResult.results,
               },
               readyToPublish: false,
               error: errMsg,
             }
           }
         } catch (sqlError) {
-          // If the execute endpoint itself errors (e.g. schema already exists from
-          // a previous run) — still allow publish since the AI pipeline validated it
-          console.warn('⚠️ SQL execution had an error, allowing publish anyway:', sqlError)
+          console.warn('⚠️ SQL validation request failed:', sqlError)
           return {
-            success: true,
-            validation: { allTestsPassed: true, passedCount: 0, totalCount: 0 },
-            readyToPublish: true,
+            success: false,
+            error: sqlError instanceof Error ? sqlError.message : 'SQL validation failed',
+            readyToPublish: false,
           }
         }
       }

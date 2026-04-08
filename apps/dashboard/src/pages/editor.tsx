@@ -1022,18 +1022,33 @@ export default function CapsuleEditor() {
       
       // Determine language: use capsuleData.language, or detect from code if missing
       const detectedLanguage = (capsuleData as any).language || detectLanguageFromCode(capsuleData.referenceSolution);
+      const isSQL = detectedLanguage === 'sql';
+
+      // Build request body — SQL needs schema_setup and uses /execute/tests
+      const requestBody: any = {
+        userCode: capsuleData.referenceSolution,
+        testCases: capsuleData.testCases,
+        language: detectedLanguage,
+        functionName: isSQL ? undefined : extractFunctionName(capsuleData.referenceSolution),
+        referenceSolution: capsuleData.referenceSolution,
+      };
+
+      if (isSQL) {
+        const schemaSetup: string[] = [];
+        const db = (capsuleData as any);
+        if (db.schema_setup?.length) schemaSetup.push(...db.schema_setup);
+        if (db.test_data_setup?.length) schemaSetup.push(...db.test_data_setup);
+        requestBody.schema_setup = schemaSetup;
+      }
+
+      const endpoint = isSQL ? `${API_URL}/api/execute/tests` : `${API_URL}/api/execute-tests`;
       
-      const response = await fetch(`${API_URL}/api/execute-tests`, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          userCode: capsuleData.referenceSolution,
-          testCases: capsuleData.testCases,
-          language: detectedLanguage,
-          functionName: extractFunctionName(capsuleData.referenceSolution)
-        })
+        body: JSON.stringify(requestBody)
       });
 
       const result = await response.json();
@@ -1209,7 +1224,7 @@ export default function CapsuleEditor() {
       const language = (capsuleData as any).language || 'javascript';
       const isSQL = language.toLowerCase() === 'sql';
       
-      console.log('?? Validating capsule:', capsuleData.title, '| Type:', isSQL ? 'SQL' : 'CODE');
+      console.log('?? Validating capsule:', capsuleData.title, '| Type:', isSQL ? 'DATABASE' : 'CODE');
       
       // Transform capsule data to API format
       const capsuleForValidation = {
@@ -1278,7 +1293,7 @@ export default function CapsuleEditor() {
         task: (capsuleData as any).task || '',
         insight: (capsuleData as any).insight || '',
         realWorldUsage: (capsuleData as any).realWorldUsage || '',
-        type: isSQL ? 'SQL' : 'CODE',
+        type: isSQL ? 'DATABASE' : 'CODE',
         language: language,
         difficulty: (capsuleData as any).difficulty || 'medium',
         tags: ((capsuleData as any).concepts?.length ? (capsuleData as any).concepts : ['generated']),
@@ -1372,7 +1387,7 @@ export default function CapsuleEditor() {
         task: (capsuleData as any).task || '',
         insight: (capsuleData as any).insight || '',
         realWorldUsage: (capsuleData as any).realWorldUsage || '',
-        type: isSQL ? 'SQL' : 'CODE',
+        type: isSQL ? 'DATABASE' : 'CODE',
         language: language,
         difficulty: (capsuleData as any).difficulty || 'medium',
         tags: ((capsuleData as any).concepts?.length ? (capsuleData as any).concepts : ['generated']),
@@ -1417,7 +1432,7 @@ export default function CapsuleEditor() {
         }
       };
       
-      console.log('?? Validating and publishing capsule:', capsuleData.title, '| Type:', isSQL ? 'SQL' : 'CODE');
+      console.log('?? Validating and publishing capsule:', capsuleData.title, '| Type:', isSQL ? 'DATABASE' : 'CODE');
       
       console.log('?? Passing test cases to validation:', validationTestCases.length, 'test cases');
       
@@ -1451,27 +1466,27 @@ export default function CapsuleEditor() {
   return (
     <div className="min-h-screen" style={{ background: '#04040a' }}>
       {/* Header Bar */}
-      <div className="px-4 lg:px-6 py-3" style={{ background: '#08080f', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+      <div className="px-3 sm:px-4 lg:px-6 py-3" style={{ background: '#08080f', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
             <button 
               onClick={() => router.push('/dashboard')}
-              className="text-slate-400 hover:text-white p-1 rounded transition-colors"
+              className="text-slate-400 hover:text-white p-1 rounded transition-colors flex-shrink-0"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <div>
-              <h1 className="text-lg lg:text-xl font-semibold text-white">{capsuleData.title}</h1>
-              <div className="text-xs text-slate-400">Devcapsules</div>
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg lg:text-xl font-semibold text-white truncate">{capsuleData.title}</h1>
+              <div className="text-xs text-slate-400 hidden sm:block">Devcapsules</div>
             </div>
           </div>
           
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
             <button 
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="bg-slate-600 hover:bg-slate-700 text-white p-2 rounded-lg transition-colors"
+              className="bg-slate-600 hover:bg-slate-700 text-white p-2 rounded-lg transition-colors hidden md:block"
               title={sidebarCollapsed ? "Show Setup Panel" : "Hide Setup Panel"}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1484,7 +1499,7 @@ export default function CapsuleEditor() {
             </button>
             <button 
               onClick={publishAndEmbed}
-              className="text-[#04040a] px-4 py-2 rounded-lg text-sm font-bold transition-all"
+              className="text-[#04040a] px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all whitespace-nowrap"
               style={{ background: '#00ff87' }}
               onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='#00e87a'}
               onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background='#00ff87'}
@@ -1495,11 +1510,11 @@ export default function CapsuleEditor() {
         </div>
       </div>
 
-      {/* Two Panel Layout - 50:50 Split */}
-      <div className="flex h-[calc(100vh-80px)]">
-        {/* Left Panel: Complete Setup & Configuration - Scrollable */}
-        <div className={`${sidebarCollapsed ? 'hidden' : 'block'} w-1/2 overflow-y-auto`} style={{ borderRight: '1px solid rgba(255,255,255,0.07)' }}>
-          <div className="p-6 space-y-4 pb-28">
+      {/* Two Panel Layout - Full width on mobile, 50:50 on desktop */}
+      <div className="flex h-[calc(100vh-64px)] sm:h-[calc(100vh-80px)]">
+        {/* Left Panel: Complete Setup & Configuration - Full width on mobile */}
+        <div className={`${sidebarCollapsed ? 'hidden' : 'block'} w-full md:w-1/2 overflow-y-auto`} style={{ borderRight: '1px solid rgba(255,255,255,0.07)' }}>
+          <div className="p-4 sm:p-6 space-y-4 pb-28">
             {/* -- Title (editable inline) -- */}
             <div className="pb-2">
               {editingTitle ? (
@@ -1947,18 +1962,18 @@ export default function CapsuleEditor() {
               </div>
             )}
             
-            {/* Four Buttons in Single Row */}
-            <div className="flex space-x-2">
+            {/* Four Buttons in Single Row (2x2 on mobile) */}
+            <div className="grid grid-cols-2 sm:flex sm:space-x-2 gap-2 sm:gap-0">
               <button 
                 onClick={runTests}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
+                className="sm:flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
               >
                 Run Tests
               </button>
               <button 
                 onClick={handleValidateCapsule}
                 disabled={isValidating}
-                className="flex-1 disabled:opacity-50 disabled:cursor-not-allowed py-2 px-3 rounded-lg text-sm font-medium transition-colors"
+                className="sm:flex-1 disabled:opacity-50 disabled:cursor-not-allowed py-2 px-3 rounded-lg text-sm font-medium transition-colors"
                 style={{ background: 'rgba(0,255,135,0.08)', border: '1px solid rgba(0,255,135,0.2)', color: '#00ff87' }}
               >
                 {isValidating ? 'Validating...' : 'Validate'}
@@ -1966,14 +1981,14 @@ export default function CapsuleEditor() {
               <button 
                 onClick={handleValidateAndPublish}
                 disabled={isValidating || isPublishing}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
+                className="sm:flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
               >
                 {(isValidating || isPublishing) ? 'Saving...' : 'Save'}
               </button>
               <button 
                 onClick={regenerate}
                 disabled={isRegenerating || isCombinedProcessing}
-                className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
+                className="sm:flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
               >
                 {isRegenerating ? `Regenerating${regenProgress > 0 ? ` (${regenProgress}%)` : '...'}` : 'Regenerate'}
               </button>
@@ -1981,8 +1996,8 @@ export default function CapsuleEditor() {
           </div>
         </div>
 
-        {/* Right Panel: Student Live Preview */}
-        <div className="flex-1 p-6 overflow-y-auto">
+        {/* Right Panel: Student Live Preview — hidden on mobile */}
+        <div className="hidden md:block flex-1 p-6 overflow-y-auto">
           <div>
             <LivePreview capsuleData={capsuleData} />
           </div>

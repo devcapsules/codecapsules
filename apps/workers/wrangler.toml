@@ -59,12 +59,17 @@ database_id = "4d303cb4-9dee-41ec-b0e0-228691ecd151"
 
 [durable_objects]
 bindings = [
-  { name = "CONCURRENCY_CONTROLLER", class_name = "ConcurrencyController" }
+  { name = "CONCURRENCY_CONTROLLER", class_name = "ConcurrencyController" },
+  { name = "SQL_SANDBOX", class_name = "SQLSandbox" }
 ]
 
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["ConcurrencyController"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["SQLSandbox"]
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Queues — Async Jobs
