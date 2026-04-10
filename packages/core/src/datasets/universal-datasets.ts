@@ -9,11 +9,11 @@
  * WHY:
  * - Token-efficient: ~50 tokens per dataset vs. millions for the full CSV
  * - AI can write accurate test cases because it knows exact column names & types
- * - Students run real 10K-row datasets in Piston → authentic data-science feel
+ * - Students run real curated datasets in Piston → authentic data-science feel
  *
  * DATASETS:
- * 1. apple_global_sales_dataset.csv  — Corporate tech sales (10K rows)
- * 2. spotify-tracks-dataset.csv      — Music audio features (114K rows)
+ * 1. apple_global_sales_dataset.csv  — Corporate tech sales (497 rows, curated)
+ * 2. spotify-tracks-dataset.csv      — Music audio features (300 rows, curated)
  *
  * USAGE:
  * - Injected into Pedagogist & Coder agent prompts when language is "python" or "sql"

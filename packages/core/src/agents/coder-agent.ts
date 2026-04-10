@@ -176,7 +176,7 @@ CRITICAL — TEST CASES FOR DATA ANALYSIS CAPSULES:
     • ["apple_global_sales_dataset.csv"]
     • ["spotify-tracks-dataset.csv"]
 - Test expected_output values must be based on REAL properties of these datasets
-  (e.g., the Apple dataset has 11500 rows, the Spotify dataset has 114000 rows)
+  (e.g., the Apple dataset has 497 rows, the Spotify dataset has 300 rows)
 - Vary test cases by testing DIFFERENT ASPECTS of the same real dataset, NOT different files
   Example: Test 1 checks row count, Test 2 checks column names, Test 3 checks a filtered result
 ` : ''}=== END MANDATORY STRUCTURE ===

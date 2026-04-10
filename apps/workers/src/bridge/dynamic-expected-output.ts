@@ -3,7 +3,7 @@
  *
  * Problem:
  *   AI agents generate test cases with invented expected_output values because
- *   they never see the real CSV data (Apple 11.5K rows, Spotify 114K rows).
+ *   they never see the real CSV data (Apple 497 rows, Spotify 300 rows).
  *   This causes every data-analysis capsule's tests to fail at publish time.
  *
  * Solution:
