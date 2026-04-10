@@ -915,13 +915,30 @@ async function callPiston(
   const runtime = LANG_MAP[language.toLowerCase()] || language;
   const ext = EXT_MAP[language.toLowerCase()] || 'txt';
 
+  // Inject dataset symlink preamble for Python code that references .csv files
+  let finalCode = code;
+  if ((language.toLowerCase() === 'python' || language.toLowerCase() === 'python3') && code.includes('.csv')) {
+    const preamble = [
+      '# === Dataset injection preamble (auto-injected) ===',
+      'import os as _os',
+      '_DATASET_DIR = "/piston/packages/python/3.10.0/datasets"',
+      'if _os.path.isdir(_DATASET_DIR):',
+      '    for _f in _os.listdir(_DATASET_DIR):',
+      '        if _f.endswith(".csv") and not _os.path.exists(_f):',
+      '            _os.symlink(_os.path.join(_DATASET_DIR, _f), _f)',
+      '# === End preamble ===',
+      '',
+    ].join('\n');
+    finalCode = preamble + code;
+  }
+
   const response = await fetch(`${pistonUrl}/api/v2/execute`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       language: runtime,
       version: '*',
-      files: [{ name: `main.${ext}`, content: code }],
+      files: [{ name: `main.${ext}`, content: finalCode }],
       stdin,
       compile_timeout: 3_000,
       run_timeout: 3_000,
