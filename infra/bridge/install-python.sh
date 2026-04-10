@@ -1,32 +1,25 @@
 #!/bin/bash
-# Install Python 3.10.0 on Piston via its API, then verify
-docker exec devcapsules_bridge node -e '
-fetch("http://piston:2000/api/v2/packages", {
-  method: "POST",
-  headers: {"Content-Type": "application/json"},
-  body: JSON.stringify({language: "python", version: "3.10.0"})
-})
-.then(r => r.text())
-.then(t => console.log("INSTALL:", t))
-.catch(e => console.error("INSTALL_ERROR:", e))
-'
-
-echo "--- Checking runtimes ---"
-docker exec devcapsules_bridge node -e '
-fetch("http://piston:2000/api/v2/runtimes")
-.then(r => r.json())
-.then(d => console.log("RUNTIMES:", JSON.stringify(d)))
-.catch(e => console.error("CHECK_ERROR:", e))
-'
-
-echo "--- Testing Python execution ---"
+# Verify datasets and install pip packages for Piston Python runtime
+echo "--- Checking datasets in sandbox ---"
 docker exec devcapsules_bridge node -e '
 fetch("http://piston:2000/api/v2/execute", {
   method: "POST",
   headers: {"Content-Type": "application/json"},
-  body: JSON.stringify({language: "python", version: "3.10.0", files: [{content: "print(42)"}]})
+  body: JSON.stringify({language: "python", version: "3.10.0", files: [{content: "import os\nfor f in os.listdir(\"/piston/packages/python/3.10.0/datasets/\"): print(f)"}]})
 })
 .then(r => r.json())
-.then(d => console.log("EXEC:", JSON.stringify(d)))
-.catch(e => console.error("EXEC_ERROR:", e))
+.then(d => console.log("DATASETS:", d.run.stdout))
+.catch(e => console.error("ERROR:", e))
+'
+
+echo "--- Checking pandas ---"
+docker exec devcapsules_bridge node -e '
+fetch("http://piston:2000/api/v2/execute", {
+  method: "POST",
+  headers: {"Content-Type": "application/json"},
+  body: JSON.stringify({language: "python", version: "3.10.0", files: [{content: "import pandas; print(pandas.__version__)"}]})
+})
+.then(r => r.json())
+.then(d => console.log("PANDAS:", d.run.stdout || d.run.stderr))
+.catch(e => console.error("ERROR:", e))
 '
