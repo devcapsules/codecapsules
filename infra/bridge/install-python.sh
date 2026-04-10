@@ -1,19 +1,15 @@
 #!/bin/bash
 # Install ALL required Piston runtimes and restore datasets
 
-echo "=== Checking available packages ==="
+echo "=== Checking available versions ==="
 
-# First list what's available for the missing languages
 docker exec devcapsules_bridge node -e '
 fetch("http://piston:2000/api/v2/packages")
 .then(r => r.json())
 .then(pkgs => {
-  const wanted = ["javascript","typescript","c++","c","csharp","dotnet"];
-  pkgs.filter(p => wanted.some(w => p.language.includes(w) || p.language === "gcc" || p.language === "g++" || p.language === "node" || p.language === "mono"))
+  const wanted = ["node","gcc","mono","java","go","typescript","python"];
+  pkgs.filter(p => wanted.includes(p.language))
     .forEach(p => console.log(p.language, p.version, p.installed ? "INSTALLED" : ""));
-  console.log("---ALL---");
-  const seen = new Set();
-  pkgs.forEach(p => { if (!seen.has(p.language)) { seen.add(p.language); console.log(p.language, p.version); }});
 })
 .catch(e => console.error(e))
 '
@@ -22,12 +18,12 @@ fetch("http://piston:2000/api/v2/packages")
 docker exec devcapsules_bridge node -e '
 const langs = [
   {language: "python", version: "3.10.0"},
-  {language: "javascript", version: "18.15.0"},
+  {language: "node", version: "18.15.0"},
   {language: "java", version: "15.0.2"},
-  {language: "c++", version: "10.2.0"},
-  {language: "c", version: "10.2.0"},
-  {language: "csharp", version: "6.12.0"},
+  {language: "gcc", version: "10.2.0"},
+  {language: "mono", version: "6.12.0"},
   {language: "go", version: "1.16.2"},
+  {language: "typescript", version: "5.0.3"},
 ];
 (async () => {
   for (const pkg of langs) {
