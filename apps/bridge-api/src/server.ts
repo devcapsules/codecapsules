@@ -174,8 +174,17 @@ app.post('/internal/generate', async (req, res) => {
     let validationPassed = false;
     let healAttempts = 0;
 
-    // Only validate CODE capsules (not SQL — SQL validation is different)
-    if (capsuleType === 'CODE') {
+    // Skip validation for data-analysis capsules — AI-generated expected values
+    // are wrong because agents never see real CSV data. DEO (Dynamic Expected Output)
+    // on the workers side will run the solution against real data, capture actual outputs,
+    // and patch expected_output before storage. Validating here would cause the
+    // DebuggerAgent to "heal" correct code to match wrong expected values.
+    const isDataAnalysis = capsuleMode === 'data-analysis'
+      || (capsule.solution || '').includes('.csv')
+      || (capsule.content?.primary?.code?.wasmVersion?.solution || '').includes('.csv');
+
+    // Only validate CODE capsules (not SQL, not data-analysis — handled by DEO)
+    if (capsuleType === 'CODE' && !isDataAnalysis) {
       const solutionCode =
         capsule.content?.primary?.code?.wasmVersion?.solution ||
         capsule.solution || '';
