@@ -1,7 +1,22 @@
 #!/bin/bash
 # Install ALL required Piston runtimes and restore datasets
 
-echo "=== Installing runtimes ==="
+echo "=== Checking available packages ==="
+
+# First list what's available for the missing languages
+docker exec devcapsules_bridge node -e '
+fetch("http://piston:2000/api/v2/packages")
+.then(r => r.json())
+.then(pkgs => {
+  const wanted = ["javascript","typescript","c++","c","csharp","dotnet"];
+  pkgs.filter(p => wanted.some(w => p.language.includes(w) || p.language === "gcc" || p.language === "g++" || p.language === "node" || p.language === "mono"))
+    .forEach(p => console.log(p.language, p.version, p.installed ? "INSTALLED" : ""));
+  console.log("---ALL---");
+  const seen = new Set();
+  pkgs.forEach(p => { if (!seen.has(p.language)) { seen.add(p.language); console.log(p.language, p.version); }});
+})
+.catch(e => console.error(e))
+'
 
 # Python 3.10.0 (already installed, will say "Already installed")
 docker exec devcapsules_bridge node -e '
