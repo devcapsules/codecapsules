@@ -158,11 +158,17 @@ import pandas as pd
 def solution(filepath='apple_global_sales_dataset.csv'):
     df = pd.read_csv(filepath)
     # All logic here — use real column names from the dataset catalog above
-    return result
+    return result   # MUST be a plain Python type (int, float, str, list, dict) — NEVER a DataFrame or Series
 
 - The function MUST accept the CSV filepath as a parameter (default to the dataset filename)
-- The function MUST return a deterministic result (DataFrame, Series, scalar, dict, or list)
+- The function MUST return a PLAIN PYTHON TYPE: int, float, str, list, dict, or bool
+  NEVER return a raw pandas DataFrame or Series — always convert:
+    • Count/sum/mean → return int or float (use .item() if needed)
+    • Row data → return df.values.tolist() or df.to_dict('records')
+    • Column names → return df.columns.tolist()
+    • Single value → return scalar directly
 - Do NOT hardcode row indices — use filtering/aggregation logic
+- The expected_output in test cases must match the EXACT return type of the solution
 
 CRITICAL — TEST CASES FOR DATA ANALYSIS CAPSULES:
 - ONLY the following real CSV files exist in the execution environment:
