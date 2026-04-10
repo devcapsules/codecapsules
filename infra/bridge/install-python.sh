@@ -21,3 +21,14 @@ fetch("http://piston:2000/api/v2/execute", {
 .then(d => console.log(d.run.stdout || d.run.stderr))
 .catch(e => console.error("ERROR:", e))
 '
+
+echo "=== ALL INSTALLED RUNTIMES ==="
+docker exec devcapsules_bridge node -e '
+fetch("http://piston:2000/api/v2/runtimes")
+.then(r => r.json())
+.then(d => {
+  d.forEach(r => console.log(r.language, r.version, "aliases:", r.aliases.join(",")));
+  console.log("Total runtimes:", d.length);
+})
+.catch(e => console.error("ERROR:", e))
+'
