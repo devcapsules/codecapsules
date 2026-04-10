@@ -316,6 +316,9 @@ app.post('/internal/generate', async (req, res) => {
         console.log(`⚠️ [${jobId}] Skipping validation: no solution or test cases`);
         validationPassed = true; // Can't validate, pass through
       }
+    } else if (isDataAnalysis) {
+      console.log(`ℹ️ [${jobId}] Data-analysis capsule — skipping Piston validation (DEO will calibrate on workers)`);
+      validationPassed = true;
     } else {
       console.log(`ℹ️ [${jobId}] SQL capsule — skipping Piston validation`);
       validationPassed = true;
