@@ -160,6 +160,11 @@ app.post('/internal/generate', async (req, res) => {
       `✅ [${jobId}] Pipeline done ${pipelineElapsed}ms | quality=${(result.overall_quality * 100).toFixed(1)}%`
     );
 
+    // Diagnostic: log pedagogical_idea fields
+    const idea = result.pedagogical_idea;
+    console.log(`📋 [${jobId}] pedagogical_idea keys: ${idea ? Object.keys(idea).join(', ') : 'NULL'}`);
+    console.log(`📋 [${jobId}] idea.context=${idea?.context ? 'YES' : 'MISSING'} idea.task=${idea?.task ? 'YES' : 'MISSING'} idea.insight=${idea?.insight ? 'YES' : 'MISSING'} idea.key_concepts=${idea?.key_concepts?.length ?? 'MISSING'}`);
+
     // Convert BaseCapsule → Universal format (dashboard expects this shape)
     let capsule = convertBaseCapsuleToUniversalFormat(result.capsule, context.difficulty, result.pedagogical_idea);
 
