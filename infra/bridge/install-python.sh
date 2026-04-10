@@ -1,26 +1,45 @@
 #!/bin/bash
-# Copy datasets into Piston's Python runtime directory
-echo "--- Copying CSVs into Piston ---"
+# Install ALL required Piston runtimes and restore datasets
+
+echo "=== Installing runtimes ==="
+
+# Python 3.10.0 (already installed, will say "Already installed")
+docker exec devcapsules_bridge node -e '
+const langs = [
+  {language: "python", version: "3.10.0"},
+  {language: "javascript", version: "18.15.0"},
+  {language: "java", version: "15.0.2"},
+  {language: "c++", version: "10.2.0"},
+  {language: "c", version: "10.2.0"},
+  {language: "csharp", version: "6.12.0"},
+  {language: "go", version: "1.16.2"},
+];
+(async () => {
+  for (const pkg of langs) {
+    try {
+      const r = await fetch("http://piston:2000/api/v2/packages", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(pkg)
+      });
+      const t = await r.text();
+      console.log(pkg.language, pkg.version, "=>", t);
+    } catch(e) {
+      console.error(pkg.language, "FAILED:", e.message);
+    }
+  }
+})();
+'
+
+echo "=== Copying CSVs into Piston ==="
 docker exec devcapsules_piston mkdir -p /piston/packages/python/3.10.0/datasets
 docker cp /opt/devcapsules-repo/apps/dashboard/public/apple_global_sales_dataset.csv devcapsules_piston:/piston/packages/python/3.10.0/datasets/
 docker cp /opt/devcapsules-repo/apps/dashboard/public/spotify-tracks-dataset.csv devcapsules_piston:/piston/packages/python/3.10.0/datasets/
-docker exec devcapsules_piston chmod -R 444 /piston/packages/python/3.10.0/datasets/*
+docker exec devcapsules_piston chmod 444 /piston/packages/python/3.10.0/datasets/*.csv 2>/dev/null
 docker exec devcapsules_piston chmod 555 /piston/packages/python/3.10.0/datasets
 
-echo "--- Verify from container ---"
+echo "=== Verify datasets ==="
 docker exec devcapsules_piston ls -la /piston/packages/python/3.10.0/datasets/
-
-echo "--- Verify from sandbox ---"
-docker exec devcapsules_bridge node -e '
-fetch("http://piston:2000/api/v2/execute", {
-  method: "POST",
-  headers: {"Content-Type": "application/json"},
-  body: JSON.stringify({language: "python", version: "3.10.0", files: [{content: "import os, pandas as pd\nfiles=os.listdir(\"/piston/packages/python/3.10.0/datasets/\")\nprint(\"Files:\", files)\ndf=pd.read_csv(\"/piston/packages/python/3.10.0/datasets/apple_global_sales_dataset.csv\")\nprint(\"Apple rows:\", len(df))\ndf2=pd.read_csv(\"/piston/packages/python/3.10.0/datasets/spotify-tracks-dataset.csv\")\nprint(\"Spotify rows:\", len(df2))"}]})
-})
-.then(r => r.json())
-.then(d => console.log(d.run.stdout || d.run.stderr))
-.catch(e => console.error("ERROR:", e))
-'
 
 echo "=== ALL INSTALLED RUNTIMES ==="
 docker exec devcapsules_bridge node -e '
