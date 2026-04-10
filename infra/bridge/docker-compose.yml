@@ -28,6 +28,13 @@ services:
     expose:
       - "2000"
     privileged: true
+    environment:
+      # Raise Piston server-side limits to prevent signal 6 (SIGABRT) for
+      # pandas/numpy workloads that need more than the 256MB default.
+      - PISTON_RUN_MEMORY_LIMIT=-1
+      - PISTON_COMPILE_MEMORY_LIMIT=-1
+      - PISTON_OUTPUT_MAX_SIZE=1048576
+      - PISTON_MAX_PROCESS_COUNT=128
     tmpfs:
       - /piston/jobs:exec,size=256M    # Ephemeral execution scratch
     volumes:

@@ -469,5 +469,22 @@ async function processTestJob(
     totalTime,
   }));
 
+  // Diagnostic: log first failed test case details for debugging
+  if (passedCount < cappedCases.length) {
+    const firstFail = results.find(r => !r.passed);
+    if (firstFail) {
+      console.log(JSON.stringify({
+        type: 'debug',
+        action: 'execution_queue.first_failure',
+        jobId: job.jobId,
+        testCase: firstFail.testCase,
+        actual: typeof firstFail.output === 'string' ? firstFail.output.substring(0, 300) : JSON.stringify(firstFail.output)?.substring(0, 300),
+        expected: typeof firstFail.expected === 'string' ? firstFail.expected.substring(0, 300) : JSON.stringify(firstFail.expected)?.substring(0, 300),
+        error: firstFail.error?.substring(0, 300),
+        stderr: pistonResult.stderr?.substring(0, 300),
+      }));
+    }
+  }
+
   return completed;
 }

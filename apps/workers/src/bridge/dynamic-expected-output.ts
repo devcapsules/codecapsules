@@ -192,8 +192,8 @@ export async function calibrateExpectedOutputs(
       'python',
       harnessCode,
       '',  // no stdin
-      3,   // 3 second timeout (Piston cap)
-      256, // 256MB memory
+      3,   // 3 second timeout (Piston server max)
+      256, // 256MB memory (server-side -1 overrides to unlimited)
     );
 
     // 6. Parse the results

@@ -603,8 +603,8 @@ export async function executeOnPiston(
       files: [{ name: mapping.fileName, content: code }],
       stdin: input,
       args: [] as string[],
-      compile_timeout: Math.min(timeLimit, 3) * 1000, // Piston max: 3s
-      run_timeout: Math.min(timeLimit, 3) * 1000,     // Piston max: 3s
+      compile_timeout: Math.min(timeLimit, 3) * 1000, // Piston server max: 3s
+      run_timeout: Math.min(timeLimit, 3) * 1000,     // Piston server max: 3s
       compile_memory_limit: -1,                     // Unlimited — prevents signal 6
       run_memory_limit: -1,                          // Unlimited — prevents signal 6
     });
