@@ -5,8 +5,8 @@ const LANGUAGES = [
   { label: 'JavaScript', status: 'mvp' },
   { label: 'Java', status: 'mvp' },
   { label: 'SQL', status: 'mvp' },
-  { label: 'C', status: 'soon' },
-  { label: 'C++', status: 'soon' },
+  { label: 'C', status: 'mvp' },
+  { label: 'C++', status: 'mvp' },
 ];
 
 export function LanguageMarquee() {

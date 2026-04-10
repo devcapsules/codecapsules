@@ -36,6 +36,8 @@ interface Widget {
   createdAt: string
   /** Creator's plan — used for watermark gating */
   creatorPlan: string
+  /** Capsule mode — controls test execution strategy */
+  capsuleMode?: string
 }
 
 interface TestCase {
@@ -242,6 +244,7 @@ function mapCapsuleToWidget(capsule: any): Widget {
     isPublished: capsule.isPublished || false,
     createdAt: capsule.createdAt || new Date().toISOString(),
     creatorPlan: capsule.creator_plan || 'free',
+    capsuleMode: capsule.capsuleMode || capsule.capsule_mode || capsule.config_data?.capsuleMode || undefined,
   }
 }
 
@@ -433,6 +436,7 @@ function DevcapsulesEmbedInner({ widgetId, capsuleData, courseId }: CapsuleEmbed
           testCases: widget.testCases || [],
           language: widget.language,
           functionName: extractFunctionName(userCode, widget.language),
+          capsuleMode: widget.capsuleMode,
         }),
       })
 

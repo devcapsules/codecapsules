@@ -18,6 +18,8 @@ const LANGUAGES = [
   { id: 'python', name: 'Python', icon: 'PY', color: 'bg-blue-500/10 text-blue-400 border-blue-500/50' },
   { id: 'javascript', name: 'JavaScript', icon: 'JS', color: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/50' },
   { id: 'java', name: 'Java', icon: 'JV', color: 'bg-orange-500/10 text-orange-400 border-orange-500/50' },
+  { id: 'cpp', name: 'C++', icon: 'C+', color: 'bg-pink-500/10 text-pink-400 border-pink-500/50' },
+  { id: 'c', name: 'C', icon: 'C', color: 'bg-slate-500/10 text-slate-300 border-slate-500/50' },
   { id: 'csharp', name: 'C#', icon: 'C#', color: 'bg-purple-500/10 text-purple-400 border-purple-500/50' },
   { id: 'go', name: 'Go', icon: 'GO', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/50' },
   { id: 'sql', name: 'SQL', icon: 'DB', color: 'bg-green-500/10 text-green-400 border-green-500/50' },
@@ -47,7 +49,7 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
   const [prompt, setPrompt] = useState('');
   const [selectedLang, setSelectedLang] = useState('python');
   const [difficulty, setDifficulty] = useState('Medium');
-  const [capsuleMode, setCapsuleMode] = useState<'standard' | 'supervision' | 'debug' | 'security' | 'data-analysis'>('standard');
+  const [capsuleMode, setCapsuleMode] = useState<'standard' | 'supervision' | 'debug' | 'security' | 'data-analysis' | 'testing'>('standard');
   const [mode, setMode] = useState<'prompt' | 'template'>('prompt');
   const [localError, setLocalError] = useState<string>('');
   const [quotaExceeded, setQuotaExceeded] = useState(false);
@@ -462,6 +464,7 @@ export default function CreateCapsuleModal({ isOpen, onClose }: CreateCapsuleMod
                           <option value="supervision" style={{ background: '#0a0a14', color: '#e2e8f0' }}>Supervision</option>
                           <option value="debug" style={{ background: '#0a0a14', color: '#e2e8f0' }}>Debug</option>
                           <option value="security" style={{ background: '#0a0a14', color: '#e2e8f0' }}>Security</option>
+                          <option value="testing" style={{ background: '#0a0a14', color: '#e2e8f0' }}>Testing</option>
                         </select>
                       </div>
                     </div>

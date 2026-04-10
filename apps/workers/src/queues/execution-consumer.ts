@@ -405,7 +405,8 @@ async function processTestJob(
     job.language,
     job.userCode,
     job.functionName,
-    normalizedCases
+    normalizedCases,
+    job.capsuleMode
   );
 
   console.log(JSON.stringify({

@@ -35,7 +35,7 @@ interface GenerationJob {
   language: string;
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
   type?: string;
-  capsuleMode?: 'standard' | 'supervision' | 'debug' | 'security' | 'data-analysis';
+  capsuleMode?: 'standard' | 'supervision' | 'debug' | 'security' | 'data-analysis' | 'testing';
   timestamp: number;
 }
 

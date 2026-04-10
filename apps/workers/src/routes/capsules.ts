@@ -558,6 +558,7 @@ capsuleRoutes.post('/', async (c) => {
 
   const body = await c.req.json();
   let { title, description, type, difficulty, language, content, tags } = body;
+  const capsuleMode = body.capsuleMode || content?.capsuleMode || undefined;
 
   // Normalize type to match D1 CHECK constraint
   const VALID_TYPES = ['CODE', 'DATABASE', 'TERMINAL'];
@@ -644,6 +645,7 @@ capsuleRoutes.post('/', async (c) => {
     task: capsuleTask,
     insight: capsuleInsight,
     realWorldUsage: capsuleRealWorldUsage,
+    capsuleMode,
   };
   if (storageContent.primary) {
     storageContent.primary.context = capsuleContext;
@@ -692,6 +694,7 @@ capsuleRoutes.post('/', async (c) => {
       language,
       content: storageContent,
       pedagogy,
+      capsuleMode,
       created_at: new Date().toISOString(),
     };
     await c.env.CDN.put(
@@ -804,6 +807,7 @@ capsuleRoutes.put('/:id', async (c) => {
           language: updated.language,
           content: parsedContent,
           pedagogy: parsedContent?.pedagogy || {},
+          capsuleMode: parsedContent?.capsuleMode || undefined,
           updated_at: new Date().toISOString(),
         };
         await c.env.CDN.put(

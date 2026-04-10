@@ -279,7 +279,7 @@ export function useQuickCodeGen() {
   
   const quickGenerate = useCallback(async (
     prompt: string, 
-    language: 'python' | 'javascript' | 'java' | 'csharp' | 'go' | 'sql' = 'python',
+    language: 'python' | 'javascript' | 'java' | 'cpp' | 'c' | 'csharp' | 'go' | 'sql' = 'python',
     input = ''
   ) => {
     return generateAndExecute({

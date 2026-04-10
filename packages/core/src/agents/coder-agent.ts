@@ -121,8 +121,8 @@ ${testSpec}
 
 Generate the complete BaseCapsule JSON for it. Include:
 - problem_statement (markdown format)
-- boilerplate_code (${(context.capsuleMode || 'standard') === 'standard' ? 'starter code for students — follow boilerplate depth above' : 'the FULL flawed/buggy/vulnerable code the learner must fix'})
-- reference_solution (${(context.capsuleMode || 'standard') === 'standard' ? 'complete working solution' : 'the CORRECTLY FIXED version of the boilerplate code'})
+- boilerplate_code (${(context.capsuleMode || 'standard') === 'standard' ? 'starter code for students — follow boilerplate depth above' : context.capsuleMode === 'testing' ? 'COMPLETE working function + empty test function skeleton' : 'the FULL flawed/buggy/vulnerable code the learner must fix'})
+- reference_solution (${(context.capsuleMode || 'standard') === 'standard' ? 'complete working solution' : context.capsuleMode === 'testing' ? 'same working function + comprehensive test assertions' : 'the CORRECTLY FIXED version of the boilerplate code'})
 - test_cases (follow the EXACT test distribution above — count and visibility MUST match)
 - hints (2 helpful hints)
 
@@ -1077,6 +1077,47 @@ TEST CASES:
 
 HINTS should describe the vulnerability category (e.g., "Check how user input is used in queries"),
 not reveal the exact fix.`
+
+      case 'testing':
+        return `This is a TESTING capsule. The learner writes test assertions for a pre-built function.
+
+BOILERPLATE_CODE MUST BE:
+- Contains a COMPLETE, FULLY WORKING function implementation at the top (NOT a stub, NOT "pass")
+- Below it, an EMPTY test function with a descriptive name like test_<function_name>()
+- The test function body should contain only a "pass" statement and TODO comments listing what to test
+- Example structure:
+  def calculate_cart_total(items):
+      return sum(item['price'] * item['quantity'] for item in items)
+  
+  def test_cart_total():
+      # TODO: Write at least 5 assert statements
+      # Test: empty cart, single item, multiple items, zero price, decimal prices
+      pass
+
+REFERENCE_SOLUTION MUST BE:
+- The SAME working function implementation at the top (identical to boilerplate)
+- The test function with COMPREHENSIVE assert statements covering all specified edge cases
+- Each assert should test a different scenario with a comment explaining what it tests
+
+TEST CASES (MUTATION FORMAT):
+- Each test case represents a BROKEN VERSION of the function that the student's assertions should catch
+- input_args[0] is a STRING containing a mutated (broken) version of the function body
+- input_args[1] is a STRING containing the test function name (e.g., "test_cart_total")
+- expected_output is true (the student's test should catch this mutation — i.e., at least one assert should fail)
+- description explains what mutation was introduced (e.g., "Returns 0 for all inputs instead of calculating total")
+- Example test cases for a cart total function:
+  Test 1: Mutation "return 0" — always returns zero (catches empty cart test)
+  Test 2: Mutation "return items[0]['price']" — only uses first item (catches multi-item test)
+  Test 3: Mutation "return sum(item['price'] for item in items)" — ignores quantity
+  Test 4: Mutation "return int(sum(...))" — truncates decimals (catches float precision test)
+
+HINTS must be MUTATION-AWARE and SPECIFIC:
+- Each hint should reference a concrete mutation the learner's assertions need to catch.
+- Good hint: "Test the exact boundary — if the minimum length is 6, write one assert for a 5-character input (should fail) and one for a 6-character input (should pass). This catches mutations that change the threshold."
+- Good hint: "Test each validation rule independently with a separate assert. If one assert covers two rules, a mutation that removes either rule might not break your test."
+- Bad hint (too vague): "Think about what happens with an empty list"
+- Bad hint (too vague): "Consider edge cases like special characters"
+Hints should NOT reveal the implementation or tell the learner how to fix anything — only WHAT to test and WHY precision matters.`
 
       case 'standard':
       default:

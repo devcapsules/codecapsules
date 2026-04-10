@@ -260,7 +260,8 @@ function LivePreview({ capsuleData }: { capsuleData: any }) {
           userCode: userCode,
           testCases: capsuleData.testCases || [],
           language: detectedLanguage,
-          functionName: extractFunctionName(userCode)
+          functionName: extractFunctionName(userCode),
+          capsuleMode: (capsuleData as any).capsuleMode,
         })
       });
 
@@ -1031,6 +1032,7 @@ export default function CapsuleEditor() {
         language: detectedLanguage,
         functionName: isSQL ? undefined : extractFunctionName(capsuleData.referenceSolution),
         referenceSolution: capsuleData.referenceSolution,
+        capsuleMode: (capsuleData as any).capsuleMode,
       };
 
       if (isSQL) {
@@ -1296,6 +1298,7 @@ export default function CapsuleEditor() {
         type: isSQL ? 'DATABASE' : 'CODE',
         language: language,
         difficulty: (capsuleData as any).difficulty || 'medium',
+        capsuleMode: (capsuleData as any).capsuleMode || undefined,
         tags: ((capsuleData as any).concepts?.length ? (capsuleData as any).concepts : ['generated']),
         content: {
           primary: isSQL ? {

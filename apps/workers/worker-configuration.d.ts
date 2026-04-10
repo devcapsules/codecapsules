@@ -82,6 +82,7 @@ interface ExecutionJob {
   userCode?: string;
   functionName?: string;
   testCases?: Array<{ input_args: unknown[]; expected_output: unknown; description?: string; type?: string }>;
+  capsuleMode?: string;
   // Metadata
   userId?: string;
   orgId?: string;   // Per-org DO sharding key (B2B org or userId fallback)

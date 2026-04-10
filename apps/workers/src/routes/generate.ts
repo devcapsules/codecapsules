@@ -46,7 +46,7 @@ generateRoutes.post('/', async (c) => {
   const { prompt, language, difficulty = 'MEDIUM', capsuleMode = 'standard', skipCache = false } = body;
 
   // Validate capsuleMode
-  const validModes = ['standard', 'supervision', 'debug', 'security', 'data-analysis'];
+  const validModes = ['standard', 'supervision', 'debug', 'security', 'data-analysis', 'testing'];
   const normalizedMode = validModes.includes(capsuleMode) ? capsuleMode : 'standard';
 
   // Validate inputs

@@ -225,6 +225,25 @@ The learner does NOT write code from scratch. Instead:
 6. Frame it as: "The AI-generated code has a security vulnerability. Find it and harden the code."
 CRITICAL: The starter code must be a FULL implementation with a real vulnerability — NOT an empty function stub.`
 
+      case 'testing':
+        return `MODE: TESTING — Write Test Assertions (Mutation-Based)
+The learner does NOT implement the function. Instead:
+1. You generate a COMPLETE, WORKING function implementation as part of the STARTER CODE.
+2. Below the working function, provide an EMPTY test function (e.g., test_cart_total()) with a TODO comment.
+3. The learner's job is to write ASSERT STATEMENTS inside the test function that are PRECISE ENOUGH to catch subtle bugs.
+4. The "task" MUST frame this as mutation testing — tell the learner their assertions will be tested against modified versions of the function. Example: "Write at least 5 assert statements precise enough to catch single-line mutations. If someone changes < 6 to < 5, or removes a condition, or changes a return value, at least one of your assertions should fail."
+5. Frame it as: "The function below works correctly. Your job: write assertions so precise that changing ANY single line of this function would break at least one of your tests."
+6. Test cases are MUTATION TESTS — each test case provides a BROKEN version of the function. The student's assertions should CATCH each mutation.
+
+STUDENT-FACING FRAMING RULES:
+- The "task" field MUST mention that tests are graded by whether they catch mutations/subtle bugs, NOT just pass count.
+- The "hints" MUST be mutation-aware: guide the learner to test EXACT boundary values (e.g., "if minimum length is 6, test both 5 AND 6"), test each validation rule INDEPENDENTLY, and avoid assertions that cover multiple rules at once.
+- The "insight" MUST explain mutation testing explicitly — tell the learner that the strongest tests are ones where changing a single line breaks at least one assertion. Mention that mutation testing is used professionally (Google, fintech, etc.).
+- Do NOT use vague hints like "test edge cases" or "think about unusual inputs". Every hint must reference a specific mutation the learner's assert should catch.
+
+CRITICAL: The starter code MUST contain the FULL working implementation. Only the test function should have pass/TODO.
+CRITICAL: The function under test must NOT be the learner's target — the test function IS the target.`
+
       case 'standard':
       default:
         return `MODE: STANDARD — Write from Scratch

@@ -129,8 +129,9 @@ export interface TerminalConfig {
  * - supervision: AI-generated bad/flawed code pre-written, learner reads & fixes
  * - debug:       Code with a specific bug injected, learner finds & fixes
  * - security:    Code with a vulnerability, learner identifies & hardens
+ * - testing:     Learner writes test assertions for a pre-implemented function
  */
-export type CapsuleMode = 'standard' | 'supervision' | 'debug' | 'security' | 'data-analysis'
+export type CapsuleMode = 'standard' | 'supervision' | 'debug' | 'security' | 'data-analysis' | 'testing'
 
 export interface GenerationContext {
   type: "CODE" | "DATABASE" | "TERMINAL"

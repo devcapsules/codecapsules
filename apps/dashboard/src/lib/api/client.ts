@@ -12,7 +12,7 @@
 // Types
 // ============================================================================
 
-export type SupportedLanguage = 'python' | 'javascript' | 'java' | 'cpp' | 'c' | 'sql'
+export type SupportedLanguage = 'python' | 'javascript' | 'java' | 'cpp' | 'c' | 'csharp' | 'go' | 'sql'
 export type Difficulty = 'easy' | 'medium' | 'hard'
 export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed'
 export type ExecutionRuntime = 'edge' | 'lambda'

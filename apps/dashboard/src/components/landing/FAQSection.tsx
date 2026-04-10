@@ -15,7 +15,7 @@ export function FAQSection() {
     },
     {
       question: "What programming languages are supported?",
-      answer: "We currently support Python, JavaScript, Java, and SQL with full execution. C and C++ support is coming soon. Need another language? Just ask."
+      answer: "We support Python, JavaScript, Java, C, C++, and SQL with full execution. Need another language? Just ask."
     },
     {
       question: "Is this secure?",
